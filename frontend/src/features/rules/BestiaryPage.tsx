@@ -21,13 +21,37 @@ export function BestiaryPage() {
   const { campaign } = useActiveCampaign()
   const campaignId = campaign?.id ?? null
   const systemId = campaign?.rule_system_id ?? null
-  const is5e = systemId === 'dnd5e'
-  const { data: facets } = useFacetManifest(systemId)
-  const { data: monsterLayout } = useSheetLayout(systemId, 'monster')
+
+  // The kinds on offer are the kinds present, not a hardcoded list of 5e creature types.
+  const { data: allMonsters } = useMonsters(campaignId)
+  const kinds = useMemo(
+    () =>
+      [...new Set((allMonsters ?? []).map((m) => m.facets.facet1_text).filter(Boolean))]
+        .sort() as string[],
+    [allMonsters],
+  )
+
+  // Facet labels and filters follow the *monsters present*, not the campaign's system: an
+  // imported single-system pack (e.g. a Nimble bestiary in a 5e campaign) should be filtered
+  // by "Level", not "CR". Only fall back to the campaign system when the list is empty or
+  // genuinely mixes systems, where no single manifest is correct.
+  const listSystemId = useMemo(() => {
+    const systems = new Set((allMonsters ?? []).map((m) => m.rule_system_id))
+    return systems.size === 1 ? [...systems][0] : systemId
+  }, [allMonsters, systemId])
+  const { data: facets } = useFacetManifest(listSystemId)
 
   const facetLabel = (key: string, fallback: string) =>
     facets?.find((f) => f.key === key)?.label ?? fallback
   const hasFacet = (key: string) => !!facets?.some((f) => f.key === key)
+
+  // The detail pane renders each monster by its *own* rule system, not the campaign's — a
+  // bestiary can hold monsters from another system (e.g. an imported Nimble pack in a 5e
+  // campaign), and the 5e stat block would show blank fields for a non-5e doc.
+  const [selected, setSelected] = useState<Monster | null>(null)
+  const detailSystemId = selected?.rule_system_id ?? systemId
+  const detailIs5e = detailSystemId === 'dnd5e'
+  const { data: monsterLayout } = useSheetLayout(detailSystemId, 'monster')
 
   const [q, setQ] = useState('')
   const [crMin, setCrMin] = useState<string>('')
@@ -40,17 +64,8 @@ export function BestiaryPage() {
     ...(crMax ? { facet1_num_lte: Number(crMax) } : {}),
     ...(type ? { facet1_text: type } : {}),
   })
-  // The kinds on offer are the kinds present, not a hardcoded list of 5e creature types.
-  const { data: allMonsters } = useMonsters(campaignId)
-  const kinds = useMemo(
-    () =>
-      [...new Set((allMonsters ?? []).map((m) => m.facets.facet1_text).filter(Boolean))]
-        .sort() as string[],
-    [allMonsters],
-  )
 
   const makeVariant = useMakeVariant(campaignId ?? '')
-  const [selected, setSelected] = useState<Monster | null>(null)
   const qc = useQueryClient()
   const [ioMsg, setIoMsg] = useState<string | null>(null)
 
@@ -126,7 +141,7 @@ export function BestiaryPage() {
           <div>
             {/* A bespoke renderer where one exists; otherwise the plugin's own layout —
                 never a raw JSON dump (docs/08 §10.5). */}
-            {is5e ? (
+            {detailIs5e ? (
               <StatBlock5e monster={selected} />
             ) : monsterLayout ? (
               <div className="card">
