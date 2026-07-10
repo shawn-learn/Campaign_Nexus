@@ -1,0 +1,110 @@
+// Generic, system-agnostic sheet form driven by a plugin's LayoutSpec (docs/08, §10.5).
+// Any rule system gets a working editor with zero frontend work; bespoke per-system
+// components (e.g. the 5e stat block in Sprint 10) can override this later.
+
+export interface LayoutField {
+  key: string
+  label: string
+  role: string
+  /** For `ability-array`: the sub-keys to render. 5e names six; Nimble names four. */
+  keys?: string[]
+}
+export interface LayoutSection {
+  title: string
+  fields: LayoutField[]
+}
+export interface LayoutSpec {
+  sections: LayoutSection[]
+}
+
+type Doc = Record<string, unknown>
+
+interface Props {
+  layout: LayoutSpec
+  doc: Doc
+  onChange: (doc: Doc) => void
+}
+
+export function GenericSheetRenderer({ layout, doc, onChange }: Props) {
+  const set = (key: string, value: unknown) => onChange({ ...doc, [key]: value })
+
+  return (
+    <div className="sheet">
+      {layout.sections.map((section) => (
+        <section key={section.title} className="sheet-section">
+          <h4>{section.title}</h4>
+          {section.fields.map((field) => (
+            <Field key={field.key} field={field} doc={doc} set={set} />
+          ))}
+        </section>
+      ))}
+    </div>
+  )
+}
+
+function Field({ field, doc, set }: { field: LayoutField; doc: Doc; set: (k: string, v: unknown) => void }) {
+  const value = doc[field.key]
+
+  if (field.role === 'paragraph') {
+    return (
+      <label className="field">
+        <span className="muted">{field.label}</span>
+        <textarea rows={3} value={(value as string) ?? ''} onChange={(e) => set(field.key, e.target.value)} />
+      </label>
+    )
+  }
+  if (field.role === 'number') {
+    return (
+      <label className="field">
+        <span className="muted">{field.label}</span>
+        <input
+          type="number"
+          value={value === undefined || value === null ? '' : (value as number)}
+          onChange={(e) => set(field.key, e.target.value === '' ? undefined : Number(e.target.value))}
+        />
+      </label>
+    )
+  }
+  if (field.role === 'boolean') {
+    return (
+      <label className="row muted" style={{ gap: 6 }}>
+        <input type="checkbox" checked={Boolean(value)} onChange={(e) => set(field.key, e.target.checked)} />
+        {field.label}
+      </label>
+    )
+  }
+  if (field.role === 'ability-array') {
+    const abilities = (value as Record<string, number>) ?? {}
+    // The plugin names its own attributes; fall back to whatever the doc already carries.
+    const keys = field.keys ?? Object.keys(abilities)
+    return (
+      <div className="field">
+        <span className="muted">{field.label}</span>
+        <div className="ability-grid">
+          {keys.map((ab) => (
+            <label key={ab} className="ability">
+              <span className="ability-name">{ab.toUpperCase()}</span>
+              <input
+                type="number"
+                value={abilities[ab] ?? ''}
+                onChange={(e) =>
+                  set(field.key, {
+                    ...abilities,
+                    [ab]: e.target.value === '' ? undefined : Number(e.target.value),
+                  })
+                }
+              />
+            </label>
+          ))}
+        </div>
+      </div>
+    )
+  }
+  // default: text
+  return (
+    <label className="field">
+      <span className="muted">{field.label}</span>
+      <input value={(value as string) ?? ''} onChange={(e) => set(field.key, e.target.value)} />
+    </label>
+  )
+}

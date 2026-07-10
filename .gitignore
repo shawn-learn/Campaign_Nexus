@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Local database + WAL sidecars (never commit campaign data)
+*.db
+*.db-wal
+*.db-shm
+
+# Uploaded media (map images, handouts) — user content, not source
+backend/media/
+
+# Automatic DB + media snapshots — local runtime data, not source
+backend/backups/
+
+# Node / frontend
+node_modules/
+frontend/dist/
+
+# Claude Code local settings (per-machine)
+.claude/settings.local.json
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.log

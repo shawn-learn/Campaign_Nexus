@@ -1,0 +1,293 @@
+[
+  {
+    "name": "order_by_initiative",
+    "actions": [
+      {
+        "type": "add_combatant",
+        "id": "a",
+        "name": "Ogre",
+        "side": "foe",
+        "max_hp": 59,
+        "initiative": 8
+      },
+      {
+        "type": "add_combatant",
+        "id": "b",
+        "name": "Serah",
+        "side": "ally",
+        "max_hp": 30,
+        "initiative": 17
+      },
+      {
+        "type": "add_combatant",
+        "id": "c",
+        "name": "Goblin",
+        "side": "foe",
+        "max_hp": 7,
+        "initiative": 17
+      }
+    ],
+    "expected": {
+      "round": 1,
+      "turn_index": 0,
+      "order": [
+        "b",
+        "c",
+        "a"
+      ],
+      "combatants": {
+        "a": {
+          "id": "a",
+          "name": "Ogre",
+          "side": "foe",
+          "max_hp": 59,
+          "hp": 59,
+          "temp_hp": 0,
+          "initiative": 8,
+          "conditions": [],
+          "concentrating": false,
+          "defeated": false
+        },
+        "b": {
+          "id": "b",
+          "name": "Serah",
+          "side": "ally",
+          "max_hp": 30,
+          "hp": 30,
+          "temp_hp": 0,
+          "initiative": 17,
+          "conditions": [],
+          "concentrating": false,
+          "defeated": false
+        },
+        "c": {
+          "id": "c",
+          "name": "Goblin",
+          "side": "foe",
+          "max_hp": 7,
+          "hp": 7,
+          "temp_hp": 0,
+          "initiative": 17,
+          "conditions": [],
+          "concentrating": false,
+          "defeated": false
+        }
+      }
+    }
+  },
+  {
+    "name": "temp_hp_absorb_and_defeat",
+    "actions": [
+      {
+        "type": "add_combatant",
+        "id": "a",
+        "name": "Goblin",
+        "side": "foe",
+        "max_hp": 7,
+        "initiative": 10
+      },
+      {
+        "type": "set_temp_hp",
+        "id": "a",
+        "amount": 3
+      },
+      {
+        "type": "damage",
+        "id": "a",
+        "amount": 5
+      },
+      {
+        "type": "damage",
+        "id": "a",
+        "amount": 10
+      }
+    ],
+    "expected": {
+      "round": 1,
+      "turn_index": 0,
+      "order": [
+        "a"
+      ],
+      "combatants": {
+        "a": {
+          "id": "a",
+          "name": "Goblin",
+          "side": "foe",
+          "max_hp": 7,
+          "hp": 0,
+          "temp_hp": 0,
+          "initiative": 10,
+          "conditions": [],
+          "concentrating": false,
+          "defeated": true
+        }
+      }
+    }
+  },
+  {
+    "name": "heal_revives",
+    "actions": [
+      {
+        "type": "add_combatant",
+        "id": "a",
+        "name": "Serah",
+        "side": "ally",
+        "max_hp": 30,
+        "initiative": 10
+      },
+      {
+        "type": "damage",
+        "id": "a",
+        "amount": 40
+      },
+      {
+        "type": "heal",
+        "id": "a",
+        "amount": 12
+      }
+    ],
+    "expected": {
+      "round": 1,
+      "turn_index": 0,
+      "order": [
+        "a"
+      ],
+      "combatants": {
+        "a": {
+          "id": "a",
+          "name": "Serah",
+          "side": "ally",
+          "max_hp": 30,
+          "hp": 12,
+          "temp_hp": 0,
+          "initiative": 10,
+          "conditions": [],
+          "concentrating": false,
+          "defeated": false
+        }
+      }
+    }
+  },
+  {
+    "name": "conditions",
+    "actions": [
+      {
+        "type": "add_combatant",
+        "id": "a",
+        "name": "X",
+        "side": "foe",
+        "max_hp": 10,
+        "initiative": 10
+      },
+      {
+        "type": "add_condition",
+        "id": "a",
+        "condition": "prone"
+      },
+      {
+        "type": "add_condition",
+        "id": "a",
+        "condition": "poisoned"
+      },
+      {
+        "type": "add_condition",
+        "id": "a",
+        "condition": "prone"
+      },
+      {
+        "type": "remove_condition",
+        "id": "a",
+        "condition": "prone"
+      },
+      {
+        "type": "set_concentration",
+        "id": "a",
+        "on": true
+      }
+    ],
+    "expected": {
+      "round": 1,
+      "turn_index": 0,
+      "order": [
+        "a"
+      ],
+      "combatants": {
+        "a": {
+          "id": "a",
+          "name": "X",
+          "side": "foe",
+          "max_hp": 10,
+          "hp": 10,
+          "temp_hp": 0,
+          "initiative": 10,
+          "conditions": [
+            "poisoned"
+          ],
+          "concentrating": true,
+          "defeated": false
+        }
+      }
+    }
+  },
+  {
+    "name": "turns_and_rounds",
+    "actions": [
+      {
+        "type": "add_combatant",
+        "id": "a",
+        "name": "A",
+        "side": "foe",
+        "max_hp": 10,
+        "initiative": 20
+      },
+      {
+        "type": "add_combatant",
+        "id": "b",
+        "name": "B",
+        "side": "ally",
+        "max_hp": 10,
+        "initiative": 10
+      },
+      {
+        "type": "next_turn"
+      },
+      {
+        "type": "next_turn"
+      }
+    ],
+    "expected": {
+      "round": 2,
+      "turn_index": 0,
+      "order": [
+        "a",
+        "b"
+      ],
+      "combatants": {
+        "a": {
+          "id": "a",
+          "name": "A",
+          "side": "foe",
+          "max_hp": 10,
+          "hp": 10,
+          "temp_hp": 0,
+          "initiative": 20,
+          "conditions": [],
+          "concentrating": false,
+          "defeated": false
+        },
+        "b": {
+          "id": "b",
+          "name": "B",
+          "side": "ally",
+          "max_hp": 10,
+          "hp": 10,
+          "temp_hp": 0,
+          "initiative": 10,
+          "conditions": [],
+          "concentrating": false,
+          "defeated": false
+        }
+      }
+    }
+  }
+]

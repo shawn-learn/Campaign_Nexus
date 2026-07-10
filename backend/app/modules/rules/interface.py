@@ -1,0 +1,161 @@
+"""The ``RuleSystem`` plugin interface (docs/08, §10.2).
+
+Sprint 9 ships the document-facing subset needed to author character sheets through the
+generic renderer: schema, validate, derive, layout. Play-mechanics methods (conditions,
+rests, travel, initiative, difficulty, facets, content packs) are added in later sprints.
+
+Plugins are pure functions over documents — no database or event-log access — which keeps
+them trivially testable and prevents any game system from leaking into the core.
+"""
+
+from __future__ import annotations
+
+from typing import Any, ClassVar, Protocol, runtime_checkable
+
+JsonSchema = dict[str, Any]
+Document = dict[str, Any]
+LayoutSpec = dict[str, Any]  # {"sections": [{"title", "fields": [{"key","label","role"}]}]}
+ConditionDef = dict[str, Any]  # {"id","name","description"}
+FacetDef = dict[str, Any]  # {"key": "facet1_num"|..., "label", "type": "number"|"text"}
+FacetValues = dict[str, Any]  # {"facet1_num","facet2_num","facet1_text","facet2_text"}
+ContentPack = dict[str, Any]  # {"id","version","attribution","monsters": [{"name","doc"}]}
+# {"supported", "distance_unit", "paces": {pace: {conveyance: distance_per_day}},
+#  "terrain": {terrain: multiplier}, "forced_march_after_seconds": int|None}
+TravelPaceTable = dict[str, Any]
+# {"max_hp": int, "hp": int, "initiative": int} — everything the combat tracker needs to
+# seed a combatant. The playbook reads *this*, never the stat-block document (docs/04 §6.8).
+CombatProfile = dict[str, Any]
+
+# Display roles the generic renderer understands.
+FIELD_ROLES = ("text", "paragraph", "number", "boolean", "ability-array", "dice", "trait-list")
+
+# The four generic facet columns on the monster table (docs/08, §10.4).
+FACET_KEYS = ("facet1_num", "facet2_num", "facet1_text", "facet2_text")
+
+
+@runtime_checkable
+class RuleSystem(Protocol):
+    id: str
+    name: str
+    version: str
+
+    def sheet_types(self) -> list[str]: ...
+    def sheet_schema(self, sheet_type: str) -> JsonSchema: ...
+    def validate(self, sheet_type: str, doc: Document) -> list[str]: ...
+    def derive(self, sheet_type: str, doc: Document) -> dict[str, Any]: ...
+    def render_layout(self, sheet_type: str) -> LayoutSpec: ...
+
+    # -- play data (optional; Base returns empties) ------------------------
+    def conditions(self) -> list[ConditionDef]: ...
+    def facet_manifest(self) -> list[FacetDef]: ...
+    def monster_facets(self, doc: Document) -> FacetValues: ...
+    def content_packs(self) -> list[ContentPack]: ...
+
+    # -- live play state (docs/04, §6.8: no other context reads inside a doc) -
+    def initial_status(
+        self, sheet_type: str, doc: Document, hit_points: int | None = None
+    ) -> Document: ...
+    def combat_profile(
+        self, sheet_type: str, doc: Document, status: Document | None = None
+    ) -> CombatProfile: ...
+
+    # -- rests (docs/08, §10.2) --------------------------------------------
+    def rest_types(self) -> list[str]: ...
+    def rest_duration_seconds(self, rest_type: str) -> int: ...
+    def apply_rest(self, rest_type: str, status: Document, doc: Document) -> Document: ...
+    #: The rest a multi-day journey stops for overnight; ``None`` = the system has no such rest.
+    def overnight_rest_type(self) -> str | None: ...
+
+    # -- travel (docs/07, §9.5) --------------------------------------------
+    def travel_pace_table(self) -> TravelPaceTable: ...
+
+    # -- encounters --------------------------------------------------------
+    def round_length_seconds(self) -> int: ...
+    def encounter_difficulty(
+        self, party: list[Document], foes: list[tuple[Document, int]]
+    ) -> dict[str, Any]: ...
+
+
+class UnknownSheetType(ValueError):
+    pass
+
+
+class BaseRuleSystem:
+    """Convenience base: JSON-Schema validation from ``_schemas``; subclasses add derive/layout.
+
+    Uses jsonschema Draft 2020-12. ``derive`` defaults to no computed values; ``render_layout``
+    must be provided by the subclass.
+    """
+
+    id: str = ""
+    name: str = ""
+    version: str = "0.0.0"
+    _schemas: ClassVar[dict[str, JsonSchema]] = {}
+
+    def sheet_types(self) -> list[str]:
+        return list(self._schemas)
+
+    def sheet_schema(self, sheet_type: str) -> JsonSchema:
+        if sheet_type not in self._schemas:
+            raise UnknownSheetType(sheet_type)
+        return self._schemas[sheet_type]
+
+    def validate(self, sheet_type: str, doc: Document) -> list[str]:
+        # Imported lazily so the dependency stays inside the rules module.
+        from jsonschema import Draft202012Validator
+
+        validator = Draft202012Validator(self.sheet_schema(sheet_type))
+        errors = sorted(validator.iter_errors(doc), key=lambda e: list(e.path))
+        return [f"{'/'.join(str(p) for p in e.path) or '(root)'}: {e.message}" for e in errors]
+
+    def derive(self, sheet_type: str, doc: Document) -> dict[str, Any]:
+        return {}
+
+    def render_layout(self, sheet_type: str) -> LayoutSpec:  # pragma: no cover - overridden
+        raise NotImplementedError
+
+    def conditions(self) -> list[ConditionDef]:
+        return []
+
+    def facet_manifest(self) -> list[FacetDef]:
+        return []
+
+    def monster_facets(self, doc: Document) -> FacetValues:
+        return {}
+
+    def content_packs(self) -> list[ContentPack]:
+        return []
+
+    def initial_status(
+        self, sheet_type: str, doc: Document, hit_points: int | None = None
+    ) -> Document:
+        return {}
+
+    def combat_profile(
+        self, sheet_type: str, doc: Document, status: Document | None = None
+    ) -> CombatProfile:
+        # A system that ships no combat model still yields a well-formed combatant.
+        return {"max_hp": 0, "hp": 0, "initiative": 0}
+
+    def rest_types(self) -> list[str]:
+        return []
+
+    def rest_duration_seconds(self, rest_type: str) -> int:
+        return 0
+
+    def apply_rest(self, rest_type: str, status: Document, doc: Document) -> Document:
+        return status
+
+    def overnight_rest_type(self) -> str | None:
+        return None
+
+    def travel_pace_table(self) -> TravelPaceTable:
+        return {"supported": False}
+
+    def round_length_seconds(self) -> int:
+        return 6  # a 6-second round, the common default
+
+    def encounter_difficulty(
+        self, party: list[Document], foes: list[tuple[Document, int]]
+    ) -> dict[str, Any]:
+        return {"supported": False}
