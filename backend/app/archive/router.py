@@ -40,6 +40,6 @@ def import_campaign(
         # above. Turn them into a clean 422 instead of a 500. (ValueError covers
         # BadArchive, BadImage, json.JSONDecodeError, and binascii.Error.)
         raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_ENTITY, f"invalid campaign archive: {exc}"
+            status.HTTP_422_UNPROCESSABLE_CONTENT, f"invalid campaign archive: {exc}"
         ) from exc
     return CampaignOut.model_validate(campaign)

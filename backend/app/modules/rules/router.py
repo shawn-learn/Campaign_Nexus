@@ -122,7 +122,7 @@ def create_block(
         )
     except service.ValidationFailed as exc:
         raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_ENTITY, detail={"errors": exc.errors}
+            status.HTTP_422_UNPROCESSABLE_CONTENT, detail={"errors": exc.errors}
         ) from exc
     return StatBlockOut.model_validate(row)
 
@@ -156,7 +156,7 @@ def update_block(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "stat block not found") from exc
     except service.ValidationFailed as exc:
         raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_ENTITY, detail={"errors": exc.errors}
+            status.HTTP_422_UNPROCESSABLE_CONTENT, detail={"errors": exc.errors}
         ) from exc
     return StatBlockOut.model_validate(row)
 

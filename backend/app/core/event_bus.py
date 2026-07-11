@@ -8,8 +8,11 @@ state. Anything correctness-critical belongs in the command handler's transactio
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
 
 Subscriber = Callable[["EventRecord"], None]
 
@@ -39,9 +42,19 @@ class EventBus:
         self._subscribers.append(subscriber)
 
     def publish(self, events: list[EventRecord]) -> None:
+        # Subscribers run *after commit*, so a raising one must not propagate: the write
+        # is already durable, and a reactive convenience (dashboard cache, story
+        # suggestions) failing should never surface as a 500 on the command. Isolate and
+        # log each so one bad subscriber can't stop the others.
         for event in events:
             for subscriber in self._subscribers:
-                subscriber(event)
+                try:
+                    subscriber(event)
+                except Exception:
+                    logger.exception(
+                        "event-bus subscriber failed for %s (seq=%s)",
+                        event.event_type, event.seq,
+                    )
 
 
 # Process-wide singleton.

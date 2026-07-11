@@ -23,6 +23,11 @@ export interface CombatState {
 
 export type Action = { type: string } & Record<string, unknown>
 
+// Match Python's int(): coerce to a number, then truncate toward zero. HP/initiative are
+// integers, and the reference reducer applies int() to every numeric field — so the twin
+// must truncate identically or the two folds diverge on a fractional amount (ADR-005).
+const toInt = (x: unknown): number => Math.trunc(Number(x))
+
 export function initialState(): CombatState {
   return { round: 1, turn_index: 0, order: [], combatants: {} }
 }
@@ -43,20 +48,20 @@ export function applyAction(state: CombatState, action: Action): CombatState {
   const id = action.id as string
 
   if (kind === 'add_combatant') {
-    const maxHp = Number(action.max_hp)
-    const hp = action.hp === undefined ? maxHp : Number(action.hp)
+    const maxHp = toInt(action.max_hp)
+    const hp = action.hp === undefined ? maxHp : toInt(action.hp)
     c[id] = {
       id, name: String(action.name), side: (action.side as string) ?? 'foe',
-      max_hp: maxHp, hp, temp_hp: 0, initiative: Number(action.initiative ?? 0),
+      max_hp: maxHp, hp, temp_hp: 0, initiative: toInt(action.initiative ?? 0),
       conditions: [], concentrating: false, defeated: hp <= 0,
     }
     reorder(state)
   } else if (kind === 'set_initiative') {
-    if (c[id]) { c[id].initiative = Number(action.value); reorder(state) }
+    if (c[id]) { c[id].initiative = toInt(action.value); reorder(state) }
   } else if (kind === 'damage') {
     const m = c[id]
     if (m) {
-      let amount = Number(action.amount)
+      let amount = toInt(action.amount)
       const absorbed = Math.min(m.temp_hp, amount)
       m.temp_hp -= absorbed
       amount -= absorbed
@@ -67,11 +72,11 @@ export function applyAction(state: CombatState, action: Action): CombatState {
   } else if (kind === 'heal') {
     const m = c[id]
     if (m) {
-      m.hp = Math.min(m.max_hp, m.hp + Number(action.amount))
+      m.hp = Math.min(m.max_hp, m.hp + toInt(action.amount))
       if (m.hp > 0) m.defeated = false
     }
   } else if (kind === 'set_temp_hp') {
-    if (c[id]) c[id].temp_hp = Math.max(0, Number(action.amount))
+    if (c[id]) c[id].temp_hp = Math.max(0, toInt(action.amount))
   } else if (kind === 'add_condition') {
     const m = c[id]
     const cond = String(action.condition)
