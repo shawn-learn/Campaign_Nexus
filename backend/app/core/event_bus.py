@@ -2,8 +2,15 @@
 
 Subscribers receive domain events *after commit*, so they never observe uncommitted
 state. Anything correctness-critical belongs in the command handler's transaction
-(synchronous projections), not here — bus subscribers are reactive conveniences
-(dashboard cache invalidation, story-suggestion evaluation).
+(synchronous projections), not here.
+
+This is a deliberate extension seam, not dead code: there are **no subscribers today**
+because the reads that would consume events — the live dashboard and story suggestions —
+are computed on demand in a single query, so there is nothing to invalidate or push yet.
+The bus exists so a later reactive consumer (an SSE/websocket push to the live dashboard,
+a cache layer, background indexing) can attach without touching the write path. Because a
+subscriber runs post-commit, it must stay a reactive *convenience* — never the place a
+fact is first made durable.
 """
 
 from __future__ import annotations

@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     # Comma-free list is fine for the single-origin dev frontend.
     cors_origins: tuple[str, ...] = ("http://localhost:5200",)
 
+    # Upper bound on a single request body (docs/13 §7.9). Campaign import embeds media as
+    # base64 in one JSON body, so an oversized archive would otherwise be parsed wholly into
+    # memory; map uploads land here too. Generous by default — a ceiling, not a quota.
+    max_request_bytes: int = 256 * 1024 * 1024  # 256 MiB
+
 
 @lru_cache
 def get_settings() -> Settings:
