@@ -69,9 +69,10 @@ Workflow when you change an endpoint:
 - **One write path** — every mutation goes through `command_tx` and emits a domain event
   (ADR-004). Direct table writes outside a command handler are a review failure.
 
-## Sprint 1 status
+## Status
 
-Walking skeleton complete: command pipeline + domain event log, entity registry with an
-atomic `POST /entities`, Alembic migrations, the React shell with a generated typed
-client, and green CI gates. Exit criteria verified in `backend/tests/` and by the
-end-to-end UI check (create an entity → event committed atomically).
+Implemented through the Sprint 19 roadmap (see [docs/12-roadmap.md](docs/12-roadmap.md)).
+The command pipeline + domain event log, entity registry and knowledge graph, campaign time
+engine, D&D 5e and Nimble rules plugins, encounter builder, combat tracker, live dashboard,
+maps, quest graph, NPC dynamics, and data lifecycle (export/import + backups) are all in
+place. Per-sprint exit criteria are verified in `backend/tests/` (`test_sprint*.py`).

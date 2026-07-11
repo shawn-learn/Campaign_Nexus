@@ -12,8 +12,13 @@ more organized, and more consistent.
 
 ## Status
 
-Design phase. No implementation code yet. This repository currently contains the complete
-software development plan.
+Under active development. The backend (FastAPI) and frontend (React + TypeScript) are both
+implemented through the Sprint 19 roadmap: the MVP surface (wiki, knowledge graph, time
+engine, encounters, combat tracker, live dashboard — Sprint 14) plus maps, quest graph, NPC
+dynamics, a second rules system (Nimble), and data lifecycle (export/import, backups).
+
+See [DEVELOPMENT.md](DEVELOPMENT.md) to run it locally, and the [roadmap](docs/12-roadmap.md)
+for what each sprint delivers. The `docs/` set below is the design of record.
 
 ## Document Index
 
