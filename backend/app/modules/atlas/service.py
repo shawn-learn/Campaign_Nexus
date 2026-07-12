@@ -19,8 +19,9 @@ from app.core.clock import now_real_iso
 from app.core.config import get_settings
 from app.core.ids import new_id
 from app.modules.atlas import imagesize
-from app.modules.atlas.models import Map, MapMarker, MapRegion, Media
+from app.modules.atlas.models import EntityMedia, Map, MapMarker, MapRegion, Media
 from app.modules.atlas.schemas import (
+    AttachmentOut,
     MapDetail,
     MapSummary,
     MarkerCreate,
@@ -248,6 +249,90 @@ def delete_map(session: Session, campaign_id: str, map_id: str) -> None:
     session.delete(m)
     if entity is not None:
         session.delete(entity)  # a map entity has no article/history worth soft-deleting
+    session.commit()
+
+
+# --------------------------------------------------------------------------- #
+# Entity image attachments (gallery)
+# --------------------------------------------------------------------------- #
+class EntityNotFound(AtlasError):
+    pass
+
+
+class AttachmentNotFound(AtlasError):
+    pass
+
+
+def _attachment_out(session: Session, att: EntityMedia) -> AttachmentOut:
+    media = session.get(Media, att.media_id)
+    return AttachmentOut(
+        id=att.id, entity_id=att.entity_id, media_id=att.media_id,
+        filename=media.filename if media else "", mime=media.mime if media else "",
+        caption=att.caption, sort_order=att.sort_order,
+    )
+
+
+def _require_entity(session: Session, campaign_id: str, entity_id: str) -> Entity:
+    entity = session.get(Entity, entity_id)
+    if entity is None or entity.campaign_id != campaign_id:
+        raise EntityNotFound("entity not found")
+    return entity
+
+
+def list_attachments(session: Session, campaign_id: str, entity_id: str) -> list[AttachmentOut]:
+    rows = session.scalars(
+        select(EntityMedia)
+        .where(EntityMedia.campaign_id == campaign_id, EntityMedia.entity_id == entity_id)
+        .order_by(EntityMedia.sort_order, EntityMedia.created_at_real)
+    )
+    return [_attachment_out(session, r) for r in rows]
+
+
+def attach_media(
+    session: Session,
+    campaign: Campaign,
+    entity_id: str,
+    *,
+    data: bytes,
+    filename: str,
+    caption: str | None,
+) -> AttachmentOut:
+    _require_entity(session, campaign.id, entity_id)
+    media = store_media_bytes(session, campaign.id, data, filename=filename, kind="image")
+    next_order = (
+        session.execute(
+            select(func.coalesce(func.max(EntityMedia.sort_order), -1) + 1).where(
+                EntityMedia.entity_id == entity_id
+            )
+        ).scalar_one()
+    )
+    att = EntityMedia(
+        id=new_id(), campaign_id=campaign.id, entity_id=entity_id, media_id=media.id,
+        caption=caption or None, sort_order=int(next_order), created_at_real=now_real_iso(),
+    )
+    session.add(att)
+    session.commit()
+    return _attachment_out(session, att)
+
+
+def _require_attachment(session: Session, campaign_id: str, entity_id: str, attachment_id: str) -> EntityMedia:
+    att = session.get(EntityMedia, attachment_id)
+    if att is None or att.campaign_id != campaign_id or att.entity_id != entity_id:
+        raise AttachmentNotFound("attachment not found")
+    return att
+
+
+def media_for_attachment(session: Session, campaign_id: str, entity_id: str, attachment_id: str) -> Media:
+    att = _require_attachment(session, campaign_id, entity_id, attachment_id)
+    media = session.get(Media, att.media_id)
+    if media is None:  # pragma: no cover - db drift
+        raise AttachmentNotFound("attachment media missing")
+    return media
+
+
+def delete_attachment(session: Session, campaign_id: str, entity_id: str, attachment_id: str) -> None:
+    att = _require_attachment(session, campaign_id, entity_id, attachment_id)
+    session.delete(att)  # leave the content-addressed file (shared, backup-covered)
     session.commit()
 
 

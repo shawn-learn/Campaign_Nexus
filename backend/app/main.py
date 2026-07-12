@@ -16,6 +16,7 @@ from app.backup.router import router as backup_router
 from app.core import migrations
 from app.core.config import get_settings
 from app.core.db import SessionLocal
+from app.modules.atlas.entity_media_router import router as entity_media_router
 from app.modules.atlas.router import router as atlas_router
 from app.modules.campaign import service as campaign_service
 from app.modules.campaign.router import router as campaign_router
@@ -121,6 +122,7 @@ def create_app() -> FastAPI:
     app.include_router(npcs_router)
     app.include_router(story_router)
     app.include_router(atlas_router)
+    app.include_router(entity_media_router)
     app.include_router(archive_router)
     app.include_router(backup_router)
     return app

@@ -29,3 +29,12 @@ frontend/dist/
 .idea/
 .vscode/
 *.log
+
+# D&D adventure content / assets — not source code
+Curse of Strahd/
+Curse of Strahd.md
+curse-of-strahd-master/
+cos/
+
+# TypeScript incremental build info — generated
+frontend/tsconfig.app.tsbuildinfo

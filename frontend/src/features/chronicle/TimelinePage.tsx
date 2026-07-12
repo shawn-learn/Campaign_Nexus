@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useCreateManualEntry, useSessions, useTimeline } from '../../api/hooks'
+import { useClearTimeline, useCreateManualEntry, useSessions, useTimeline } from '../../api/hooks'
 import { useActiveCampaign } from '../../shell/useActiveCampaign'
 import { useCalendar } from '../../lib/useCalendar'
 
@@ -22,8 +22,19 @@ export function TimelinePage() {
   })
 
   const create = useCreateManualEntry(campaignId ?? '')
+  const clear = useClearTimeline(campaignId ?? '')
   const [title, setTitle] = useState('')
   const [whenDay, setWhenDay] = useState(0)
+
+  const doClear = () => {
+    if (
+      window.confirm(
+        'Clear the entire timeline (including manual lore) and reset the clock to the campaign start? This cannot be undone.',
+      )
+    ) {
+      clear.mutate()
+    }
+  }
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -38,7 +49,12 @@ export function TimelinePage() {
 
   return (
     <>
-      <h2>Timeline</h2>
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+        <h2>Timeline</h2>
+        <button className="danger-btn" disabled={clear.isPending} onClick={doClear}>
+          Clear timeline & reset clock
+        </button>
+      </div>
 
       <div className="row filters" style={{ gap: 12, flexWrap: 'wrap' }}>
         <select value={sessionId} onChange={(e) => setSessionId(e.target.value)}>

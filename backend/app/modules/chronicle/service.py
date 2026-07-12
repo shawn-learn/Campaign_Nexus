@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import func, select, text
+from sqlalchemy import delete, func, select, text
 from sqlalchemy.orm import Session as DbSession
 
 from app.core.clock import now_real_iso
@@ -83,6 +83,23 @@ def create_manual_entry(
         db.add(TimelineEntity(timeline_id=entry.id, entity_id=entity_id))
     db.commit()
     return entry
+
+
+def clear_timeline(db: DbSession, campaign_id: str) -> None:
+    """Delete *all* timeline entries for the campaign — projected entries AND manual lore.
+
+    A full wipe (unlike ``projectors.reset_timeline``, which keeps lore for a replay). Does
+    not touch the immutable event log; a subsequent projection rebuild would repopulate the
+    projected entries.
+    """
+    ids = list(
+        db.scalars(select(TimelineEntry.id).where(TimelineEntry.campaign_id == campaign_id))
+    )
+    if not ids:
+        return
+    db.execute(delete(TimelineEntity).where(TimelineEntity.timeline_id.in_(ids)))
+    db.execute(delete(TimelineEntry).where(TimelineEntry.id.in_(ids)))
+    db.commit()
 
 
 def set_hidden(db: DbSession, campaign_id: str, entry_id: str, hidden: bool) -> TimelineEntry:

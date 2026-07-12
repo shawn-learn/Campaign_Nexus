@@ -308,6 +308,25 @@ export function useAdvanceTime(campaignId: string) {
   })
 }
 
+export function useSetClock(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: { time_game: number; set_as_start?: boolean; reason?: string }) =>
+      unwrap(
+        await api.POST('/api/v1/campaigns/{campaign_id}/clock/set', {
+          params: { path: { campaign_id: campaignId } },
+          body,
+        }),
+        'set clock',
+      ),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['clock', campaignId] })
+      void qc.invalidateQueries({ queryKey: ['events', campaignId] })
+      void qc.invalidateQueries({ queryKey: ['dashboard', campaignId] })
+    },
+  })
+}
+
 // --- scheduled events -------------------------------------------------------
 export function useScheduledEvents(campaignId: string | null, statusFilter?: string) {
   return useQuery({
@@ -752,6 +771,26 @@ export function useCreateManualEntry(campaignId: string) {
   })
 }
 
+// Wipes the whole timeline and resets the clock back to the campaign's start time.
+export function useClearTimeline(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async () =>
+      unwrap(
+        await api.POST('/api/v1/campaigns/{campaign_id}/timeline/clear', {
+          params: { path: { campaign_id: campaignId } },
+        }),
+        'clear timeline',
+      ),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['timeline', campaignId] })
+      void qc.invalidateQueries({ queryKey: ['clock', campaignId] })
+      void qc.invalidateQueries({ queryKey: ['events', campaignId] })
+      void qc.invalidateQueries({ queryKey: ['dashboard', campaignId] })
+    },
+  })
+}
+
 // --- sessions ---------------------------------------------------------------
 export function useSessions(campaignId: string | null) {
   return useQuery({
@@ -957,6 +996,63 @@ export function useDeleteMap(campaignId: string) {
       if (error) throw new Error('delete map')
     },
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['maps', campaignId] }),
+  })
+}
+
+// --- entity image attachments ----------------------------------------------
+export function useEntityMedia(campaignId: string | null, entityId: string | null) {
+  return useQuery({
+    enabled: !!campaignId && !!entityId,
+    queryKey: ['entity-media', campaignId, entityId],
+    queryFn: async () =>
+      unwrap(
+        await api.GET('/api/v1/campaigns/{campaign_id}/entities/{entity_id}/media', {
+          params: { path: { campaign_id: campaignId!, entity_id: entityId! } },
+        }),
+        'load entity images',
+      ),
+  })
+}
+
+// Multipart upload bypasses the JSON client (same pattern as useUploadMap).
+export function useUploadEntityMedia(campaignId: string, entityId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (vars: { file: File; caption?: string }) => {
+      const fd = new FormData()
+      fd.append('file', vars.file)
+      if (vars.caption) fd.append('caption', vars.caption)
+      const res = await fetch(
+        `/api/v1/campaigns/${campaignId}/entities/${entityId}/media`,
+        { method: 'POST', body: fd },
+      )
+      if (!res.ok) {
+        const detail = (await res.json().catch(() => ({})))?.detail
+        throw new Error(typeof detail === 'string' ? detail : 'upload image')
+      }
+      return (await res.json()) as import('./client').AttachmentOut
+    },
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: ['entity-media', campaignId, entityId] }),
+  })
+}
+
+export function useDeleteEntityMedia(campaignId: string, entityId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (attachmentId: string) => {
+      const { error } = await api.DELETE(
+        '/api/v1/campaigns/{campaign_id}/entities/{entity_id}/media/{attachment_id}',
+        {
+          params: {
+            path: { campaign_id: campaignId, entity_id: entityId, attachment_id: attachmentId },
+          },
+        },
+      )
+      if (error) throw new Error('delete image')
+    },
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: ['entity-media', campaignId, entityId] }),
   })
 }
 

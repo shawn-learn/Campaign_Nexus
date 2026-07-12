@@ -31,4 +31,12 @@ describe('CalendarMath TS ↔ Python parity', () => {
     expect(cal.format(0).label).toBe('January 1, 1 CE')
     expect(cal.format(0).time).toBe('00:00:00')
   })
+
+  it('fromParts is the inverse of toParts (round-trip)', () => {
+    const cal = new CalendarMath(golden.find((c) => c.seconds === 0)!.calendar)
+    for (const s of [0, 1, 59, 3600, 86400, 123456789, -1, -86401, 999999999, -500000]) {
+      const p = cal.toParts(s)
+      expect(cal.fromParts(p.year, p.month_index, p.day_of_month, p.hour, p.minute, p.second)).toBe(s)
+    }
+  })
 })

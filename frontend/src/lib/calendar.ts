@@ -166,6 +166,32 @@ export class CalendarMath {
     }
   }
 
+  // Inverse of toParts: absolute date components → seconds since the epoch.
+  // dayOfMonth is 0-based (like toParts). Years below startYear map to negative seconds.
+  fromParts(
+    year: number,
+    monthIndex: number,
+    dayOfMonth: number,
+    hour = 0,
+    minute = 0,
+    second = 0,
+  ): number {
+    let days = 0
+    if (year >= this.startYear) {
+      for (let y = this.startYear; y < year; y++) days += this.daysInYear(y)
+    } else {
+      for (let y = year; y < this.startYear; y++) days -= this.daysInYear(y)
+    }
+    for (let m = 0; m < monthIndex; m++) days += this.monthDays(m, year)
+    days += dayOfMonth
+    return (
+      days * this.secondsPerDay +
+      hour * this.secondsPerHour +
+      minute * this.secondsPerMinute +
+      second
+    )
+  }
+
   toSeconds(days = 0, hours = 0, minutes = 0, seconds = 0): number {
     return (
       days * this.secondsPerDay +

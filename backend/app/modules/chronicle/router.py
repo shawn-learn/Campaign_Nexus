@@ -10,7 +10,10 @@ from sqlalchemy.orm import Session as DbSession
 from app.core.db import get_session
 from app.core.domain_event import DomainEvent
 from app.modules.campaign.deps import CampaignContext, require_campaign_role
+from app.modules.campaign.models import Campaign
 from app.modules.chronicle import service
+from app.modules.time import service as time_service
+from app.modules.time.schemas import ClockOut
 from app.modules.chronicle.schemas import (
     ManualEntryCreate,
     NoteCreate,
@@ -99,6 +102,25 @@ def post_manual_entry(
         significance=body.significance, entity_ids=body.entity_ids,
     )
     return TimelineEntryOut.model_validate(entry)
+
+
+@router.post("/timeline/clear", response_model=ClockOut)
+def clear_timeline(
+    session: DbSession = Depends(get_session),
+    ctx: CampaignContext = Editor,
+) -> ClockOut:
+    """Wipe the whole timeline and reset the clock back to the campaign's start time."""
+    campaign = session.get(Campaign, ctx.campaign_id)
+    if campaign is None:  # pragma: no cover - scope guard already ran
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "campaign not found")
+    service.clear_timeline(session, ctx.campaign_id)
+    return time_service.set_clock(
+        session,
+        campaign,
+        time_game=campaign.campaign_start_game,
+        reason="timeline cleared",
+        set_as_start=False,
+    )
 
 
 @router.patch("/timeline/{entry_id}", response_model=TimelineEntryOut)

@@ -1,13 +1,17 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
+import { useRef } from 'react'
 import {
   fetchReferences,
   useDeleteEntity,
+  useDeleteEntityMedia,
   useEntity,
+  useEntityMedia,
   useRestoreEntity,
   useTagEntity,
   useUntagEntity,
   useUpdateEntity,
+  useUploadEntityMedia,
 } from '../../api/hooks'
 import type { ReferencesOut } from '../../api/client'
 import { useActiveCampaign } from '../../shell/useActiveCampaign'
@@ -156,6 +160,8 @@ export function EntityDetailPage() {
         </button>
       </div>
 
+      {campaignId && <EntityImages campaignId={campaignId} entityId={entityId} />}
+
       {campaignId && (
         <ArticleEditor
           campaignId={campaignId}
@@ -217,6 +223,67 @@ export function EntityDetailPage() {
         </form>
       </div>
     </>
+  )
+}
+
+// A gallery of images attached to the entity. Upload/delete are editor actions; the image
+// bytes come from the atlas media store via a per-attachment URL.
+function EntityImages({ campaignId, entityId }: { campaignId: string; entityId: string }) {
+  const { data: images } = useEntityMedia(campaignId, entityId)
+  const upload = useUploadEntityMedia(campaignId, entityId)
+  const del = useDeleteEntityMedia(campaignId, entityId)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  const onPick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) upload.mutate({ file })
+    if (fileRef.current) fileRef.current.value = ''
+  }
+
+  return (
+    <div className="card">
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+        <h3 style={{ margin: 0 }}>Images</h3>
+        <button
+          className="ghost"
+          disabled={upload.isPending}
+          onClick={() => fileRef.current?.click()}
+        >
+          {upload.isPending ? 'Uploading…' : 'Add image'}
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/png,image/jpeg,image/gif,image/webp"
+          style={{ display: 'none' }}
+          onChange={onPick}
+        />
+      </div>
+      {upload.isError && <p className="muted danger">{(upload.error as Error).message}</p>}
+      {(images ?? []).length === 0 ? (
+        <p className="muted">No images yet.</p>
+      ) : (
+        <div className="entity-gallery">
+          {images!.map((img) => (
+            <figure key={img.id} className="entity-gallery-item">
+              <img
+                src={`/api/v1/campaigns/${campaignId}/entities/${entityId}/media/${img.id}/image`}
+                alt={img.caption ?? img.filename}
+                loading="lazy"
+              />
+              <button
+                className="tag-x gallery-del"
+                aria-label="delete image"
+                onClick={() => del.mutate(img.id)}
+              >
+                ×
+              </button>
+              {img.caption && <figcaption className="muted">{img.caption}</figcaption>}
+            </figure>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 

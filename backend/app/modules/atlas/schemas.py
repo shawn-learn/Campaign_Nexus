@@ -109,3 +109,13 @@ class MapUpdate(BaseModel):
     map_kind: str | None = None
     location_id: str | None = None
     parent_map_id: str | None = None
+
+
+class AttachmentOut(BaseModel):
+    id: str
+    entity_id: str
+    media_id: str
+    filename: str
+    mime: str
+    caption: str | None
+    sort_order: int

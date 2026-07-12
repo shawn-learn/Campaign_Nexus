@@ -61,12 +61,10 @@ def test_roundtrip_and_monotonic_generic() -> None:
     for d in range(-800, 800):  # ~4 years each side, crossing leap boundaries
         seconds = d * day + 43525  # 12:05:25 within the day
         p = gen.to_parts(seconds)
-        # Reconstruct seconds from parts and assert identity.
-        rebuilt = (
-            _seconds_from_parts(gen, p["year"], p["month_index"], p["day_of_month"])
-            + p["hour"] * gen.seconds_per_hour
-            + p["minute"] * gen.seconds_per_minute
-            + p["second"]
+        # Reconstruct seconds from parts via the production inverse and assert identity.
+        rebuilt = gen.from_parts(
+            p["year"], p["month_index"], p["day_of_month"],
+            p["hour"], p["minute"], p["second"],
         )
         assert rebuilt == seconds, (seconds, p)
         # Date ordering is monotonic with the clock.
@@ -74,19 +72,3 @@ def test_roundtrip_and_monotonic_generic() -> None:
         if prev_key is not None:
             assert key > prev_key
         prev_key = key
-
-
-def _seconds_from_parts(cal: CalendarMath, year: int, month_index: int, day_of_month: int) -> int:
-    """Inverse of to_parts (date -> seconds at 00:00:00), for round-trip testing."""
-    day = cal.seconds_per_day
-    total = 0
-    if year >= cal.start_year:
-        for y in range(cal.start_year, year):
-            total += cal._days_in_year(y)
-    else:
-        for y in range(year, cal.start_year):
-            total -= cal._days_in_year(y)
-    for m in range(month_index):
-        total += cal._month_days(m, year)
-    total += day_of_month
-    return total * day

@@ -18,6 +18,7 @@ from app.modules.time.schemas import (
     RealtimeRequest,
     ScheduledEventCreate,
     ScheduledEventOut,
+    SetClockRequest,
 )
 
 router = APIRouter(prefix="/api/v1/campaigns/{campaign_id}", tags=["time"])
@@ -53,6 +54,21 @@ def set_realtime(
     ctx: CampaignContext = Editor,
 ) -> ClockOut:
     return service.set_realtime(session, _load(session, ctx.campaign_id), body.enabled)
+
+
+@router.post("/clock/set", response_model=ClockOut)
+def set_clock(
+    body: SetClockRequest,
+    session: Session = Depends(get_session),
+    ctx: CampaignContext = Editor,
+) -> ClockOut:
+    return service.set_clock(
+        session,
+        _load(session, ctx.campaign_id),
+        time_game=body.time_game,
+        reason=body.reason,
+        set_as_start=body.set_as_start,
+    )
 
 
 @router.post("/clock/advance", response_model=AdvanceReport)

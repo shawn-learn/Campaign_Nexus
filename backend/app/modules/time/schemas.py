@@ -35,6 +35,12 @@ class RealtimeRequest(BaseModel):
     enabled: bool
 
 
+class SetClockRequest(BaseModel):
+    time_game: int  # absolute seconds since the calendar epoch
+    set_as_start: bool = True  # also record this as the campaign's start time
+    reason: str = "clock set"
+
+
 class FiredEvent(BaseModel):
     #: NULL in a preview when the occurrence has not been compiled into the queue yet.
     scheduled_event_id: str | None

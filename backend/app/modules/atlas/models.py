@@ -23,6 +23,27 @@ class Media(Base):
     created_at_real: Mapped[str] = mapped_column(String, nullable=False)
 
 
+class EntityMedia(Base):
+    """An image attached to any wiki entity (npc portrait, item art, …). Many per entity.
+
+    Reuses the content-addressed ``media`` store; deleting a row leaves the file (orphan-
+    tolerant, like maps — the bytes are shared and backup-covered)."""
+
+    __tablename__ = "entity_media"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    campaign_id: Mapped[str] = mapped_column(
+        String, ForeignKey("campaign.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    entity_id: Mapped[str] = mapped_column(
+        String, ForeignKey("entity.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    media_id: Mapped[str] = mapped_column(String, ForeignKey("media.id"), nullable=False)
+    caption: Mapped[str | None] = mapped_column(String, nullable=True)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at_real: Mapped[str] = mapped_column(String, nullable=False)
+
+
 class Map(Base):
     """Image-backed extension of a 'map' entity. Leaflet renders the image with CRS.Simple,
     so pixel coordinates *are* the coordinate system (no tiling required for MVP sizes)."""

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { previewAdvance, useAdvanceTime, useClock, useSetRealtime } from '../api/hooks'
+import { previewAdvance, useAdvanceTime, useClock, useSetClock, useSetRealtime } from '../api/hooks'
 import { CalendarMath } from '../lib/calendar'
 import type { CalendarDef } from '../lib/calendar'
 import { useActiveCampaign } from './useActiveCampaign'
@@ -19,6 +19,7 @@ export function ClockWidget() {
   const { data: clock, dataUpdatedAt } = useClock(campaignId)
   const advance = useAdvanceTime(campaignId ?? '')
   const realtime = useSetRealtime(campaignId ?? '')
+  const setClock = useSetClock(campaignId ?? '')
 
   const [open, setOpen] = useState(false)
   const [days, setDays] = useState(0)
@@ -26,6 +27,14 @@ export function ClockWidget() {
   const [report, setReport] = useState<AdvanceReport | null>(null)
   const [preview, setPreview] = useState<FiredEvent[] | null>(null)
   const [nowTick, setNowTick] = useState(Date.now())
+  // "Set date/time" form state (populated from the current clock when the menu opens).
+  const [setForm, setSetForm] = useState<{
+    year: number
+    monthIndex: number
+    day: number
+    hour: number
+    minute: number
+  } | null>(null)
 
   const ticking = Boolean(clock?.realtime_enabled && !clock?.realtime_paused)
 
@@ -53,6 +62,40 @@ export function ClockWidget() {
     ? clock.time_game + Math.floor((nowTick - dataUpdatedAt) / 1000)
     : clock.time_game
   const shown = cal.format(displaySeconds)
+  const months = (clock.calendar as unknown as CalendarDef).months
+
+  const toggleMenu = () => {
+    setOpen((o) => {
+      const next = !o
+      if (next) {
+        // Seed the "set date/time" form from the current clock (day is 1-based in the UI).
+        const p = cal.toParts(clock.time_game)
+        setSetForm({
+          year: p.year,
+          monthIndex: p.month_index,
+          day: p.day_of_month + 1,
+          hour: p.hour,
+          minute: p.minute,
+        })
+      }
+      return next
+    })
+  }
+
+  const doSetClock = () => {
+    if (!setForm) return
+    const time_game = cal.fromParts(
+      setForm.year,
+      setForm.monthIndex,
+      setForm.day - 1,
+      setForm.hour,
+      setForm.minute,
+    )
+    setClock.mutate(
+      { time_game, set_as_start: true },
+      { onSuccess: () => { setReport(null); setPreview(null) } },
+    )
+  }
 
   const doAdvance = (d: number, h: number, reason: string) => {
     if (d <= 0 && h <= 0) return
@@ -68,7 +111,7 @@ export function ClockWidget() {
 
   return (
     <div className="clock">
-      <button className="clock-face" onClick={() => setOpen((o) => !o)} title="Advance time">
+      <button className="clock-face" onClick={toggleMenu} title="Advance time">
         <span className="clock-date">
           {clock.realtime_paused ? '⚔ ' : ticking ? '● ' : ''}{shown.label}
         </span>
@@ -117,6 +160,55 @@ export function ClockWidget() {
               Advance
             </button>
           </div>
+
+          {setForm && (
+            <div className="clock-setdate">
+              <div className="muted" style={{ marginTop: 8, marginBottom: 4 }}>Set date/time</div>
+              <div className="row" style={{ gap: 4, flexWrap: 'wrap' }}>
+                <select
+                  value={setForm.monthIndex}
+                  onChange={(e) => setSetForm({ ...setForm, monthIndex: +e.target.value })}
+                >
+                  {months.map((m, i) => (
+                    <option key={i} value={i}>{m.name}</option>
+                  ))}
+                </select>
+                <label>
+                  d
+                  <input
+                    type="number" min={1} style={{ width: 48 }} value={setForm.day}
+                    onChange={(e) => setSetForm({ ...setForm, day: +e.target.value })}
+                  />
+                </label>
+                <label>
+                  yr
+                  <input
+                    type="number" style={{ width: 64 }} value={setForm.year}
+                    onChange={(e) => setSetForm({ ...setForm, year: +e.target.value })}
+                  />
+                </label>
+              </div>
+              <div className="row" style={{ gap: 4, marginTop: 4 }}>
+                <label>
+                  h
+                  <input
+                    type="number" min={0} style={{ width: 48 }} value={setForm.hour}
+                    onChange={(e) => setSetForm({ ...setForm, hour: +e.target.value })}
+                  />
+                </label>
+                <label>
+                  m
+                  <input
+                    type="number" min={0} style={{ width: 48 }} value={setForm.minute}
+                    onChange={(e) => setSetForm({ ...setForm, minute: +e.target.value })}
+                  />
+                </label>
+                <button disabled={setClock.isPending} onClick={doSetClock}>
+                  Set start
+                </button>
+              </div>
+            </div>
+          )}
 
           {preview && (
             <div className="advance-report">

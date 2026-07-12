@@ -353,6 +353,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/campaigns/{campaign_id}/timeline/clear": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Clear Timeline
+         * @description Wipe the whole timeline and reset the clock back to the campaign's start time.
+         */
+        post: operations["clear_timeline_api_v1_campaigns__campaign_id__timeline_clear_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/campaigns/{campaign_id}/timeline/{entry_id}": {
         parameters: {
             query?: never;
@@ -484,6 +504,23 @@ export interface paths {
         put?: never;
         /** Set Realtime */
         post: operations["set_realtime_api_v1_campaigns__campaign_id__clock_realtime_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/clock/set": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Set Clock */
+        post: operations["set_clock_api_v1_campaigns__campaign_id__clock_set_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1709,6 +1746,58 @@ export interface paths {
         patch: operations["update_region_api_v1_campaigns__campaign_id__maps__map_id__regions__region_id__patch"];
         trace?: never;
     };
+    "/api/v1/campaigns/{campaign_id}/entities/{entity_id}/media": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Attachments */
+        get: operations["list_attachments_api_v1_campaigns__campaign_id__entities__entity_id__media_get"];
+        put?: never;
+        /** Upload Attachment */
+        post: operations["upload_attachment_api_v1_campaigns__campaign_id__entities__entity_id__media_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/entities/{entity_id}/media/{attachment_id}/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Attachment Image */
+        get: operations["get_attachment_image_api_v1_campaigns__campaign_id__entities__entity_id__media__attachment_id__image_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/entities/{entity_id}/media/{attachment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Attachment */
+        delete: operations["delete_attachment_api_v1_campaigns__campaign_id__entities__entity_id__media__attachment_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/campaigns/{campaign_id}/export": {
         parameters: {
             query?: never;
@@ -1846,6 +1935,23 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** AttachmentOut */
+        AttachmentOut: {
+            /** Id */
+            id: string;
+            /** Entity Id */
+            entity_id: string;
+            /** Media Id */
+            media_id: string;
+            /** Filename */
+            filename: string;
+            /** Mime */
+            mime: string;
+            /** Caption */
+            caption: string | null;
+            /** Sort Order */
+            sort_order: number;
+        };
         /** BackupOut */
         BackupOut: {
             /** Id */
@@ -1858,6 +1964,13 @@ export interface components {
             db_bytes: number;
             /** Media Files */
             media_files: number;
+        };
+        /** Body_upload_attachment_api_v1_campaigns__campaign_id__entities__entity_id__media_post */
+        Body_upload_attachment_api_v1_campaigns__campaign_id__entities__entity_id__media_post: {
+            /** File */
+            file: string;
+            /** Caption */
+            caption?: string | null;
         };
         /** Body_upload_map_api_v1_campaigns__campaign_id__maps_post */
         Body_upload_map_api_v1_campaigns__campaign_id__maps_post: {
@@ -3174,6 +3287,21 @@ export interface components {
             /** Summary */
             summary: string | null;
         };
+        /** SetClockRequest */
+        SetClockRequest: {
+            /** Time Game */
+            time_game: number;
+            /**
+             * Set As Start
+             * @default true
+             */
+            set_as_start?: boolean;
+            /**
+             * Reason
+             * @default clock set
+             */
+            reason?: string;
+        };
         /** SetFlagIn */
         SetFlagIn: {
             /** Key */
@@ -4418,6 +4546,37 @@ export interface operations {
             };
         };
     };
+    clear_timeline_api_v1_campaigns__campaign_id__timeline_clear_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClockOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     patch_entry_api_v1_campaigns__campaign_id__timeline__entry_id__patch: {
         parameters: {
             query?: never;
@@ -4692,6 +4851,41 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["RealtimeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClockOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_clock_api_v1_campaigns__campaign_id__clock_set_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetClockRequest"];
             };
         };
         responses: {
@@ -7629,6 +7823,138 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["RegionOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_attachments_api_v1_campaigns__campaign_id__entities__entity_id__media_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entity_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttachmentOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_attachment_api_v1_campaigns__campaign_id__entities__entity_id__media_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entity_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_attachment_api_v1_campaigns__campaign_id__entities__entity_id__media_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttachmentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_attachment_image_api_v1_campaigns__campaign_id__entities__entity_id__media__attachment_id__image_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entity_id: string;
+                attachment_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_attachment_api_v1_campaigns__campaign_id__entities__entity_id__media__attachment_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entity_id: string;
+                attachment_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

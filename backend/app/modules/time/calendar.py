@@ -170,6 +170,39 @@ class CalendarMath:
             seconds=seconds,
         )
 
+    def from_parts(
+        self,
+        year: int,
+        month_index: int,
+        day_of_month: int,
+        hour: int = 0,
+        minute: int = 0,
+        second: int = 0,
+    ) -> int:
+        """Inverse of ``to_parts``: absolute date components → seconds since the epoch.
+
+        ``day_of_month`` is 0-based (like ``to_parts``). Years below ``start_year`` map to
+        negative seconds, symmetrically with ``to_parts``.
+        """
+        # Days from the epoch year up to (not including) ``year``.
+        days = 0
+        if year >= self.start_year:
+            for y in range(self.start_year, year):
+                days += self._days_in_year(y)
+        else:
+            for y in range(year, self.start_year):
+                days -= self._days_in_year(y)
+        # Days for the whole months before ``month_index`` within ``year``.
+        for m in range(month_index):
+            days += self._month_days(m, year)
+        days += day_of_month
+        return (
+            days * self.seconds_per_day
+            + hour * self.seconds_per_hour
+            + minute * self.seconds_per_minute
+            + second
+        )
+
     # -- helpers for the UI / advancement ----------------------------------
     def to_seconds(self, days: int = 0, hours: int = 0, minutes: int = 0, seconds: int = 0) -> int:
         return (

@@ -1477,6 +1477,49 @@
         }
       }
     },
+    "/api/v1/campaigns/{campaign_id}/timeline/clear": {
+      "post": {
+        "tags": [
+          "chronicle"
+        ],
+        "summary": "Clear Timeline",
+        "description": "Wipe the whole timeline and reset the clock back to the campaign's start time.",
+        "operationId": "clear_timeline_api_v1_campaigns__campaign_id__timeline_clear_post",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClockOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/campaigns/{campaign_id}/timeline/{entry_id}": {
       "patch": {
         "tags": [
@@ -1898,6 +1941,58 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/RealtimeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClockOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/clock/set": {
+      "post": {
+        "tags": [
+          "time"
+        ],
+        "summary": "Set Clock",
+        "operationId": "set_clock_api_v1_campaigns__campaign_id__clock_set_post",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetClockRequest"
               }
             }
           }
@@ -6674,6 +6769,231 @@
         }
       }
     },
+    "/api/v1/campaigns/{campaign_id}/entities/{entity_id}/media": {
+      "get": {
+        "tags": [
+          "atlas"
+        ],
+        "summary": "List Attachments",
+        "operationId": "list_attachments_api_v1_campaigns__campaign_id__entities__entity_id__media_get",
+        "parameters": [
+          {
+            "name": "entity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Entity Id"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AttachmentOut"
+                  },
+                  "title": "Response List Attachments Api V1 Campaigns  Campaign Id  Entities  Entity Id  Media Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "atlas"
+        ],
+        "summary": "Upload Attachment",
+        "operationId": "upload_attachment_api_v1_campaigns__campaign_id__entities__entity_id__media_post",
+        "parameters": [
+          {
+            "name": "entity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Entity Id"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_attachment_api_v1_campaigns__campaign_id__entities__entity_id__media_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttachmentOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/entities/{entity_id}/media/{attachment_id}/image": {
+      "get": {
+        "tags": [
+          "atlas"
+        ],
+        "summary": "Get Attachment Image",
+        "operationId": "get_attachment_image_api_v1_campaigns__campaign_id__entities__entity_id__media__attachment_id__image_get",
+        "parameters": [
+          {
+            "name": "entity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Entity Id"
+            }
+          },
+          {
+            "name": "attachment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Attachment Id"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/entities/{entity_id}/media/{attachment_id}": {
+      "delete": {
+        "tags": [
+          "atlas"
+        ],
+        "summary": "Delete Attachment",
+        "operationId": "delete_attachment_api_v1_campaigns__campaign_id__entities__entity_id__media__attachment_id__delete",
+        "parameters": [
+          {
+            "name": "entity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Entity Id"
+            }
+          },
+          {
+            "name": "attachment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Attachment Id"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/campaigns/{campaign_id}/export": {
       "get": {
         "tags": [
@@ -6986,6 +7306,56 @@
         "title": "ArticleUpdate",
         "description": "Full replace of the article body (Tiptap/ProseMirror JSON document)."
       },
+      "AttachmentOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "entity_id": {
+            "type": "string",
+            "title": "Entity Id"
+          },
+          "media_id": {
+            "type": "string",
+            "title": "Media Id"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "mime": {
+            "type": "string",
+            "title": "Mime"
+          },
+          "caption": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caption"
+          },
+          "sort_order": {
+            "type": "integer",
+            "title": "Sort Order"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "entity_id",
+          "media_id",
+          "filename",
+          "mime",
+          "caption",
+          "sort_order"
+        ],
+        "title": "AttachmentOut"
+      },
       "BackupOut": {
         "properties": {
           "id": {
@@ -7018,6 +7388,31 @@
           "media_files"
         ],
         "title": "BackupOut"
+      },
+      "Body_upload_attachment_api_v1_campaigns__campaign_id__entities__entity_id__media_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          },
+          "caption": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caption"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_attachment_api_v1_campaigns__campaign_id__entities__entity_id__media_post"
       },
       "Body_upload_map_api_v1_campaigns__campaign_id__maps_post": {
         "properties": {
@@ -11090,6 +11485,29 @@
           "summary"
         ],
         "title": "SessionOut"
+      },
+      "SetClockRequest": {
+        "properties": {
+          "time_game": {
+            "type": "integer",
+            "title": "Time Game"
+          },
+          "set_as_start": {
+            "type": "boolean",
+            "title": "Set As Start",
+            "default": true
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason",
+            "default": "clock set"
+          }
+        },
+        "type": "object",
+        "required": [
+          "time_game"
+        ],
+        "title": "SetClockRequest"
       },
       "SetFlagIn": {
         "properties": {

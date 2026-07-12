@@ -154,6 +154,40 @@ textarea { font: inherit; background: var(--panel-2); color: var(--text);
   border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; resize: vertical; }
 .danger-btn { background: var(--danger); color: #fff; }
 
+/* Entity image gallery */
+.entity-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+.entity-gallery-item { position: relative; margin: 0; }
+.entity-gallery-item img {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  display: block;
+}
+.entity-gallery-item figcaption { font-size: 12px; margin-top: 4px; }
+.gallery-del {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  font-size: 16px;
+  line-height: 1;
+}
+
+/* Clock: set date/time */
+.clock-setdate { border-top: 1px solid var(--border); margin-top: 8px; padding-top: 4px; }
+.clock-setdate input, .clock-setdate select { font: inherit; }
+
 /* Article editor */
 .article { margin-bottom: 16px; }
 .article-toolbar { display: flex; justify-content: space-between; align-items: baseline;

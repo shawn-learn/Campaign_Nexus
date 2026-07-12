@@ -141,6 +141,37 @@ def advance_time(
     )
 
 
+def set_clock(
+    session: Session,
+    campaign: Campaign,
+    *,
+    time_game: int,
+    reason: str,
+    set_as_start: bool,
+) -> ClockOut:
+    """Set the clock to an absolute ``time_game`` (not a forward-only delta).
+
+    Used to place the campaign's start time and to reset the clock. Re-anchors real time so
+    the next ``settle_realtime`` doesn't fold pre-set elapsed seconds back in.
+    """
+    cal = calendar_for(campaign)
+    with command_tx(session, campaign.id, actor="gm") as ctx:
+        from_time = campaign.clock_time_game
+        campaign.clock_time_game = time_game
+        if set_as_start:
+            campaign.campaign_start_game = time_game
+        if campaign.realtime_enabled:
+            campaign.realtime_anchor_real = now_real_iso()
+        label = cal.format(time_game)["label"]
+        ctx.emit(
+            "clock_set",
+            payload={"from": from_time, "to": time_game, "reason": reason},
+            narrative=f"Clock set to {label} ({reason}).",
+            occurred_at_game=time_game,
+        )
+    return get_clock(campaign)
+
+
 def preview_advance(
     session: Session, campaign: Campaign, *, delta_seconds: int
 ) -> AdvancePreview:
