@@ -8,6 +8,7 @@ import {
   useEntities,
   useMap,
   useMaps,
+  useUpdateMarker,
   useUploadMap,
 } from '../../api/hooks'
 import { useActiveCampaign } from '../../shell/useActiveCampaign'
@@ -162,6 +163,7 @@ function MapCanvas({
 }) {
   const openPeek = useUiStore((s) => s.openPeek)
   const addMarker = useAddMarker(campaignId, detail.entity_id)
+  const updateMarker = useUpdateMarker(campaignId, detail.entity_id)
   const deleteMarker = useDeleteMarker(campaignId, detail.entity_id)
   const addRegion = useAddRegion(campaignId, detail.entity_id)
   const deleteRegion = useDeleteRegion(campaignId, detail.entity_id)
@@ -200,6 +202,11 @@ function MapCanvas({
     if (!edit) return
     if (tool === 'pin') setPending({ x, y })
     else setDraft((d) => [...d, [x, y]])
+  }
+
+  const onMarkerMove = (marker: MapMarker, x: number, y: number) => {
+    if (!edit) return
+    updateMarker.mutate({ markerId: marker.id, patch: { x, y } })
   }
 
   const toggleLayer = (layer: string) =>
@@ -242,6 +249,7 @@ function MapCanvas({
           onMapClick={onMapClick}
           onMarkerClick={onMarkerClick}
           onRegionClick={onRegionClick}
+          onMarkerMove={onMarkerMove}
         />
         {edit && (
           <div className="map-side card">
