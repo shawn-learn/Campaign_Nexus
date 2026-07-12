@@ -8,6 +8,7 @@ import {
   useEntities,
   useMap,
   useMaps,
+  useUpdateMap,
   useUpdateMarker,
   useUploadMap,
 } from '../../api/hooks'
@@ -85,7 +86,13 @@ function MapLibrary({
   onOpen,
 }: {
   campaignId: string
-  maps: { entity_id: string; name: string; map_kind: string; marker_count: number }[]
+  maps: {
+    entity_id: string
+    name: string
+    description?: string | null
+    map_kind: string
+    marker_count: number
+  }[]
   onOpen: (id: string, name: string) => void
 }) {
   const upload = useUploadMap(campaignId)
@@ -93,6 +100,7 @@ function MapLibrary({
   const fileRef = useRef<HTMLInputElement>(null)
   const [name, setName] = useState('')
   const [kind, setKind] = useState<string>('region')
+  const [description, setDescription] = useState('')
   const [err, setErr] = useState<string | null>(null)
 
   const submit = (e: React.FormEvent) => {
@@ -101,10 +109,11 @@ function MapLibrary({
     if (!file || !name.trim()) return
     setErr(null)
     upload.mutate(
-      { file, name: name.trim(), mapKind: kind },
+      { file, name: name.trim(), mapKind: kind, description: description.trim() || null },
       {
         onSuccess: (m) => {
           setName('')
+          setDescription('')
           if (fileRef.current) fileRef.current.value = ''
           onOpen(m.entity_id, m.name)
         },
@@ -124,6 +133,13 @@ function MapLibrary({
           </select>
           <button type="submit" disabled={upload.isPending}>Upload map</button>
         </div>
+        <textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Description (optional) — e.g. the write-up for the Village of Barovia"
+          rows={2}
+          style={{ marginTop: 8, width: '100%' }}
+        />
         {err && <p className="tag danger" style={{ marginTop: 8 }}>{err}</p>}
       </form>
 
@@ -131,7 +147,12 @@ function MapLibrary({
         {maps.length === 0 && <p className="muted">No maps yet. Upload one to begin.</p>}
         {maps.map((m) => (
           <li key={m.entity_id}>
-            <button className="linkish" onClick={() => onOpen(m.entity_id, m.name)}>{m.name}</button>
+            <div style={{ minWidth: 0 }}>
+              <button className="linkish" onClick={() => onOpen(m.entity_id, m.name)}>{m.name}</button>
+              {m.description && (
+                <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>{m.description}</div>
+              )}
+            </div>
             <span className="row" style={{ gap: 6 }}>
               <span className="badge">{m.map_kind}</span>
               <span className="badge">{m.marker_count} pins</span>
@@ -220,6 +241,12 @@ function MapCanvas({
 
   return (
     <>
+      <MapDescription
+        campaignId={campaignId}
+        mapId={detail.entity_id}
+        description={detail.description ?? null}
+      />
+
       {layers.length > 1 && (
         <div className="row layer-chips" style={{ gap: 6, marginBottom: 8 }}>
           <span className="muted" style={{ fontSize: 12 }}>Layers</span>
@@ -315,6 +342,70 @@ function MapCanvas({
         )}
       </div>
     </>
+  )
+}
+
+// A map's description (backed by the map entity's summary). View + inline edit, so a place
+// and its map can live as one entity instead of a separate location + map pair.
+function MapDescription({
+  campaignId,
+  mapId,
+  description,
+}: {
+  campaignId: string
+  mapId: string
+  description: string | null
+}) {
+  const update = useUpdateMap(campaignId, mapId)
+  const [editing, setEditing] = useState(false)
+  const [text, setText] = useState(description ?? '')
+
+  // Re-sync when switching to a different map.
+  const startEdit = () => {
+    setText(description ?? '')
+    setEditing(true)
+  }
+  const save = () => {
+    update.mutate(
+      { description: text.trim() || null, description_set: true },
+      { onSuccess: () => setEditing(false) },
+    )
+  }
+
+  if (editing) {
+    return (
+      <div className="card" style={{ marginBottom: 8 }}>
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          rows={4}
+          style={{ width: '100%' }}
+          placeholder="Describe this place…"
+          autoFocus
+        />
+        <div className="row" style={{ gap: 6, marginTop: 8 }}>
+          <button disabled={update.isPending} onClick={save}>
+            {update.isPending ? 'Saving…' : 'Save'}
+          </button>
+          <button className="ghost" onClick={() => setEditing(false)}>Cancel</button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="card map-description" style={{ marginBottom: 8 }}>
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+        {description ? (
+          <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{description}</p>
+        ) : (
+          <p className="muted" style={{ margin: 0 }}>No description yet.</p>
+        )}
+        <button className="ghost" style={{ flexShrink: 0 }} onClick={startEdit}>
+          {description ? 'Edit' : 'Add description'}
+        </button>
+      </div>
+    </div>
   )
 }
 

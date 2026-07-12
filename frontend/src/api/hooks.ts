@@ -963,6 +963,7 @@ export function useUploadMap(campaignId: string) {
       file: File
       name: string
       mapKind: string
+      description?: string | null
       locationId?: string | null
       parentMapId?: string | null
     }) => {
@@ -970,6 +971,7 @@ export function useUploadMap(campaignId: string) {
       fd.append('file', vars.file)
       fd.append('name', vars.name)
       fd.append('map_kind', vars.mapKind)
+      if (vars.description) fd.append('description', vars.description)
       if (vars.locationId) fd.append('location_id', vars.locationId)
       if (vars.parentMapId) fd.append('parent_map_id', vars.parentMapId)
       const res = await fetch(`/api/v1/campaigns/${campaignId}/maps`, {
@@ -996,6 +998,31 @@ export function useDeleteMap(campaignId: string) {
       if (error) throw new Error('delete map')
     },
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['maps', campaignId] }),
+  })
+}
+
+export function useUpdateMap(campaignId: string, mapId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: {
+      name?: string
+      description?: string | null
+      description_set?: boolean
+      map_kind?: string
+      location_id?: string | null
+      parent_map_id?: string | null
+    }) =>
+      unwrap(
+        await api.PATCH('/api/v1/campaigns/{campaign_id}/maps/{map_id}', {
+          params: { path: { campaign_id: campaignId, map_id: mapId } },
+          body,
+        }),
+        'update map',
+      ),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['maps', campaignId] })
+      void qc.invalidateQueries({ queryKey: ['map', campaignId, mapId] })
+    },
   })
 }
 

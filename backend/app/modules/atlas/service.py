@@ -100,12 +100,14 @@ def upload_map(
     location_id: str | None,
     parent_map_id: str | None,
     created_by: str,
+    description: str | None = None,
 ) -> MapDetail:
     _mime, width, height = imagesize.sniff(data)
     media = store_media_bytes(session, campaign.id, data, filename=filename)
     entity = wiki_service.create_entity(
         session, campaign.id,
-        data=EntityCreate(entity_type="map", name=name), created_by=created_by,
+        data=EntityCreate(entity_type="map", name=name, summary=description or None),
+        created_by=created_by,
     )
     map_row = Map(
         entity_id=entity.id, campaign_id=campaign.id, media_id=media.id,
@@ -137,7 +139,8 @@ def list_maps(session: Session, campaign_id: str) -> list[MapSummary]:
             select(func.count()).select_from(MapMarker).where(MapMarker.map_id == m.entity_id)
         )
         summaries.append(MapSummary(
-            entity_id=m.entity_id, name=entity.name, map_kind=m.map_kind,
+            entity_id=m.entity_id, name=entity.name, description=entity.summary,
+            map_kind=m.map_kind,
             width_px=m.width_px, height_px=m.height_px, location_id=m.location_id,
             parent_map_id=m.parent_map_id, marker_count=count or 0,
         ))
@@ -202,7 +205,8 @@ def get_map(session: Session, campaign_id: str, map_id: str) -> MapDetail:
     ).all()
     layers = sorted({mk.layer for mk in markers} | {rg.layer for rg in regions})
     return MapDetail(
-        entity_id=m.entity_id, name=entity.name, map_kind=m.map_kind,
+        entity_id=m.entity_id, name=entity.name, description=entity.summary,
+        map_kind=m.map_kind,
         width_px=m.width_px, height_px=m.height_px, media_id=m.media_id,
         location_id=m.location_id, parent_map_id=m.parent_map_id,
         parent_map_name=parent_name,
@@ -224,6 +228,7 @@ def update_map(
     session: Session, campaign_id: str, map_id: str, *,
     name: str | None, map_kind: str | None,
     location_id: str | None, parent_map_id: str | None,
+    description: str | None = None, description_set: bool = False,
 ) -> MapDetail:
     m = _require_map(session, campaign_id, map_id)
     if map_kind is not None:
@@ -232,10 +237,13 @@ def update_map(
         m.location_id = location_id or None
     if parent_map_id is not None:
         m.parent_map_id = parent_map_id or None
-    if name is not None:
+    if name is not None or description_set:
         entity = session.get(Entity, m.entity_id)
         if entity is not None:
-            entity.name = name
+            if name is not None:
+                entity.name = name
+            if description_set:
+                entity.summary = description or None
             entity.updated_at_real = now_real_iso()
     session.commit()
     return get_map(session, campaign_id, map_id)

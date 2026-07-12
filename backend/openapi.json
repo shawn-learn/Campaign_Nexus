@@ -7430,6 +7430,17 @@
             "title": "Map Kind",
             "default": "region"
           },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
           "location_id": {
             "anyOf": [
               {
@@ -9139,6 +9150,17 @@
             "type": "string",
             "title": "Name"
           },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
           "map_kind": {
             "type": "string",
             "title": "Map Kind"
@@ -9214,6 +9236,7 @@
         "required": [
           "entity_id",
           "name",
+          "description",
           "map_kind",
           "width_px",
           "height_px",
@@ -9236,6 +9259,17 @@
           "name": {
             "type": "string",
             "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
           },
           "map_kind": {
             "type": "string",
@@ -9280,6 +9314,7 @@
         "required": [
           "entity_id",
           "name",
+          "description",
           "map_kind",
           "width_px",
           "height_px",
@@ -9301,6 +9336,23 @@
               }
             ],
             "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "description_set": {
+            "type": "boolean",
+            "title": "Description Set",
+            "description": "Set true to apply description (including clearing to null).",
+            "default": false
           },
           "map_kind": {
             "anyOf": [

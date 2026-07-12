@@ -58,6 +58,7 @@ class RegionUpdate(BaseModel):
 class MapSummary(BaseModel):
     entity_id: str
     name: str
+    description: str | None
     map_kind: str
     width_px: int
     height_px: int
@@ -69,6 +70,7 @@ class MapSummary(BaseModel):
 class MapDetail(BaseModel):
     entity_id: str
     name: str
+    description: str | None
     map_kind: str
     width_px: int
     height_px: int
@@ -106,6 +108,10 @@ class MarkerUpdate(BaseModel):
 
 class MapUpdate(BaseModel):
     name: str | None = None
+    description: str | None = None
+    description_set: bool = Field(
+        default=False, description="Set true to apply description (including clearing to null)."
+    )
     map_kind: str | None = None
     location_id: str | None = None
     parent_map_id: str | None = None

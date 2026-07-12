@@ -1983,6 +1983,8 @@ export interface components {
              * @default region
              */
             map_kind?: string;
+            /** Description */
+            description?: string | null;
             /** Location Id */
             location_id?: string | null;
             /** Parent Map Id */
@@ -2584,6 +2586,8 @@ export interface components {
             entity_id: string;
             /** Name */
             name: string;
+            /** Description */
+            description: string | null;
             /** Map Kind */
             map_kind: string;
             /** Width Px */
@@ -2611,6 +2615,8 @@ export interface components {
             entity_id: string;
             /** Name */
             name: string;
+            /** Description */
+            description: string | null;
             /** Map Kind */
             map_kind: string;
             /** Width Px */
@@ -2628,6 +2634,14 @@ export interface components {
         MapUpdate: {
             /** Name */
             name?: string | null;
+            /** Description */
+            description?: string | null;
+            /**
+             * Description Set
+             * @description Set true to apply description (including clearing to null).
+             * @default false
+             */
+            description_set?: boolean;
             /** Map Kind */
             map_kind?: string | null;
             /** Location Id */

@@ -47,6 +47,7 @@ async def upload_map(
     file: UploadFile = File(...),
     name: str = Form(...),
     map_kind: str = Form("region"),
+    description: str | None = Form(None),
     location_id: str | None = Form(None),
     parent_map_id: str | None = Form(None),
     session: Session = Depends(get_session),
@@ -62,6 +63,7 @@ async def upload_map(
             name=name, data=data, filename=file.filename or "map",
             map_kind=map_kind, location_id=location_id or None,
             parent_map_id=parent_map_id or None, created_by=ctx.user_id,
+            description=description or None,
         )
     except imagesize.BadImage as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
@@ -109,6 +111,7 @@ def update_map(
             session, ctx.campaign_id, map_id,
             name=body.name, map_kind=body.map_kind,
             location_id=body.location_id, parent_map_id=body.parent_map_id,
+            description=body.description, description_set=body.description_set,
         )
     except service.MapNotFound as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "map not found") from exc
