@@ -171,6 +171,14 @@ export function EncountersPage() {
                 </span>
               )}
               <span className="muted">{enc.combatants.reduce((n, c) => n + c.count, 0)} foes</span>
+              <Link
+                to="/entities/$entityId"
+                params={{ entityId: enc.id }}
+                className="ghost"
+                style={{ padding: '4px 8px', fontSize: 12 }}
+              >
+                Edit
+              </Link>
             </span>
           </li>
         ))}

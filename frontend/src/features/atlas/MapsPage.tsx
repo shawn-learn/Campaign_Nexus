@@ -220,6 +220,13 @@ function MapLibrary({
               <span className="badge">{m.map_kind}</span>
               <span className="badge">{m.marker_count} pins</span>
               <button
+                className="ghost"
+                style={{ padding: '4px 8px', fontSize: 12 }}
+                onClick={() => onOpen(m.entity_id, m.name)}
+              >
+                Edit map
+              </button>
+              <button
                 className="ghost tag-x"
                 title="Delete map"
                 onClick={() => { if (confirm(`Delete map “${m.name}”?`)) del.mutate(m.entity_id) }}

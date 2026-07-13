@@ -124,6 +124,14 @@ export function EntitiesPage() {
               ))}
               {entity.deleted && <span className="tag danger">deleted</span>}
               <span className="badge">{entity.entity_type}</span>
+              <Link
+                to="/entities/$entityId"
+                params={{ entityId: entity.id }}
+                className="ghost"
+                style={{ padding: '4px 8px', fontSize: 12 }}
+              >
+                Edit
+              </Link>
             </span>
           </li>
         ))}
