@@ -1431,6 +1431,160 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/campaigns/{campaign_id}/story/graph": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Graph */
+        get: operations["get_graph_api_v1_campaigns__campaign_id__story_graph_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/story/suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Suggestions */
+        get: operations["get_suggestions_api_v1_campaigns__campaign_id__story_suggestions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/story/conditions/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Check Condition */
+        post: operations["check_condition_api_v1_campaigns__campaign_id__story_conditions_check_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/story/flags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set Flag */
+        put: operations["set_flag_api_v1_campaigns__campaign_id__story_flags_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/story/nodes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Node */
+        post: operations["create_node_api_v1_campaigns__campaign_id__story_nodes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/story/nodes/{node_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Node */
+        delete: operations["delete_node_api_v1_campaigns__campaign_id__story_nodes__node_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Node */
+        patch: operations["update_node_api_v1_campaigns__campaign_id__story_nodes__node_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/story/nodes/{node_id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Set Node Status */
+        post: operations["set_node_status_api_v1_campaigns__campaign_id__story_nodes__node_id__status_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/story/edges": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Edge */
+        post: operations["create_edge_api_v1_campaigns__campaign_id__story_edges_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/story/edges/{edge_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Edge */
+        delete: operations["delete_edge_api_v1_campaigns__campaign_id__story_edges__edge_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/campaigns/{campaign_id}/maps": {
         parameters: {
             query?: never;
@@ -1872,6 +2026,20 @@ export interface components {
              * @default foe
              */
             side?: string;
+        };
+        /** ConditionCheck */
+        ConditionCheck: {
+            /** Valid */
+            valid: boolean;
+            /** Error */
+            error: string | null;
+            /** Result */
+            result: boolean | null;
+        };
+        /** ConditionCheckIn */
+        ConditionCheckIn: {
+            /** Expr */
+            expr: string;
         };
         /** ConditionOut */
         ConditionOut: {
@@ -2457,6 +2625,12 @@ export interface components {
             };
             facets: components["schemas"]["MonsterFacets"];
         };
+        /** NodeStatusResult */
+        NodeStatusResult: {
+            node: components["schemas"]["StoryNodeOut"];
+            /** Applied */
+            applied: string[];
+        };
         /** NoteCreate */
         NoteCreate: {
             /** Text */
@@ -3000,6 +3174,16 @@ export interface components {
             /** Summary */
             summary: string | null;
         };
+        /** SetFlagIn */
+        SetFlagIn: {
+            /** Key */
+            key: string;
+            /**
+             * Value
+             * @default true
+             */
+            value?: unknown;
+        };
         /** SetLocation */
         SetLocation: {
             /** Entity Id */
@@ -3077,6 +3261,120 @@ export interface components {
             status: string;
             /** Reason */
             reason?: string | null;
+        };
+        /** StoryEdgeIn */
+        StoryEdgeIn: {
+            /** From Node */
+            from_node: string;
+            /** To Node */
+            to_node: string;
+            /** Condition Expr */
+            condition_expr?: string | null;
+            /** Label */
+            label?: string | null;
+        };
+        /** StoryEdgeOut */
+        StoryEdgeOut: {
+            /** Id */
+            id: string;
+            /** From Node */
+            from_node: string;
+            /** To Node */
+            to_node: string;
+            /** Condition Expr */
+            condition_expr: string | null;
+            /** Label */
+            label: string | null;
+        };
+        /** StoryGraphOut */
+        StoryGraphOut: {
+            /** Nodes */
+            nodes: components["schemas"]["StoryNodeOut"][];
+            /** Edges */
+            edges: components["schemas"]["StoryEdgeOut"][];
+            /** Flags */
+            flags: {
+                [key: string]: unknown;
+            };
+        };
+        /** StoryNodeIn */
+        StoryNodeIn: {
+            /** Name */
+            name: string;
+            /** Summary */
+            summary?: string | null;
+            /**
+             * Status
+             * @default possible
+             */
+            status?: string;
+            /**
+             * Pos X
+             * @default 0
+             */
+            pos_x?: number;
+            /**
+             * Pos Y
+             * @default 0
+             */
+            pos_y?: number;
+            /**
+             * Consequences
+             * @default []
+             */
+            consequences?: {
+                [key: string]: unknown;
+            }[];
+        };
+        /** StoryNodeOut */
+        StoryNodeOut: {
+            /** Entity Id */
+            entity_id: string;
+            /** Name */
+            name: string;
+            /** Summary */
+            summary: string | null;
+            /** Status */
+            status: string;
+            /** Pos X */
+            pos_x: number;
+            /** Pos Y */
+            pos_y: number;
+            /** Consequences */
+            consequences: {
+                [key: string]: unknown;
+            }[];
+        };
+        /** StoryNodeUpdate */
+        StoryNodeUpdate: {
+            /** Pos X */
+            pos_x?: number | null;
+            /** Pos Y */
+            pos_y?: number | null;
+            /** Consequences */
+            consequences?: {
+                [key: string]: unknown;
+            }[] | null;
+        };
+        /** StoryStatusIn */
+        StoryStatusIn: {
+            /** Status */
+            status: string;
+        };
+        /** Suggestion */
+        Suggestion: {
+            /** Node Id */
+            node_id: string;
+            /** Name */
+            name: string;
+            /** Via Node Id */
+            via_node_id: string;
+            /** Via Node Name */
+            via_node_name: string;
+            /** Edge Label */
+            edge_label: string | null;
+            /** Condition Expr */
+            condition_expr: string | null;
         };
         /** TagCreate */
         TagCreate: {
@@ -6591,6 +6889,342 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ScheduleOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_graph_api_v1_campaigns__campaign_id__story_graph_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StoryGraphOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_suggestions_api_v1_campaigns__campaign_id__story_suggestions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Suggestion"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    check_condition_api_v1_campaigns__campaign_id__story_conditions_check_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConditionCheckIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConditionCheck"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_flag_api_v1_campaigns__campaign_id__story_flags_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetFlagIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_node_api_v1_campaigns__campaign_id__story_nodes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoryNodeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StoryNodeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_node_api_v1_campaigns__campaign_id__story_nodes__node_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                node_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_node_api_v1_campaigns__campaign_id__story_nodes__node_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                node_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoryNodeUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StoryNodeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_node_status_api_v1_campaigns__campaign_id__story_nodes__node_id__status_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                node_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoryStatusIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NodeStatusResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_edge_api_v1_campaigns__campaign_id__story_edges_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoryEdgeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StoryEdgeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_edge_api_v1_campaigns__campaign_id__story_edges__edge_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                edge_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

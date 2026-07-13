@@ -2,14 +2,24 @@
 
 Subscribers receive domain events *after commit*, so they never observe uncommitted
 state. Anything correctness-critical belongs in the command handler's transaction
-(synchronous projections), not here — bus subscribers are reactive conveniences
-(dashboard cache invalidation, story-suggestion evaluation).
+(synchronous projections), not here.
+
+This is a deliberate extension seam, not dead code: there are **no subscribers today**
+because the reads that would consume events — the live dashboard and story suggestions —
+are computed on demand in a single query, so there is nothing to invalidate or push yet.
+The bus exists so a later reactive consumer (an SSE/websocket push to the live dashboard,
+a cache layer, background indexing) can attach without touching the write path. Because a
+subscriber runs post-commit, it must stay a reactive *convenience* — never the place a
+fact is first made durable.
 """
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
 
 Subscriber = Callable[["EventRecord"], None]
 
@@ -39,9 +49,19 @@ class EventBus:
         self._subscribers.append(subscriber)
 
     def publish(self, events: list[EventRecord]) -> None:
+        # Subscribers run *after commit*, so a raising one must not propagate: the write
+        # is already durable, and a reactive convenience (dashboard cache, story
+        # suggestions) failing should never surface as a 500 on the command. Isolate and
+        # log each so one bad subscriber can't stop the others.
         for event in events:
             for subscriber in self._subscribers:
-                subscriber(event)
+                try:
+                    subscriber(event)
+                except Exception:
+                    logger.exception(
+                        "event-bus subscriber failed for %s (seq=%s)",
+                        event.event_type, event.seq,
+                    )
 
 
 # Process-wide singleton.

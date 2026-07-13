@@ -34,8 +34,8 @@ from app.modules.playbook.models import (  # noqa: F401
     PartyMember,
     Quest,
 )
-from app.modules.rules.models import Monster, StatBlock
-from app.modules.story.models import StoryEdge, StoryNode  # noqa: F401  # noqa: F401
+from app.modules.rules.models import Monster, StatBlock  # noqa: F401
+from app.modules.story.models import StoryEdge, StoryNode  # noqa: F401
 from app.modules.time.models import ScheduledEvent  # noqa: F401
 from app.modules.wiki.models import (  # noqa: F401
     ArticleSnapshot,

@@ -41,4 +41,4 @@ def create_backup(
     try:
         return _out(service.create_backup(session, reason=body.reason))
     except service.BackupError as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc

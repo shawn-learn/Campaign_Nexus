@@ -96,3 +96,17 @@ def test_campaign_export_import_roundtrip(client: TestClient) -> None:
 def test_import_rejects_non_campaign_archive(client: TestClient) -> None:
     resp = client.post("/api/v1/campaigns/import", json={"kind": "bestiary", "monsters": []})
     assert resp.status_code == 422
+
+
+def test_import_rejects_structurally_broken_archive(client: TestClient) -> None:
+    # A "campaign" archive missing its required body, and one with undecodable media bytes,
+    # must both fail cleanly as 422 rather than crashing the importer with a 500.
+    missing_body = client.post("/api/v1/campaigns/import", json={"kind": "campaign"})
+    assert missing_body.status_code == 422, missing_body.text
+
+    bad_media = client.post("/api/v1/campaigns/import", json={
+        "kind": "campaign",
+        "campaign": {"name": "Broken", "rule_system_id": "dnd5e"},
+        "media": [{"id": "m1", "filename": "x.png", "data_b64": "not-valid-base64!!"}],
+    })
+    assert bad_media.status_code == 422, bad_media.text

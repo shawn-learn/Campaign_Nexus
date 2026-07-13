@@ -67,9 +67,9 @@ def advance(
             session, campaign, delta_seconds=_delta(campaign, body), reason=body.reason
         )
     except service.NoAdvance as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
     except scheduled.RunawayGuard as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
 
 
 @router.post("/clock/advance/preview", response_model=AdvancePreview)

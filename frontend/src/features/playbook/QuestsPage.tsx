@@ -164,7 +164,8 @@ function QuestCard({
           </span>
         )}
       </div>
-      <div className="row" style={{ gap: 4, marginTop: 6 }}>
+      <div className="row" style={{ gap: 4, marginTop: 6, flexWrap: 'wrap' }}>
+        <button className="ghost" style={{ fontSize: 11 }} onClick={onOpen}>Edit</button>
         {NEXT[quest.status]?.map((next) => (
           <button
             key={next}

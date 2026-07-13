@@ -5,8 +5,11 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from starlette.responses import Response
 
 from app.archive.router import router as archive_router
 from app.backup.router import router as backup_router
@@ -32,6 +35,36 @@ from app.modules.story.router import router as story_router
 from app.modules.time.router import router as time_router
 from app.modules.wiki import search as wiki_search
 from app.modules.wiki.router import router as entities_router
+
+
+class MaxBodySizeMiddleware(BaseHTTPMiddleware):
+    """Reject a request whose declared ``Content-Length`` exceeds the configured ceiling,
+    before the body is read into memory. Guards the campaign importer (a single JSON body
+    with base64 media) and map uploads from exhausting memory (docs/13 §7.9).
+
+    A chunked request without a ``Content-Length`` isn't covered here; the app is
+    localhost-bound in the local-first posture, so this ceiling is defense-in-depth for the
+    later P-LAN posture rather than a hostile-input boundary.
+    """
+
+    def __init__(self, app: object, *, max_bytes: int) -> None:
+        super().__init__(app)  # type: ignore[arg-type]
+        self._max_bytes = max_bytes
+
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
+        content_length = request.headers.get("content-length")
+        if (
+            content_length is not None
+            and content_length.isdigit()
+            and int(content_length) > self._max_bytes
+        ):
+            return JSONResponse(
+                {"detail": f"request body exceeds {self._max_bytes} bytes"},
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            )
+        return await call_next(request)
 
 
 @asynccontextmanager
@@ -63,6 +96,7 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.add_middleware(MaxBodySizeMiddleware, max_bytes=settings.max_request_bytes)
 
     @app.get("/healthz", tags=["system"])
     def healthz() -> dict[str, str]:

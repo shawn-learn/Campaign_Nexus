@@ -10,6 +10,7 @@ child process trees are cleaned up on exit.
 
 from __future__ import annotations
 
+import shutil
 import signal
 import subprocess
 import sys
@@ -27,7 +28,25 @@ BACKEND_DIR = ROOT / "backend"
 FRONTEND_DIR = ROOT / "frontend"
 IS_WINDOWS = sys.platform == "win32"
 
-BACKEND_CMD = "uv run uvicorn app.main:app --host 127.0.0.1 --port 8000"
+UV_BIN = Path.home() / ".local" / "bin" / ("uv.exe" if IS_WINDOWS else "uv")
+BACKEND_VENV_PYTHON = BACKEND_DIR / ".venv" / ("Scripts" if IS_WINDOWS else "bin") / (
+    "python.exe" if IS_WINDOWS else "python"
+)
+BACKEND_REQUIRED_MODULES = (
+    "fastapi",
+    "uvicorn",
+    "sqlalchemy",
+    "alembic",
+    "pydantic",
+    "pydantic_settings",
+    "jsonschema",
+    "multipart",
+)
+BACKEND_CMD = (
+    f'"{UV_BIN}" run uvicorn app.main:app --host 127.0.0.1 --port 8000'
+    if UV_BIN.exists()
+    else f'"{BACKEND_VENV_PYTHON}" -m uvicorn app.main:app --host 127.0.0.1 --port 8000'
+)
 FRONTEND_CMD = "npm run dev"
 
 
@@ -59,10 +78,48 @@ def _terminate(proc: subprocess.Popen[bytes]) -> None:
             pass
 
 
+def _module_available(python: Path, module: str) -> bool:
+    code = (
+        "import importlib.util, sys; "
+        f"sys.exit(0 if importlib.util.find_spec({module!r}) else 1)"
+    )
+    return subprocess.run([str(python), "-c", code], check=False).returncode == 0
+
+
+def _ensure_backend_requirements() -> None:
+    if not BACKEND_VENV_PYTHON.exists():
+        print("Creating backend virtual environment...")
+        subprocess.run([sys.executable, "-m", "venv", str(BACKEND_DIR / ".venv")], check=True)
+
+    if not _module_available(BACKEND_VENV_PYTHON, "pip"):
+        print("Bootstrapping pip in the backend virtual environment...")
+        subprocess.run([str(BACKEND_VENV_PYTHON), "-m", "ensurepip", "--upgrade"], check=True)
+
+    missing = [module for module in BACKEND_REQUIRED_MODULES if not _module_available(BACKEND_VENV_PYTHON, module)]
+    if missing:
+        print(f"Installing missing backend dependencies: {', '.join(missing)}")
+        subprocess.run([str(BACKEND_VENV_PYTHON), "-m", "pip", "install", "-e", "."], cwd=BACKEND_DIR, check=True)
+
+
+def _ensure_frontend_requirements() -> None:
+    if (FRONTEND_DIR / "node_modules").exists():
+        return
+
+    if shutil.which("npm") is None:
+        print("error: npm is required to start the frontend development server.")
+        raise SystemExit(1)
+
+    print("Installing frontend dependencies...")
+    subprocess.run(["npm", "install"], cwd=FRONTEND_DIR, check=True)
+
+
 def main() -> int:
     if not (BACKEND_DIR / "pyproject.toml").exists() or not (FRONTEND_DIR / "package.json").exists():
         print("error: run this from the repository root (backend/ and frontend/ not found).")
         return 1
+
+    _ensure_backend_requirements()
+    _ensure_frontend_requirements()
 
     print("Starting Campaign Nexus...")
     print("  backend  -> http://127.0.0.1:8000  (API docs at /docs)")

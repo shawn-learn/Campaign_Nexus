@@ -30,6 +30,6 @@ def post_campaign(
         )
     except service.UnknownRuleSystem as exc:
         raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_ENTITY, f"unknown rule_system_id: {exc}"
+            status.HTTP_422_UNPROCESSABLE_CONTENT, f"unknown rule_system_id: {exc}"
         ) from exc
     return CampaignOut.model_validate(campaign)

@@ -64,9 +64,9 @@ async def upload_map(
             parent_map_id=parent_map_id or None, created_by=ctx.user_id,
         )
     except imagesize.BadImage as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
     except service.AtlasError as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
 
 
 @router.get("/{map_id}", response_model=MapDetail)
@@ -139,7 +139,7 @@ def add_marker(
     except service.MapNotFound as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "map not found") from exc
     except service.AtlasError as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
 
 
 @router.patch("/{map_id}/markers/{marker_id}", response_model=MarkerOut)
@@ -155,7 +155,7 @@ def update_marker(
     except service.MapNotFound as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "marker not found") from exc
     except service.AtlasError as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
 
 
 @router.delete("/{map_id}/markers/{marker_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -186,7 +186,7 @@ def add_region(
     except service.MapNotFound as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "map not found") from exc
     except service.AtlasError as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
 
 
 @router.patch("/{map_id}/regions/{region_id}", response_model=RegionOut)
@@ -202,7 +202,7 @@ def update_region(
     except service.MapNotFound as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "region not found") from exc
     except service.AtlasError as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
 
 
 @router.delete("/{map_id}/regions/{region_id}", status_code=status.HTTP_204_NO_CONTENT)

@@ -79,7 +79,7 @@ def post_entity(
         )
     except service.UnknownEntityType as exc:
         raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_ENTITY, f"unknown entity_type: {exc}"
+            status.HTTP_422_UNPROCESSABLE_CONTENT, f"unknown entity_type: {exc}"
         ) from exc
     return service.to_out(session, entity)
 
@@ -247,7 +247,7 @@ def post_link(
     except service.LinkCycle as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
     except service.InvalidLink as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
     return service.to_detail(session, entity)
 
 
@@ -262,7 +262,7 @@ def delete_link(
     except service.LinkNotFound as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "link not found") from exc
     except service.InvalidLink as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
     return service.to_detail(session, entity)
 
 

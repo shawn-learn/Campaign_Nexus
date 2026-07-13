@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import type { MapMarker, MapRegion } from '../../api/client'
+import { imageSpaceToLeaflet, leafletToImageSpace } from './mapGeometry'
 
 // A Leaflet CRS.Simple viewer: the image's pixel grid *is* the coordinate system, so a
 // 12k×12k map pans/zooms at 60fps without a tile pyramid (docs/09 §11.2, FR-3.1). Markers
@@ -24,6 +25,7 @@ interface Props {
   onMapClick: (x: number, y: number) => void
   onMarkerClick: (marker: MapMarker) => void
   onRegionClick: (region: MapRegion) => void
+  onMarkerMove?: (marker: MapMarker, x: number, y: number) => void
 }
 
 const TYPE_COLOR: Record<string, string> = {
@@ -68,6 +70,7 @@ export function LeafletMap({
   onMapClick,
   onMarkerClick,
   onRegionClick,
+  onMarkerMove,
 }: Props) {
   const elRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
@@ -79,9 +82,11 @@ export function LeafletMap({
   const clickRef = useRef(onMapClick)
   const markerClickRef = useRef(onMarkerClick)
   const regionClickRef = useRef(onRegionClick)
+  const markerMoveRef = useRef(onMarkerMove)
   clickRef.current = onMapClick
   markerClickRef.current = onMarkerClick
   regionClickRef.current = onRegionClick
+  markerMoveRef.current = onMarkerMove
 
   // Initialize once per map image (bounds depend on width/height/url).
   useEffect(() => {
@@ -126,16 +131,24 @@ export function LeafletMap({
     layer.clearLayers()
     for (const m of markers) {
       if (hiddenLayers.includes(m.layer)) continue
-      const pin = L.marker(L.latLng(height - m.y, m.x), { icon: pinIcon(m) })
+      const pin = L.marker(imageSpaceToLeaflet(height, m.x, m.y), {
+        icon: pinIcon(m),
+        draggable: editMode,
+      })
       const label = m.target_name ?? m.child_map_name ?? m.note ?? 'Marker'
       pin.bindTooltip(label, { direction: 'top', offset: [0, -8] })
       pin.on('click', (e: L.LeafletMouseEvent) => {
         L.DomEvent.stopPropagation(e)
         markerClickRef.current(m)
       })
+      pin.on('dragend', (e: L.DragEndEvent) => {
+        const { lat, lng } = e.target.getLatLng()
+        const next = leafletToImageSpace(height, lat, lng)
+        markerMoveRef.current?.(m, next.x, next.y)
+      })
       pin.addTo(layer)
     }
-  }, [markers, hiddenLayers, height])
+  }, [markers, hiddenLayers, height, editMode])
 
   // Re-draw region polygons.
   useEffect(() => {

@@ -124,6 +124,13 @@ export function NpcsPage() {
               )}
               {npc.has_met_party && <span className="badge" title="has met the party">🤝</span>}
               <span className={`badge npc-${npc.status}`}>{npc.status}</span>
+              <button
+                className="ghost"
+                style={{ padding: '4px 8px', fontSize: 12 }}
+                onClick={() => setSelected(npc.entity_id)}
+              >
+                Edit
+              </button>
             </span>
           </li>
         ))}

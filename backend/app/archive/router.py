@@ -34,6 +34,12 @@ def import_campaign(
     owner_id = campaign_service.get_local_user_id(session)
     try:
         campaign = service.import_campaign(session, archive, owner_user_id=owner_id)
-    except service.BadArchive as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
+    except (service.BadArchive, KeyError, ValueError, TypeError) as exc:
+        # A structurally-wrong archive surfaces deep in the importer as a missing key,
+        # a bad base64/JSON decode, or an unrecognized image — all subclasses of the
+        # above. Turn them into a clean 422 instead of a 500. (ValueError covers
+        # BadArchive, BadImage, json.JSONDecodeError, and binascii.Error.)
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, f"invalid campaign archive: {exc}"
+        ) from exc
     return CampaignOut.model_validate(campaign)

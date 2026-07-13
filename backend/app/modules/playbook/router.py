@@ -85,7 +85,7 @@ def add_member(
             session, ctx.campaign_id, body.stat_block_id, body.hit_points
         )
     except service.PlaybookError as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
     return service.to_out(session, party)
 
 
@@ -108,7 +108,7 @@ def rest(
     try:
         return service.rest(session, ctx.campaign_id, body.rest_type)
     except service.PlaybookError as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
 
 
 # --------------------------------------------------------------------------- #
@@ -118,7 +118,7 @@ def _travel_errors(exc: Exception) -> HTTPException:
     code = (
         status.HTTP_501_NOT_IMPLEMENTED
         if isinstance(exc, travel.TravelUnsupported)
-        else status.HTTP_422_UNPROCESSABLE_ENTITY
+        else status.HTTP_422_UNPROCESSABLE_CONTENT
     )
     return HTTPException(code, str(exc))
 
@@ -290,7 +290,7 @@ def create_quest(
             session, _campaign(session, ctx.campaign_id), body, created_by=ctx.user_id
         )
     except quests.QuestError as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
 
 
 @quests_router.get("/graph", response_model=QuestGraph)
@@ -324,7 +324,7 @@ def update_quest(
     except quests.QuestNotFound as exc:
         raise _quest_404(exc) from exc
     except quests.QuestError as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
 
 
 @quests_router.post("/{quest_id}/status", response_model=QuestOut)
@@ -342,7 +342,7 @@ def set_quest_status(
     except quests.InvalidTransition as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
     except quests.QuestError as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
 
 
 @quests_router.post("/{quest_id}/objectives", response_model=QuestOut)
@@ -359,7 +359,7 @@ def toggle_objective(
     except quests.QuestNotFound as exc:
         raise _quest_404(exc) from exc
     except quests.QuestError as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
 
 
 @quests_router.post("/{quest_id}/dependencies", response_model=QuestOut)

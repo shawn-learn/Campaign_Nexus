@@ -84,7 +84,7 @@ def create_node(
             session, _campaign(session, ctx.campaign_id), body, created_by=ctx.user_id
         )
     except service.StoryError as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
 
 
 @router.patch("/nodes/{node_id}", response_model=StoryNodeOut)
@@ -99,7 +99,7 @@ def update_node(
     except service.StoryNotFound as exc:
         raise _404(exc) from exc
     except service.StoryError as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
 
 
 @router.post("/nodes/{node_id}/status", response_model=NodeStatusResult)
@@ -118,7 +118,7 @@ def set_node_status(
     except service.InvalidTransition as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
     except service.StoryError as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
 
 
 @router.delete("/nodes/{node_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -144,7 +144,7 @@ def create_edge(
     except service.StoryNotFound as exc:
         raise _404(exc) from exc
     except service.StoryError as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
 
 
 @router.delete("/edges/{edge_id}", status_code=status.HTTP_204_NO_CONTENT)

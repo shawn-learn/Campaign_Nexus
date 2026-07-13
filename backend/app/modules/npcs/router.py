@@ -66,7 +66,7 @@ def create_npc(
             session, _campaign(session, ctx.campaign_id), body, created_by=ctx.user_id
         )
     except service.NpcError as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
 
 
 @router.get("/schedules", response_model=list[ScheduleOut])
@@ -126,7 +126,7 @@ def relocate(
     except service.NpcNotFound as exc:
         raise _404(exc) from exc
     except service.NpcError as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
 
 
 @router.post("/{npc_id}/status", response_model=NpcOut)
@@ -143,7 +143,7 @@ def set_status(
     except service.NpcNotFound as exc:
         raise _404(exc) from exc
     except service.NpcError as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
 
 
 @router.post("/{npc_id}/interactions", response_model=NpcOut)
@@ -226,4 +226,4 @@ def create_schedule(
     except service.NpcNotFound as exc:
         raise _404(exc) from exc
     except service.NpcError as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc

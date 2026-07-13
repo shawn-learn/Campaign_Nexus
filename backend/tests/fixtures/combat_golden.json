@@ -289,5 +289,54 @@
         }
       }
     }
+  },
+  {
+    "name": "fractional_amounts_truncate_toward_zero",
+    "actions": [
+      {
+        "type": "add_combatant",
+        "id": "a",
+        "name": "Frac",
+        "side": "foe",
+        "max_hp": 20,
+        "initiative": 10
+      },
+      {
+        "type": "set_temp_hp",
+        "id": "a",
+        "amount": 3.9
+      },
+      {
+        "type": "damage",
+        "id": "a",
+        "amount": 7.5
+      },
+      {
+        "type": "heal",
+        "id": "a",
+        "amount": 2.8
+      }
+    ],
+    "expected": {
+      "round": 1,
+      "turn_index": 0,
+      "order": [
+        "a"
+      ],
+      "combatants": {
+        "a": {
+          "id": "a",
+          "name": "Frac",
+          "side": "foe",
+          "max_hp": 20,
+          "hp": 18,
+          "temp_hp": 0,
+          "initiative": 10,
+          "conditions": [],
+          "concentrating": false,
+          "defeated": false
+        }
+      }
+    }
   }
 ]
