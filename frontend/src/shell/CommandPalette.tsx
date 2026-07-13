@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
-import { searchEntitiesFts } from '../api/hooks'
+import { searchEntitiesFts, searchMonsters } from '../api/hooks'
 import { useUiStore } from '../stores/ui'
 import { useRecentsStore } from '../stores/recents'
 import { useActiveCampaign } from './useActiveCampaign'
-import type { Entity } from '../api/client'
+import type { Entity, Monster } from '../api/client'
 
 interface EntityRow {
   kind: 'entity'
@@ -12,13 +12,18 @@ interface EntityRow {
   name: string
   entity_type: string
 }
+interface MonsterRow {
+  kind: 'monster'
+  id: string
+  name: string
+}
 interface CommandRow {
   kind: 'command'
   id: string
   label: string
   run: () => void
 }
-type Row = EntityRow | CommandRow
+type Row = EntityRow | MonsterRow | CommandRow
 
 // ⌘K command palette (docs/09-ui-architecture.md, §11.1): global search + commands +
 // recents. The most-used control in the app — search must feel instant (NFR-1.2).
@@ -33,6 +38,7 @@ export function CommandPalette() {
 
   const [query, setQuery] = useState('')
   const [hits, setHits] = useState<Entity[]>([])
+  const [monsterHits, setMonsterHits] = useState<Monster[]>([])
   const [index, setIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -41,19 +47,23 @@ export function CommandPalette() {
     if (open) {
       setQuery('')
       setHits([])
+      setMonsterHits([])
       setIndex(0)
       setTimeout(() => inputRef.current?.focus(), 0)
     }
   }, [open])
 
-  // Debounced search.
+  // Debounced search across entities (ranked FTS) and monsters (separate table).
   useEffect(() => {
     if (!campaignId || !query.trim()) {
       setHits([])
+      setMonsterHits([])
       return
     }
+    const q = query.trim()
     const handle = setTimeout(() => {
-      void searchEntitiesFts(campaignId, query.trim()).then(setHits)
+      void searchEntitiesFts(campaignId, q).then(setHits)
+      void searchMonsters(campaignId, q).then(setMonsterHits)
     }, 120)
     return () => clearTimeout(handle)
   }, [query, campaignId])
@@ -72,11 +82,14 @@ export function CommandPalette() {
     const entityRows: EntityRow[] = query.trim()
       ? hits.map((h) => ({ kind: 'entity', id: h.id, name: h.name, entity_type: h.entity_type }))
       : (recents ?? []).map((r) => ({ kind: 'entity', id: r.id, name: r.name, entity_type: r.entity_type }))
+    const monsterRows: MonsterRow[] = query.trim()
+      ? monsterHits.map((m) => ({ kind: 'monster', id: m.id, name: m.name }))
+      : []
     const commandRows = query.trim()
       ? commands.filter((c) => c.label.toLowerCase().includes(query.trim().toLowerCase()))
       : commands
-    return [...entityRows, ...commandRows]
-  }, [query, hits, recents, commands])
+    return [...entityRows, ...monsterRows, ...commandRows]
+  }, [query, hits, monsterHits, recents, commands])
 
   useEffect(() => setIndex(0), [rows.length])
 
@@ -84,6 +97,7 @@ export function CommandPalette() {
 
   const choose = (row: Row) => {
     if (row.kind === 'entity') openPeek(row.id)
+    else if (row.kind === 'monster') navigate({ to: '/bestiary', search: { q: row.name } })
     else row.run()
     setOpen(false)
   }
@@ -127,6 +141,11 @@ export function CommandPalette() {
                   <>
                     <span>{row.name}</span>
                     <span className="mention-type">{row.entity_type}</span>
+                  </>
+                ) : row.kind === 'monster' ? (
+                  <>
+                    <span>{row.name}</span>
+                    <span className="mention-type">monster</span>
                   </>
                 ) : (
                   <>

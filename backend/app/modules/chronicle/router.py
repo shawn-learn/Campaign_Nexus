@@ -137,6 +137,20 @@ def patch_entry(
     return TimelineEntryOut.model_validate(entry)
 
 
+@router.delete("/timeline/{entry_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_entry(
+    entry_id: str,
+    session: DbSession = Depends(get_session),
+    ctx: CampaignContext = Editor,
+) -> None:
+    try:
+        service.delete_manual_entry(session, ctx.campaign_id, entry_id)
+    except service.NotFound as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "timeline entry not found") from exc
+    except service.SessionError as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
+
+
 # --------------------------------------------------------------------------- #
 # Sessions
 # --------------------------------------------------------------------------- #

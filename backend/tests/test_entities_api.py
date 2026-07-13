@@ -52,3 +52,35 @@ def test_unknown_entity_type_rejected(client: TestClient) -> None:
         json={"entity_type": "dragon_hoard", "name": "x"},
     )
     assert resp.status_code == 422
+
+
+def _names(client: TestClient, cid: str, **params: object) -> list[str]:
+    resp = client.get(f"/api/v1/campaigns/{cid}/entities", params=params)
+    assert resp.status_code == 200, resp.text
+    return [e["name"] for e in resp.json()]
+
+
+def test_entities_name_sort_and_fallback(client: TestClient) -> None:
+    cid = _demo_campaign_id(client)
+    url = f"/api/v1/campaigns/{cid}/entities"
+    for name in ("Banshee", "Aboleth", "Cthulhu"):
+        client.post(url, json={"entity_type": "note", "name": name})
+
+    assert _names(client, cid, sort="name") == ["Aboleth", "Banshee", "Cthulhu"]
+    assert _names(client, cid, sort="-name") == ["Cthulhu", "Banshee", "Aboleth"]
+    # An unknown sort value falls back to the default (no error, all rows returned).
+    assert set(_names(client, cid, sort="bogus")) == {"Aboleth", "Banshee", "Cthulhu"}
+
+
+def test_entities_q_matches_name_and_summary(client: TestClient) -> None:
+    cid = _demo_campaign_id(client)
+    url = f"/api/v1/campaigns/{cid}/entities"
+    client.post(url, json={"entity_type": "npc", "name": "Ismark", "summary": "the Lesser"})
+    client.post(
+        url, json={"entity_type": "npc", "name": "Ireena", "summary": "burgomaster's daughter"}
+    )
+
+    # Matches a name...
+    assert _names(client, cid, q="ismark") == ["Ismark"]
+    # ...and a summary the name doesn't contain.
+    assert _names(client, cid, q="burgomaster") == ["Ireena"]

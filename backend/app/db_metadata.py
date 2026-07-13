@@ -33,6 +33,9 @@ from app.modules.playbook.models import (  # noqa: F401
     Party,
     PartyMember,
     Quest,
+    RandomTable,
+    SkillChallenge,
+    SkillChallengeRun,
 )
 from app.modules.rules.models import Monster, StatBlock  # noqa: F401
 from app.modules.story.models import StoryEdge, StoryNode  # noqa: F401

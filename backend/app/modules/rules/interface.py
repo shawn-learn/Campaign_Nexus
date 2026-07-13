@@ -25,6 +25,14 @@ TravelPaceTable = dict[str, Any]
 # {"max_hp": int, "hp": int, "initiative": int} — everything the combat tracker needs to
 # seed a combatant. The playbook reads *this*, never the stat-block document (docs/04 §6.8).
 CombatProfile = dict[str, Any]
+# Ordered {tier: dc} — how a system prices skill-challenge difficulty tiers as concrete
+# target numbers. The skill-challenge feature is system-agnostic; this is its one hook into
+# the rules plugin so a "hard" check means DC 20 in 5e but whatever Nimble calls hard.
+SkillCheckDcs = dict[str, int]
+
+# The canonical difficulty ladder skill challenges author against. Systems price each tier
+# via ``skill_check_dcs``; unpriced systems fall back to the generic ladder in Base.
+DIFFICULTY_TIERS = ("trivial", "easy", "normal", "hard", "very_hard", "nearly_impossible")
 
 # Display roles the generic renderer understands.
 FIELD_ROLES = ("text", "paragraph", "number", "boolean", "ability-array", "dice", "trait-list")
@@ -74,6 +82,9 @@ class RuleSystem(Protocol):
     def encounter_difficulty(
         self, party: list[Document], foes: list[tuple[Document, int]]
     ) -> dict[str, Any]: ...
+
+    # -- skill challenges --------------------------------------------------
+    def skill_check_dcs(self) -> SkillCheckDcs: ...
 
 
 class UnknownSheetType(ValueError):
@@ -159,3 +170,11 @@ class BaseRuleSystem:
         self, party: list[Document], foes: list[tuple[Document, int]]
     ) -> dict[str, Any]:
         return {"supported": False}
+
+    def skill_check_dcs(self) -> SkillCheckDcs:
+        # A generic d20-ish ladder over ``DIFFICULTY_TIERS``; systems with their own maths
+        # (5e's DMG ladder, Nimble's compressed one) override this.
+        return {
+            "trivial": 5, "easy": 10, "normal": 15,
+            "hard": 20, "very_hard": 25, "nearly_impossible": 30,
+        }

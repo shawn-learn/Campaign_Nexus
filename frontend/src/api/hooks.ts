@@ -3,6 +3,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
 import type { CampaignCreate, EntityCreate, EntityUpdate } from './client'
+import type { components } from './schema'
+
+type SkillChallengeCreate = components['schemas']['SkillChallengeCreate']
+type RecordCheckIn = components['schemas']['RecordCheckIn']
 
 function unwrap<T>(result: { data?: T; error?: unknown }, msg: string): T {
   if (result.error || result.data === undefined) {
@@ -42,6 +46,8 @@ interface EntityFilters {
   entity_type?: string
   tag_id?: string
   include_deleted?: boolean
+  q?: string
+  sort?: string
 }
 
 export function useEntities(campaignId: string | null, filters: EntityFilters = {}) {
@@ -139,6 +145,20 @@ export function useRestoreEntity(campaignId: string) {
 }
 
 // --- tags -------------------------------------------------------------------
+export function useTags(campaignId: string | null) {
+  return useQuery({
+    enabled: !!campaignId,
+    queryKey: ['tags', campaignId],
+    queryFn: async () =>
+      unwrap(
+        await api.GET('/api/v1/campaigns/{campaign_id}/tags', {
+          params: { path: { campaign_id: campaignId! } },
+        }),
+        'load tags',
+      ),
+  })
+}
+
 export function useTagEntity(campaignId: string, entityId: string) {
   const qc = useQueryClient()
   return useMutation({
@@ -199,6 +219,15 @@ export async function searchEntitiesFts(campaignId: string, q: string, limit = 1
     params: { path: { campaign_id: campaignId }, query: { q, limit } },
   })
   return data ?? []
+}
+
+// Monster name search for the palette — monsters aren't wiki entities, so they don't ride
+// the entity FTS index; the bestiary endpoint does its own name match (unbounded, so cap here).
+export async function searchMonsters(campaignId: string, q: string, limit = 8) {
+  const { data } = await api.GET('/api/v1/campaigns/{campaign_id}/monsters', {
+    params: { path: { campaign_id: campaignId }, query: { q } },
+  })
+  return (data ?? []).slice(0, limit)
 }
 
 export async function createEntityRequest(
@@ -366,6 +395,30 @@ export function useCreateScheduledEvent(campaignId: string) {
   })
 }
 
+export function useUpdateScheduledEvent(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (vars: {
+      eventId: string
+      title?: string
+      fire_at_game?: number
+      action_type?: string
+      action_json?: Record<string, unknown>
+      recurrence_days?: number | null
+    }) => {
+      const { eventId, ...body } = vars
+      return unwrap(
+        await api.PATCH('/api/v1/campaigns/{campaign_id}/scheduled-events/{event_id}', {
+          params: { path: { campaign_id: campaignId, event_id: eventId } },
+          body,
+        }),
+        'update scheduled event',
+      )
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['scheduled-events', campaignId] }),
+  })
+}
+
 export function useCancelScheduledEvent(campaignId: string) {
   const qc = useQueryClient()
   return useMutation({
@@ -420,6 +473,21 @@ export function useStatBlocks(campaignId: string | null, sheetType?: string) {
           },
         }),
         'load stat blocks',
+      ),
+  })
+}
+
+// A single stat block by id — used by the combat tracker to show the selected combatant.
+export function useStatBlock(campaignId: string | null, blockId: string | null) {
+  return useQuery({
+    enabled: !!campaignId && !!blockId,
+    queryKey: ['stat-block', campaignId, blockId],
+    queryFn: async () =>
+      unwrap(
+        await api.GET('/api/v1/campaigns/{campaign_id}/stat-blocks/{block_id}', {
+          params: { path: { campaign_id: campaignId!, block_id: blockId! } },
+        }),
+        'load stat block',
       ),
   })
 }
@@ -676,6 +744,51 @@ export function useCreateEncounter(campaignId: string) {
   })
 }
 
+export function useEncounter(campaignId: string | null, encounterId: string | null) {
+  return useQuery({
+    enabled: !!campaignId && !!encounterId,
+    queryKey: ['encounter', campaignId, encounterId],
+    queryFn: async () =>
+      unwrap(
+        await api.GET('/api/v1/campaigns/{campaign_id}/encounters/{encounter_id}', {
+          params: { path: { campaign_id: campaignId!, encounter_id: encounterId! } },
+        }),
+        'load encounter',
+      ),
+  })
+}
+
+// Combat runs started from a given encounter (for the encounter page's "combat" section).
+export function useEncounterCombats(campaignId: string | null, encounterId: string | null) {
+  return useQuery({
+    enabled: !!campaignId && !!encounterId,
+    queryKey: ['encounter-combats', campaignId, encounterId],
+    queryFn: async () =>
+      unwrap(
+        await api.GET('/api/v1/campaigns/{campaign_id}/combats', {
+          params: { path: { campaign_id: campaignId! }, query: { encounter_id: encounterId! } },
+        }),
+        'load encounter combats',
+      ),
+  })
+}
+
+export function useStartCombat(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (encounterId: string) =>
+      unwrap(
+        await api.POST('/api/v1/campaigns/{campaign_id}/combats', {
+          params: { path: { campaign_id: campaignId } },
+          body: { encounter_id: encounterId },
+        }),
+        'start combat',
+      ),
+    onSuccess: (_run, encounterId) =>
+      void qc.invalidateQueries({ queryKey: ['encounter-combats', campaignId, encounterId] }),
+  })
+}
+
 // --- bestiary ---------------------------------------------------------------
 interface MonsterFilters {
   q?: string
@@ -767,6 +880,37 @@ export function useCreateManualEntry(campaignId: string) {
         }),
         'create timeline entry',
       ),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['timeline', campaignId] }),
+  })
+}
+
+// Hide/unhide a single entry (projected or lore). The "Show hidden" filter reveals hidden ones.
+export function useSetTimelineHidden(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (vars: { entryId: string; hidden: boolean }) =>
+      unwrap(
+        await api.PATCH('/api/v1/campaigns/{campaign_id}/timeline/{entry_id}', {
+          params: { path: { campaign_id: campaignId, entry_id: vars.entryId } },
+          body: { is_hidden: vars.hidden },
+        }),
+        'update timeline entry',
+      ),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['timeline', campaignId] }),
+  })
+}
+
+// Delete a single manual lore entry (projected entries can only be hidden, not deleted).
+export function useDeleteTimelineEntry(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (entryId: string) => {
+      const { error } = await api.DELETE(
+        '/api/v1/campaigns/{campaign_id}/timeline/{entry_id}',
+        { params: { path: { campaign_id: campaignId, entry_id: entryId } } },
+      )
+      if (error) throw new Error('delete timeline entry')
+    },
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['timeline', campaignId] }),
   })
 }
@@ -1022,6 +1166,28 @@ export function useUpdateMap(campaignId: string, mapId: string) {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['maps', campaignId] })
       void qc.invalidateQueries({ queryKey: ['map', campaignId, mapId] })
+    },
+  })
+}
+
+// Attach/detach a map to a location from anywhere (the map id is a variable, not a hook
+// key, so one instance can retarget any map — e.g. the location page's picker).
+// NOTE: the backend treats `location_id: null` as "not provided" (no-op); the clear
+// sentinel is the empty string (service.update_map: `m.location_id = location_id or None`).
+export function useSetMapLocation(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (vars: { mapId: string; locationId: string | '' }) =>
+      unwrap(
+        await api.PATCH('/api/v1/campaigns/{campaign_id}/maps/{map_id}', {
+          params: { path: { campaign_id: campaignId, map_id: vars.mapId } },
+          body: { location_id: vars.locationId },
+        }),
+        'update map location',
+      ),
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({ queryKey: ['maps', campaignId] })
+      void qc.invalidateQueries({ queryKey: ['map', campaignId, vars.mapId] })
     },
   })
 }
@@ -1419,6 +1585,29 @@ export function useCreateNpc(campaignId: string) {
   })
 }
 
+// GM notes: goals / secrets / voice_notes. Backend PATCH /npcs/{npc_id}.
+export function useUpdateNpc(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (vars: {
+      npcId: string
+      goals?: string | null
+      secrets?: string | null
+      voice_notes?: string | null
+    }) => {
+      const { npcId, ...body } = vars
+      return unwrap(
+        await api.PATCH('/api/v1/campaigns/{campaign_id}/npcs/{npc_id}', {
+          params: { path: { campaign_id: campaignId, npc_id: npcId } },
+          body,
+        }),
+        'update npc',
+      )
+    },
+    onSuccess: () => invalidateNpcs(qc, campaignId),
+  })
+}
+
 export function useRelocateNpc(campaignId: string) {
   const qc = useQueryClient()
   return useMutation({
@@ -1631,5 +1820,200 @@ export function useEvents(campaignId: string | null, limit = 20) {
         }),
         'load events',
       ),
+  })
+}
+
+// --- random tables (FR-12) -------------------------------------------------
+type RandomTableCreate = components['schemas']['RandomTableCreate']
+type RandomTableUpdate = components['schemas']['RandomTableUpdate']
+
+export function useRandomTables(campaignId: string | null) {
+  return useQuery({
+    enabled: !!campaignId,
+    queryKey: ['random-tables', campaignId],
+    queryFn: async () =>
+      unwrap(
+        await api.GET('/api/v1/campaigns/{campaign_id}/random-tables', {
+          params: { path: { campaign_id: campaignId! } },
+        }),
+        'load random tables',
+      ),
+  })
+}
+
+export function useRandomTable(campaignId: string | null, tableId: string | null) {
+  return useQuery({
+    enabled: !!campaignId && !!tableId,
+    queryKey: ['random-table', campaignId, tableId],
+    queryFn: async () =>
+      unwrap(
+        await api.GET('/api/v1/campaigns/{campaign_id}/random-tables/{table_id}', {
+          params: { path: { campaign_id: campaignId!, table_id: tableId! } },
+        }),
+        'load random table',
+      ),
+  })
+}
+
+export function useCreateRandomTable(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: RandomTableCreate) =>
+      unwrap(
+        await api.POST('/api/v1/campaigns/{campaign_id}/random-tables', {
+          params: { path: { campaign_id: campaignId } },
+          body,
+        }),
+        'create random table',
+      ),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['random-tables', campaignId] })
+      void qc.invalidateQueries({ queryKey: ['entity', campaignId] })
+    },
+  })
+}
+
+export function useUpdateRandomTable(campaignId: string, tableId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: RandomTableUpdate) =>
+      unwrap(
+        await api.PATCH('/api/v1/campaigns/{campaign_id}/random-tables/{table_id}', {
+          params: { path: { campaign_id: campaignId, table_id: tableId } },
+          body,
+        }),
+        'update random table',
+      ),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['random-tables', campaignId] })
+      void qc.invalidateQueries({ queryKey: ['random-table', campaignId, tableId] })
+    },
+  })
+}
+
+export function useDeleteRandomTable(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (tableId: string) => {
+      const { error } = await api.DELETE(
+        '/api/v1/campaigns/{campaign_id}/random-tables/{table_id}',
+        { params: { path: { campaign_id: campaignId, table_id: tableId } } },
+      )
+      if (error) throw new Error('delete random table')
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['random-tables', campaignId] })
+      void qc.invalidateQueries({ queryKey: ['entities', campaignId] })
+    },
+  })
+}
+
+// Rolling is a non-idempotent read (POST) — it mutates nothing, so it invalidates nothing.
+export async function rollTable(campaignId: string, tableId: string) {
+  return unwrap(
+    await api.POST('/api/v1/campaigns/{campaign_id}/random-tables/{table_id}/roll', {
+      params: { path: { campaign_id: campaignId, table_id: tableId } },
+    }),
+    'roll table',
+  )
+}
+
+// --- skill challenges (FR-12) ----------------------------------------------
+export function useSkillChallenges(campaignId: string | null) {
+  return useQuery({
+    enabled: !!campaignId,
+    queryKey: ['skill-challenges', campaignId],
+    queryFn: async () =>
+      unwrap(
+        await api.GET('/api/v1/campaigns/{campaign_id}/skill-challenges', {
+          params: { path: { campaign_id: campaignId! } },
+        }),
+        'load skill challenges',
+      ),
+  })
+}
+
+export function useCreateSkillChallenge(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: SkillChallengeCreate) =>
+      unwrap(
+        await api.POST('/api/v1/campaigns/{campaign_id}/skill-challenges', {
+          params: { path: { campaign_id: campaignId } },
+          body,
+        }),
+        'create skill challenge',
+      ),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['skill-challenges', campaignId] })
+      void qc.invalidateQueries({ queryKey: ['entity', campaignId] })
+    },
+  })
+}
+
+export function useSkillRun(campaignId: string | null, runId: string | null) {
+  return useQuery({
+    enabled: !!campaignId && !!runId,
+    queryKey: ['skill-run', campaignId, runId],
+    queryFn: async () =>
+      unwrap(
+        await api.GET('/api/v1/campaigns/{campaign_id}/skill-runs/{run_id}', {
+          params: { path: { campaign_id: campaignId!, run_id: runId! } },
+        }),
+        'load skill run',
+      ),
+  })
+}
+
+export function useStartSkillRun(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (challengeId: string | null) =>
+      unwrap(
+        await api.POST('/api/v1/campaigns/{campaign_id}/skill-runs', {
+          params: { path: { campaign_id: campaignId } },
+          body: { challenge_id: challengeId },
+        }),
+        'start skill run',
+      ),
+    onSuccess: (run) =>
+      void qc.setQueryData(['skill-run', campaignId, run.run_id], run),
+  })
+}
+
+export function useRecordSkillCheck(campaignId: string, runId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: RecordCheckIn) =>
+      unwrap(
+        await api.POST('/api/v1/campaigns/{campaign_id}/skill-runs/{run_id}/checks', {
+          params: { path: { campaign_id: campaignId, run_id: runId } },
+          body,
+        }),
+        'record check',
+      ),
+    onSuccess: (run) =>
+      void qc.setQueryData(['skill-run', campaignId, runId], run),
+  })
+}
+
+export function useSkillRunAction(
+  campaignId: string,
+  runId: string,
+  action: 'undo' | 'resolve',
+) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async () =>
+      unwrap(
+        await api.POST(
+          `/api/v1/campaigns/{campaign_id}/skill-runs/{run_id}/${action}` as
+            '/api/v1/campaigns/{campaign_id}/skill-runs/{run_id}/undo',
+          { params: { path: { campaign_id: campaignId, run_id: runId } } },
+        ),
+        action === 'undo' ? 'undo check' : 'resolve run',
+      ),
+    onSuccess: (run) =>
+      void qc.setQueryData(['skill-run', campaignId, runId], run),
   })
 }

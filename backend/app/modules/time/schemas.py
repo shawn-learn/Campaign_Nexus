@@ -72,11 +72,20 @@ class ScheduledEventCreate(BaseModel):
     recurrence_days: int | None = Field(default=None, ge=1)
 
 
+class ScheduledEventUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    fire_at_game: int | None = None
+    action_type: str | None = Field(default=None, pattern="^(narrate|set_flag)$")
+    action_json: dict[str, object] | None = None
+    recurrence_days: int | None = Field(default=None, ge=1)
+
+
 class ScheduledEventOut(BaseModel):
     id: str
     title: str
     fire_at_game: int
     fire_at_label: str
     action_type: str
+    action_json: dict[str, object] = {}
     recurrence_days: int | None
     status: str

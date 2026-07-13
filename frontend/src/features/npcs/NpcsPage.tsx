@@ -12,6 +12,7 @@ import {
   useRelocateNpc,
   useSessions,
   useSetNpcStatus,
+  useUpdateNpc,
   whereWas,
 } from '../../api/hooks'
 import type { NpcFilters } from '../../api/hooks'
@@ -209,6 +210,8 @@ function NpcDetail({
         </button>
       </div>
 
+      <NpcNotes key={npc.entity_id} campaignId={campaignId} npc={npc} />
+
       <h4>Where were they…</h4>
       <div className="row" style={{ gap: 8 }}>
         <select defaultValue="" onChange={(e) => askSession(e.target.value)}>
@@ -252,6 +255,53 @@ function NpcDetail({
       </ul>
       <NewScheduleForm campaignId={campaignId} npcId={npc.entity_id} />
     </div>
+  )
+}
+
+// GM-only notes for an NPC (FR-6): goals, secrets, and voice/mannerism reminders.
+function NpcNotes({ campaignId, npc }: { campaignId: string; npc: Npc }) {
+  const update = useUpdateNpc(campaignId)
+  const [goals, setGoals] = useState(npc.goals ?? '')
+  const [secrets, setSecrets] = useState(npc.secrets ?? '')
+  const [voice, setVoice] = useState(npc.voice_notes ?? '')
+
+  const dirty =
+    goals !== (npc.goals ?? '') ||
+    secrets !== (npc.secrets ?? '') ||
+    voice !== (npc.voice_notes ?? '')
+
+  const save = () =>
+    update.mutate({
+      npcId: npc.entity_id,
+      goals: goals.trim() || null,
+      secrets: secrets.trim() || null,
+      voice_notes: voice.trim() || null,
+    })
+
+  return (
+    <>
+      <h4>GM notes</h4>
+      <div className="npc-notes">
+        <label className="field">
+          <span className="muted">Goals</span>
+          <textarea rows={2} value={goals} onChange={(e) => setGoals(e.target.value)}
+            placeholder="What are they after?" />
+        </label>
+        <label className="field">
+          <span className="muted">Secrets</span>
+          <textarea rows={2} value={secrets} onChange={(e) => setSecrets(e.target.value)}
+            placeholder="What are they hiding?" />
+        </label>
+        <label className="field">
+          <span className="muted">Voice / mannerisms</span>
+          <textarea rows={2} value={voice} onChange={(e) => setVoice(e.target.value)}
+            placeholder="How do they sound?" />
+        </label>
+        <button onClick={save} disabled={!dirty || update.isPending}>
+          {update.isPending ? 'Saving…' : 'Save notes'}
+        </button>
+      </div>
+    </>
   )
 }
 

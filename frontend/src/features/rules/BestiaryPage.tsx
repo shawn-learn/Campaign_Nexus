@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useSearch } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   exportBestiary,
@@ -30,6 +31,9 @@ export function BestiaryPage() {
   const hasFacet = (key: string) => !!facets?.some((f) => f.key === key)
 
   const [q, setQ] = useState('')
+  // Seed the search from ?q= (the ⌘K palette deep-links a monster here). Re-runs if it changes.
+  const { q: qParam } = useSearch({ from: '/bestiary' })
+  useEffect(() => { if (qParam) setQ(qParam) }, [qParam])
   const [crMin, setCrMin] = useState<string>('')
   const [crMax, setCrMax] = useState<string>('')
   const [type, setType] = useState('')

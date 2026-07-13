@@ -13,6 +13,8 @@ ENTITY_TYPES = (
     "item",
     "map",
     "encounter",
+    "skill_challenge",
+    "random_table",
     "pc",
     "session",
     "story_node",

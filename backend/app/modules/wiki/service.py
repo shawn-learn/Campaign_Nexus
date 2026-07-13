@@ -6,7 +6,7 @@ import json
 import re
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.clock import now_real_iso
@@ -135,6 +135,19 @@ def get_entity(session: Session, campaign_id: str, entity_id: str) -> Entity:
     return _require_entity(session, campaign_id, entity_id)
 
 
+# The browse hub's sort options → (column, descending). ``updated`` falls back to created
+# for rows never edited (updated_at defaults to created_at at insert, so no coalesce needed).
+_SORTS: dict[str, tuple[Any, bool]] = {
+    "created": (Entity.created_at_real, True),
+    "-created": (Entity.created_at_real, False),
+    "updated": (Entity.updated_at_real, True),
+    "-updated": (Entity.updated_at_real, False),
+    "name": (func.lower(Entity.name), False),
+    "-name": (func.lower(Entity.name), True),
+}
+_DEFAULT_SORT = "created"
+
+
 def list_entities(
     session: Session,
     campaign_id: str,
@@ -143,6 +156,7 @@ def list_entities(
     tag_id: str | None = None,
     q: str | None = None,
     include_deleted: bool = False,
+    sort: str | None = None,
 ) -> list[Entity]:
     stmt = select(Entity).where(Entity.campaign_id == campaign_id)
     if not include_deleted:
@@ -154,9 +168,13 @@ def list_entities(
             EntityTag.tag_id == tag_id
         )
     if q:
-        # Lightweight name match for @mention autocomplete; ranked FTS is `full_text_search`.
-        stmt = stmt.where(Entity.name.ilike(f"%{q}%"))
-    return list(session.scalars(stmt.order_by(Entity.created_at_real.desc())))
+        # Substring match over name + summary — the browse hub's live filter (ranked
+        # relevance search over the article body too is ``full_text_search``).
+        like = f"%{q}%"
+        stmt = stmt.where(or_(Entity.name.ilike(like), Entity.summary.ilike(like)))
+    column, descending = _SORTS.get(sort or _DEFAULT_SORT, _SORTS[_DEFAULT_SORT])
+    stmt = stmt.order_by(column.desc() if descending else column.asc())
+    return list(session.scalars(stmt))
 
 
 def full_text_search(

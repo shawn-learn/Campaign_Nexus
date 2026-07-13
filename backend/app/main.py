@@ -26,6 +26,9 @@ from app.modules.playbook.router import (
     combat_router,
     encounters_router,
     quests_router,
+    skill_challenges_router,
+    skill_runs_router,
+    tables_router,
     views_router,
 )
 from app.modules.playbook.router import router as party_router
@@ -117,6 +120,9 @@ def create_app() -> FastAPI:
     app.include_router(party_router)
     app.include_router(encounters_router)
     app.include_router(combat_router)
+    app.include_router(skill_challenges_router)
+    app.include_router(skill_runs_router)
+    app.include_router(tables_router)
     app.include_router(quests_router)
     app.include_router(views_router)
     app.include_router(npcs_router)

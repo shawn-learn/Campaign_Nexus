@@ -1,11 +1,27 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearch } from '@tanstack/react-router'
-import { useCreateEntity, useEntities } from '../../api/hooks'
+import { useCreateEntity, useEntities, useTags } from '../../api/hooks'
 import { useActiveCampaign } from '../../shell/useActiveCampaign'
+import { ListToolbar } from '../../components/ListToolbar'
+import { useDebounced } from '../../lib/useDebounced'
 
-const ENTITY_TYPES = ['note', 'npc', 'location', 'faction', 'quest'] as const
+// Everything the wiki can hold — the create form offers the common authoring types; the
+// filter offers all of them so the browse hub can reach maps, encounters, etc.
+const CREATE_TYPES = ['note', 'npc', 'location', 'faction', 'quest', 'item'] as const
+const ALL_TYPES = [
+  'note', 'npc', 'location', 'faction', 'quest', 'monster', 'item', 'map',
+  'encounter', 'skill_challenge', 'pc', 'session', 'story_node',
+] as const
 
-// Entity hub: create, filter by type, toggle deleted, and navigate to detail pages.
+const SORTS = [
+  { value: 'created', label: 'Newest' },
+  { value: '-created', label: 'Oldest' },
+  { value: 'name', label: 'Name A–Z' },
+  { value: '-name', label: 'Name Z–A' },
+  { value: '-updated', label: 'Recently updated' },
+]
+
+// Entity hub: create, full-text-ish search, filter by type/tag/deleted, sort, and navigate.
 export function EntitiesPage() {
   const { campaign } = useActiveCampaign()
   const campaignId = campaign?.id ?? null
@@ -14,11 +30,23 @@ export function EntitiesPage() {
   const search = useSearch({ strict: false }) as { type?: string }
   const [typeFilter, setTypeFilter] = useState<string>(search.type ?? '')
   useEffect(() => setTypeFilter(search.type ?? ''), [search.type])
+
+  const [query, setQuery] = useState('')
+  const debouncedQuery = useDebounced(query, 200)
+  const [tagFilter, setTagFilter] = useState('')
+  const [sort, setSort] = useState('created')
   const [includeDeleted, setIncludeDeleted] = useState(false)
+
+  const { data: tags } = useTags(campaignId)
   const { data: entities } = useEntities(campaignId, {
     ...(typeFilter ? { entity_type: typeFilter } : {}),
+    ...(tagFilter ? { tag_id: tagFilter } : {}),
+    ...(debouncedQuery.trim() ? { q: debouncedQuery.trim() } : {}),
     include_deleted: includeDeleted,
+    sort,
   })
+  // Unfiltered count for the "N of M" readout — cheap and gives the search real feedback.
+  const { data: allEntities } = useEntities(campaignId, { include_deleted: includeDeleted })
 
   const createEntity = useCreateEntity(campaignId ?? '')
   const [name, setName] = useState('')
@@ -37,10 +65,8 @@ export function EntitiesPage() {
 
       <form className="card row" onSubmit={submit}>
         <select value={newType} onChange={(e) => setNewType(e.target.value)}>
-          {ENTITY_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
+          {CREATE_TYPES.map((t) => (
+            <option key={t} value={t}>{t}</option>
           ))}
         </select>
         <input
@@ -54,13 +80,26 @@ export function EntitiesPage() {
         </button>
       </form>
 
-      <div className="row filters">
+      <ListToolbar
+        query={query}
+        onQuery={setQuery}
+        placeholder="Search name & summary…"
+        sort={sort}
+        onSort={setSort}
+        sortOptions={SORTS}
+        count={entities?.length}
+        total={allEntities?.length}
+      >
         <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
           <option value="">All types</option>
-          {ENTITY_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
+          {ALL_TYPES.map((t) => (
+            <option key={t} value={t}>{t.replace('_', ' ')}</option>
+          ))}
+        </select>
+        <select value={tagFilter} onChange={(e) => setTagFilter(e.target.value)}>
+          <option value="">All tags</option>
+          {(tags ?? []).map((t) => (
+            <option key={t.id} value={t.id}>#{t.name}</option>
           ))}
         </select>
         <label className="row muted" style={{ gap: 6 }}>
@@ -71,7 +110,7 @@ export function EntitiesPage() {
           />
           Show deleted
         </label>
-      </div>
+      </ListToolbar>
 
       <ul className="entities">
         {entities?.map((entity) => (
@@ -81,16 +120,20 @@ export function EntitiesPage() {
             </Link>
             <span className="row" style={{ gap: 6 }}>
               {(entity.tags ?? []).map((t) => (
-                <span key={t.id} className="tag">
-                  #{t.name}
-                </span>
+                <span key={t.id} className="tag">#{t.name}</span>
               ))}
               {entity.deleted && <span className="tag danger">deleted</span>}
               <span className="badge">{entity.entity_type}</span>
             </span>
           </li>
         ))}
-        {entities?.length === 0 && <p className="muted">No entities — create one above.</p>}
+        {entities?.length === 0 && (
+          <p className="muted">
+            {query.trim() || typeFilter || tagFilter
+              ? 'No entities match these filters.'
+              : 'No entities — create one above.'}
+          </p>
+        )}
       </ul>
     </>
   )

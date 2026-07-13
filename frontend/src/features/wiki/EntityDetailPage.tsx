@@ -17,6 +17,9 @@ import type { ReferencesOut } from '../../api/client'
 import { useActiveCampaign } from '../../shell/useActiveCampaign'
 import { useRecentsStore } from '../../stores/recents'
 import { ArticleEditor } from './ArticleEditor'
+import { LocationMapCard } from './LocationMapCard'
+import { EncounterPanel } from '../playbook/EncounterPanel'
+import { RandomTablePanel } from '../playbook/RandomTablePanel'
 import { RelationsEditor } from './RelationsEditor'
 import type { LinkRef } from '../../api/client'
 
@@ -161,6 +164,18 @@ export function EntityDetailPage() {
       </div>
 
       {campaignId && <EntityImages campaignId={campaignId} entityId={entityId} />}
+
+      {campaignId && entity.entity_type === 'location' && (
+        <LocationMapCard campaignId={campaignId} entityId={entityId} />
+      )}
+
+      {campaignId && entity.entity_type === 'encounter' && (
+        <EncounterPanel campaignId={campaignId} entityId={entityId} />
+      )}
+
+      {campaignId && entity.entity_type === 'random_table' && (
+        <RandomTablePanel campaignId={campaignId} entityId={entityId} />
+      )}
 
       {campaignId && (
         <ArticleEditor

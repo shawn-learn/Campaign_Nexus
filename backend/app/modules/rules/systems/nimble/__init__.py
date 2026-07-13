@@ -34,6 +34,7 @@ from app.modules.rules.interface import (
     FacetValues,
     JsonSchema,
     LayoutSpec,
+    SkillCheckDcs,
 )
 
 #: Nimble's four attributes. They are stored as modifiers, not 3-18 scores.
@@ -251,6 +252,16 @@ class NimbleSystem(BaseRuleSystem):
             "adjusted_xp": round(weight),
             "party_size": len(party),
             "thresholds": {band: round(budget * limit) for limit, band in _BANDS},
+        }
+
+    # -- skill challenges --------------------------------------------------
+    def skill_check_dcs(self) -> SkillCheckDcs:
+        # Nimble's DC ladder is compressed relative to 5e (10 / 15 / 20 are its common
+        # targets), so an identical challenge authoring reads as different numbers here —
+        # exactly the second-system divergence this plugin exists to prove.
+        return {
+            "trivial": 5, "easy": 10, "normal": 12,
+            "hard": 15, "very_hard": 18, "nearly_impossible": 20,
         }
 
 

@@ -10,7 +10,9 @@ import {
 } from '../../api/hooks'
 import { applyOptimistic } from '../../lib/combatReducer'
 import type { CombatState } from '../../lib/combatReducer'
+import { useStatBlock } from '../../api/hooks'
 import { useActiveCampaign } from '../../shell/useActiveCampaign'
+import { StatBlockView } from '../rules/StatBlockView'
 
 const CONDITIONS = ['prone', 'poisoned', 'stunned', 'restrained', 'frightened', 'grappled']
 
@@ -20,6 +22,7 @@ interface RunOut {
   can_undo: boolean
   can_redo: boolean
   state: CombatState
+  combatant_blocks?: Record<string, string>
 }
 
 // Combat tracker (FR-12.3, ADR-005). Keyboard-first: ↑/↓ select, digits build a number,
@@ -28,12 +31,14 @@ interface RunOut {
 export function CombatPage() {
   const { campaign } = useActiveCampaign()
   const campaignId = campaign?.id ?? null
+  const systemId = campaign?.rule_system_id ?? null
   const { data: encounters } = useEncounters(campaignId)
 
   const [pick, setPick] = useState('')
   const [runId, setRunId] = useState<string | null>(null)
   const [state, setState] = useState<CombatState | null>(null)
   const [meta, setMeta] = useState({ can_undo: false, can_redo: false, status: 'active' })
+  const [blocks, setBlocks] = useState<Record<string, string>>({})
   const [selected, setSelected] = useState<string | null>(null)
   const [buffer, setBuffer] = useState('')
   const [summary, setSummary] = useState<string | null>(null)
@@ -44,7 +49,7 @@ export function CombatPage() {
     setRunId(run.run_id)
     setState(run.state)
     setMeta({ can_undo: run.can_undo, can_redo: run.can_redo, status: run.status })
-    setSelected((prev) => prev ?? run.state.order[0] ?? null)
+    setBlocks(run.combatant_blocks ?? {})
     if (storageKey) localStorage.setItem(storageKey, run.run_id)
   }, [storageKey])
 
@@ -125,6 +130,13 @@ export function CombatPage() {
     return () => window.removeEventListener('keydown', onKey)
   }, [state, meta, selected, buffer, push, doUndo, doRedo])
 
+  // The selection defaults to whoever's turn it is: it snaps to the active combatant each
+  // time the turn advances, but a manual click can inspect anyone until the next turn.
+  const currentId = state ? state.order[state.turn_index] ?? null : null
+  useEffect(() => {
+    if (currentId) setSelected(currentId)
+  }, [currentId])
+
   if (!state) {
     return (
       <>
@@ -140,8 +152,9 @@ export function CombatPage() {
     )
   }
 
-  const current = state.order[state.turn_index]
+  const current = currentId
   const sel = selected ? state.combatants[selected] : null
+  const selBlockId = selected ? blocks[selected] : undefined
 
   return (
     <>
@@ -223,8 +236,32 @@ export function CombatPage() {
               </div>
             </div>
           )}
+
+          {sel && selBlockId && campaignId && (
+            <div className="card combat-statblock">
+              <CombatantStatBlock campaignId={campaignId} systemId={systemId} blockId={selBlockId} />
+            </div>
+          )}
+          {sel && !selBlockId && (
+            <p className="muted" style={{ fontSize: 12 }}>No stat block linked to {sel.name}.</p>
+          )}
         </div>
       </div>
     </>
   )
+}
+
+// Fetches and renders the selected combatant's stat block (defaults to the active turn).
+function CombatantStatBlock({
+  campaignId,
+  systemId,
+  blockId,
+}: {
+  campaignId: string
+  systemId: string | null
+  blockId: string
+}) {
+  const { data: block } = useStatBlock(campaignId, blockId)
+  if (!block) return <p className="muted">Loading stat block…</p>
+  return <StatBlockView systemId={systemId} block={block} />
 }

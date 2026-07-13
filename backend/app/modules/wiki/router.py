@@ -41,12 +41,14 @@ def get_entities(
     tag_id: str | None = None,
     q: str | None = None,
     include_deleted: bool = False,
+    sort: str | None = None,
     session: Session = Depends(get_session),
     ctx: CampaignContext = Viewer,
 ) -> list[EntityOut]:
     entities = service.list_entities(
         session, ctx.campaign_id,
-        entity_type=entity_type, tag_id=tag_id, q=q, include_deleted=include_deleted,
+        entity_type=entity_type, tag_id=tag_id, q=q,
+        include_deleted=include_deleted, sort=sort,
     )
     return [service.to_out(session, e) for e in entities]
 

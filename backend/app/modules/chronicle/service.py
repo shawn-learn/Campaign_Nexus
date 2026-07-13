@@ -111,6 +111,23 @@ def set_hidden(db: DbSession, campaign_id: str, entry_id: str, hidden: bool) -> 
     return entry
 
 
+def delete_manual_entry(db: DbSession, campaign_id: str, entry_id: str) -> None:
+    """Delete a single GM-authored lore entry.
+
+    Only manual lore (``event_id`` NULL) may be deleted: projected entries mirror the
+    immutable event log and would simply reappear on the next projection rebuild, so those
+    are hidden (``set_hidden``) rather than deleted.
+    """
+    entry = db.get(TimelineEntry, entry_id)
+    if entry is None or entry.campaign_id != campaign_id:
+        raise NotFound(entry_id)
+    if entry.event_id is not None:
+        raise SessionError("only manual lore entries can be deleted; hide projected events instead")
+    db.execute(delete(TimelineEntity).where(TimelineEntity.timeline_id == entry_id))
+    db.delete(entry)
+    db.commit()
+
+
 # --------------------------------------------------------------------------- #
 # Sessions
 # --------------------------------------------------------------------------- #

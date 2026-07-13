@@ -383,7 +383,8 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        /** Delete Entry */
+        delete: operations["delete_entry_api_v1_campaigns__campaign_id__timeline__entry_id__delete"];
         options?: never;
         head?: never;
         /** Patch Entry */
@@ -593,7 +594,8 @@ export interface paths {
         delete: operations["cancel_scheduled_api_v1_campaigns__campaign_id__scheduled_events__event_id__delete"];
         options?: never;
         head?: never;
-        patch?: never;
+        /** Update Scheduled */
+        patch: operations["update_scheduled_api_v1_campaigns__campaign_id__scheduled_events__event_id__patch"];
         trace?: never;
     };
     "/api/v1/campaigns/{campaign_id}/flags": {
@@ -1019,7 +1021,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** List Combats */
+        get: operations["list_combats_api_v1_campaigns__campaign_id__combats_get"];
         put?: never;
         /** Start Combat */
         post: operations["start_combat_api_v1_campaigns__campaign_id__combats_post"];
@@ -1108,6 +1111,181 @@ export interface paths {
         put?: never;
         /** End Combat */
         post: operations["end_combat_api_v1_campaigns__campaign_id__combats__run_id__end_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/skill-challenges": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Skill Challenges */
+        get: operations["list_skill_challenges_api_v1_campaigns__campaign_id__skill_challenges_get"];
+        put?: never;
+        /** Create Skill Challenge */
+        post: operations["create_skill_challenge_api_v1_campaigns__campaign_id__skill_challenges_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/skill-challenges/{challenge_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Skill Challenge */
+        get: operations["get_skill_challenge_api_v1_campaigns__campaign_id__skill_challenges__challenge_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Skill Challenge */
+        patch: operations["update_skill_challenge_api_v1_campaigns__campaign_id__skill_challenges__challenge_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/skill-runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start Skill Run */
+        post: operations["start_skill_run_api_v1_campaigns__campaign_id__skill_runs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/skill-runs/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Skill Run */
+        get: operations["get_skill_run_api_v1_campaigns__campaign_id__skill_runs__run_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/skill-runs/{run_id}/checks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record Skill Check */
+        post: operations["record_skill_check_api_v1_campaigns__campaign_id__skill_runs__run_id__checks_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/skill-runs/{run_id}/undo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Undo Skill Check */
+        post: operations["undo_skill_check_api_v1_campaigns__campaign_id__skill_runs__run_id__undo_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/skill-runs/{run_id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resolve Skill Run */
+        post: operations["resolve_skill_run_api_v1_campaigns__campaign_id__skill_runs__run_id__resolve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/random-tables": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Random Tables */
+        get: operations["list_random_tables_api_v1_campaigns__campaign_id__random_tables_get"];
+        put?: never;
+        /** Create Random Table */
+        post: operations["create_random_table_api_v1_campaigns__campaign_id__random_tables_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/random-tables/{table_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Random Table */
+        get: operations["get_random_table_api_v1_campaigns__campaign_id__random_tables__table_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Random Table */
+        delete: operations["delete_random_table_api_v1_campaigns__campaign_id__random_tables__table_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Random Table */
+        patch: operations["update_random_table_api_v1_campaigns__campaign_id__random_tables__table_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/random-tables/{table_id}/roll": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Roll Random Table */
+        post: operations["roll_random_table_api_v1_campaigns__campaign_id__random_tables__table_id__roll_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2015,6 +2193,27 @@ export interface components {
             /** Clock Time Game */
             clock_time_game: number;
         };
+        /** CheckRecord */
+        CheckRecord: {
+            /**
+             * Skill
+             * @default
+             */
+            skill?: string;
+            /**
+             * Difficulty
+             * @default normal
+             */
+            difficulty?: string;
+            /** Dc */
+            dc?: number | null;
+            /** Outcome */
+            outcome: string;
+            /** Actor */
+            actor?: string | null;
+            /** Note */
+            note?: string | null;
+        };
         /** ClockFormatted */
         ClockFormatted: {
             /** Label */
@@ -2062,6 +2261,17 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** CombatRunBrief */
+        CombatRunBrief: {
+            /** Run Id */
+            run_id: string;
+            /** Encounter Id */
+            encounter_id: string | null;
+            /** Status */
+            status: string;
+            /** Round */
+            round: number;
+        };
         /** CombatRunOut */
         CombatRunOut: {
             /** Run Id */
@@ -2079,6 +2289,13 @@ export interface components {
             /** Can Redo */
             can_redo: boolean;
             state: components["schemas"]["CombatState"];
+            /**
+             * Combatant Blocks
+             * @default {}
+             */
+            combatant_blocks?: {
+                [key: string]: string;
+            };
         };
         /** CombatState */
         CombatState: {
@@ -2470,6 +2687,23 @@ export interface components {
             at_label: string;
             /** Narrative */
             narrative: string;
+        };
+        /** GraduatedOutcome */
+        GraduatedOutcome: {
+            /** Min Failures */
+            min_failures: number;
+            /** Label */
+            label: string;
+            /**
+             * Narrative
+             * @default
+             */
+            narrative?: string;
+            /**
+             * Effects
+             * @default []
+             */
+            effects?: string[];
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -3035,10 +3269,68 @@ export interface components {
             /** Objectives */
             objectives?: components["schemas"]["Objective"][] | null;
         };
+        /** RandomTableCreate */
+        RandomTableCreate: {
+            /** Name */
+            name: string;
+            /**
+             * Dice
+             * @default 1d20
+             */
+            dice?: string;
+            /**
+             * Rows
+             * @default []
+             */
+            rows?: components["schemas"]["TableRow"][];
+        };
+        /** RandomTableOut */
+        RandomTableOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Dice */
+            dice: string;
+            /** Rows */
+            rows: components["schemas"]["TableRowOut"][];
+            /** Row Count */
+            row_count: number;
+        };
+        /** RandomTableUpdate */
+        RandomTableUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Dice */
+            dice?: string | null;
+            /** Rows */
+            rows?: components["schemas"]["TableRow"][] | null;
+        };
         /** RealtimeRequest */
         RealtimeRequest: {
             /** Enabled */
             enabled: boolean;
+        };
+        /** RecordCheckIn */
+        RecordCheckIn: {
+            /**
+             * Skill
+             * @default
+             */
+            skill?: string;
+            /**
+             * Difficulty
+             * @default normal
+             */
+            difficulty?: string;
+            /** Outcome */
+            outcome: string;
+            /** Dc */
+            dc?: number | null;
+            /** Actor */
+            actor?: string | null;
+            /** Note */
+            note?: string | null;
         };
         /**
          * ReferencesOut
@@ -3144,6 +3436,21 @@ export interface components {
             /** Members */
             members: components["schemas"]["PartyMemberOut"][];
         };
+        /** RollOut */
+        RollOut: {
+            /** Roll */
+            roll: number | null;
+            /** Index */
+            index: number | null;
+            /** Text */
+            text: string;
+            /** Target Entity Id */
+            target_entity_id?: string | null;
+            /** Target Name */
+            target_name?: string | null;
+            /** Target Type */
+            target_type?: string | null;
+        };
         /** RuleSystemInfo */
         RuleSystemInfo: {
             /** Id */
@@ -3227,10 +3534,32 @@ export interface components {
             fire_at_label: string;
             /** Action Type */
             action_type: string;
+            /**
+             * Action Json
+             * @default {}
+             */
+            action_json?: {
+                [key: string]: unknown;
+            };
             /** Recurrence Days */
             recurrence_days: number | null;
             /** Status */
             status: string;
+        };
+        /** ScheduledEventUpdate */
+        ScheduledEventUpdate: {
+            /** Title */
+            title?: string | null;
+            /** Fire At Game */
+            fire_at_game?: number | null;
+            /** Action Type */
+            action_type?: string | null;
+            /** Action Json */
+            action_json?: {
+                [key: string]: unknown;
+            } | null;
+            /** Recurrence Days */
+            recurrence_days?: number | null;
         };
         /** SessionCreate */
         SessionCreate: {
@@ -3341,10 +3670,119 @@ export interface components {
              */
             pinned?: boolean;
         };
+        /** SkillApproach */
+        SkillApproach: {
+            /** Skill */
+            skill: string;
+            /**
+             * Difficulty
+             * @default normal
+             */
+            difficulty?: string;
+            /** Hint */
+            hint?: string | null;
+        };
+        /** SkillChallengeCreate */
+        SkillChallengeCreate: {
+            /** Name */
+            name: string;
+            /** Premise */
+            premise?: string | null;
+            /**
+             * Total Checks
+             * @default 0
+             */
+            total_checks?: number;
+            /** Success Target */
+            success_target?: number | null;
+            /** Failure Cap */
+            failure_cap?: number | null;
+            /**
+             * Approaches
+             * @default []
+             */
+            approaches?: components["schemas"]["SkillApproach"][];
+            /**
+             * Outcomes
+             * @default []
+             */
+            outcomes?: components["schemas"]["GraduatedOutcome"][];
+            /** Location Id */
+            location_id?: string | null;
+        };
+        /** SkillChallengeOut */
+        SkillChallengeOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Premise */
+            premise: string | null;
+            /** Total Checks */
+            total_checks: number;
+            /** Success Target */
+            success_target: number | null;
+            /** Failure Cap */
+            failure_cap: number | null;
+            /** Approaches */
+            approaches: components["schemas"]["SkillApproach"][];
+            /** Outcomes */
+            outcomes: components["schemas"]["GraduatedOutcome"][];
+            /** Dcs */
+            dcs: {
+                [key: string]: number;
+            };
+            /** Location Id */
+            location_id: string | null;
+        };
+        /** SkillChallengeRunOut */
+        SkillChallengeRunOut: {
+            /** Run Id */
+            run_id: string;
+            /** Challenge Id */
+            challenge_id: string | null;
+            /** Challenge Name */
+            challenge_name: string | null;
+            /** Status */
+            status: string;
+            /** Checks */
+            checks: components["schemas"]["CheckRecord"][];
+            /** Successes */
+            successes: number;
+            /** Failures */
+            failures: number;
+            /** Checks Made */
+            checks_made: number;
+            /** Checks Remaining */
+            checks_remaining: number | null;
+            outcome: components["schemas"]["GraduatedOutcome"] | null;
+            /** Resolved */
+            resolved: boolean;
+        };
+        /** SkillChallengeUpdate */
+        SkillChallengeUpdate: {
+            /** Premise */
+            premise?: string | null;
+            /** Total Checks */
+            total_checks?: number | null;
+            /** Success Target */
+            success_target?: number | null;
+            /** Failure Cap */
+            failure_cap?: number | null;
+            /** Approaches */
+            approaches?: components["schemas"]["SkillApproach"][] | null;
+            /** Outcomes */
+            outcomes?: components["schemas"]["GraduatedOutcome"][] | null;
+        };
         /** StartCombat */
         StartCombat: {
             /** Encounter Id */
             encounter_id?: string | null;
+        };
+        /** StartSkillRun */
+        StartSkillRun: {
+            /** Challenge Id */
+            challenge_id?: string | null;
         };
         /** StatBlockCreate */
         StatBlockCreate: {
@@ -3517,6 +3955,42 @@ export interface components {
             edge_label: string | null;
             /** Condition Expr */
             condition_expr: string | null;
+        };
+        /** TableRow */
+        TableRow: {
+            /** Min */
+            min?: number | null;
+            /** Max */
+            max?: number | null;
+            /** Weight */
+            weight?: number | null;
+            /**
+             * Text
+             * @default
+             */
+            text?: string;
+            /** Target Entity Id */
+            target_entity_id?: string | null;
+        };
+        /** TableRowOut */
+        TableRowOut: {
+            /** Min */
+            min?: number | null;
+            /** Max */
+            max?: number | null;
+            /** Weight */
+            weight?: number | null;
+            /**
+             * Text
+             * @default
+             */
+            text?: string;
+            /** Target Entity Id */
+            target_entity_id?: string | null;
+            /** Target Name */
+            target_name?: string | null;
+            /** Target Type */
+            target_type?: string | null;
         };
         /** TagCreate */
         TagCreate: {
@@ -3820,6 +4294,7 @@ export interface operations {
                 tag_id?: string | null;
                 q?: string | null;
                 include_deleted?: boolean;
+                sort?: string | null;
             };
             header?: never;
             path: {
@@ -4591,6 +5066,36 @@ export interface operations {
             };
         };
     };
+    delete_entry_api_v1_campaigns__campaign_id__timeline__entry_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entry_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     patch_entry_api_v1_campaigns__campaign_id__timeline__entry_id__patch: {
         parameters: {
             query?: never;
@@ -5079,6 +5584,42 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_scheduled_api_v1_campaigns__campaign_id__scheduled_events__event_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScheduledEventUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduledEventOut"];
+                };
             };
             /** @description Validation Error */
             422: {
@@ -6057,6 +6598,39 @@ export interface operations {
             };
         };
     };
+    list_combats_api_v1_campaigns__campaign_id__combats_get: {
+        parameters: {
+            query?: {
+                encounter_id?: string | null;
+            };
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CombatRunBrief"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     start_combat_api_v1_campaigns__campaign_id__combats_post: {
         parameters: {
             query?: never;
@@ -6243,6 +6817,503 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CombatSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_skill_challenges_api_v1_campaigns__campaign_id__skill_challenges_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillChallengeOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_skill_challenge_api_v1_campaigns__campaign_id__skill_challenges_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SkillChallengeCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillChallengeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_skill_challenge_api_v1_campaigns__campaign_id__skill_challenges__challenge_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                challenge_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillChallengeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_skill_challenge_api_v1_campaigns__campaign_id__skill_challenges__challenge_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                challenge_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SkillChallengeUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillChallengeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_skill_run_api_v1_campaigns__campaign_id__skill_runs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartSkillRun"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillChallengeRunOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_skill_run_api_v1_campaigns__campaign_id__skill_runs__run_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillChallengeRunOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    record_skill_check_api_v1_campaigns__campaign_id__skill_runs__run_id__checks_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecordCheckIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillChallengeRunOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    undo_skill_check_api_v1_campaigns__campaign_id__skill_runs__run_id__undo_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillChallengeRunOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolve_skill_run_api_v1_campaigns__campaign_id__skill_runs__run_id__resolve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillChallengeRunOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_random_tables_api_v1_campaigns__campaign_id__random_tables_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RandomTableOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_random_table_api_v1_campaigns__campaign_id__random_tables_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RandomTableCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RandomTableOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_random_table_api_v1_campaigns__campaign_id__random_tables__table_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                table_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RandomTableOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_random_table_api_v1_campaigns__campaign_id__random_tables__table_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                table_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_random_table_api_v1_campaigns__campaign_id__random_tables__table_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                table_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RandomTableUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RandomTableOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    roll_random_table_api_v1_campaigns__campaign_id__random_tables__table_id__roll_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                table_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RollOut"];
                 };
             };
             /** @description Validation Error */

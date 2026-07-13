@@ -6,11 +6,21 @@ from sqlalchemy.orm import Session
 from app.core.db import get_session
 from app.modules.campaign.deps import CampaignContext, require_campaign_role
 from app.modules.campaign.models import Campaign
-from app.modules.playbook import combat, dashboard, encounters, quests, service, travel
+from app.modules.playbook import (
+    combat,
+    dashboard,
+    encounters,
+    quests,
+    service,
+    skill_challenges,
+    tables,
+    travel,
+)
 from app.modules.playbook.models import CombatRun
 from app.modules.playbook.schemas import (
     AddMember,
     CombatActionIn,
+    CombatRunBrief,
     CombatRunOut,
     CombatSummary,
     DashboardOut,
@@ -26,11 +36,21 @@ from app.modules.playbook.schemas import (
     QuestOut,
     QuestStatusIn,
     QuestUpdate,
+    RandomTableCreate,
+    RandomTableOut,
+    RandomTableUpdate,
+    RecordCheckIn,
+    RollOut,
     RestRequest,
     RestResult,
     SetLocation,
     SetPin,
+    SkillChallengeCreate,
+    SkillChallengeOut,
+    SkillChallengeRunOut,
+    SkillChallengeUpdate,
     StartCombat,
+    StartSkillRun,
     TravelPlan,
     TravelRequest,
     TravelResult,
@@ -43,6 +63,15 @@ encounters_router = APIRouter(
 )
 combat_router = APIRouter(prefix="/api/v1/campaigns/{campaign_id}/combats", tags=["combat"])
 quests_router = APIRouter(prefix="/api/v1/campaigns/{campaign_id}/quests", tags=["quests"])
+skill_challenges_router = APIRouter(
+    prefix="/api/v1/campaigns/{campaign_id}/skill-challenges", tags=["skill-challenges"]
+)
+skill_runs_router = APIRouter(
+    prefix="/api/v1/campaigns/{campaign_id}/skill-runs", tags=["skill-challenges"]
+)
+tables_router = APIRouter(
+    prefix="/api/v1/campaigns/{campaign_id}/random-tables", tags=["random-tables"]
+)
 views_router = APIRouter(prefix="/api/v1/campaigns/{campaign_id}/views", tags=["views"])
 
 Viewer = Depends(require_campaign_role("viewer"))
@@ -183,6 +212,229 @@ def get_encounter(
 
 
 # --------------------------------------------------------------------------- #
+# Skill challenges (FR-12) — system-agnostic non-combat scenes
+# --------------------------------------------------------------------------- #
+def _sc_404(exc: Exception) -> HTTPException:
+    return HTTPException(status.HTTP_404_NOT_FOUND, "skill challenge not found")
+
+
+@skill_challenges_router.get("", response_model=list[SkillChallengeOut])
+def list_skill_challenges(
+    session: Session = Depends(get_session), ctx: CampaignContext = Viewer
+) -> list[SkillChallengeOut]:
+    return skill_challenges.list_skill_challenges(
+        session, _campaign(session, ctx.campaign_id)
+    )
+
+
+@skill_challenges_router.post(
+    "", response_model=SkillChallengeOut, status_code=status.HTTP_201_CREATED
+)
+def create_skill_challenge(
+    body: SkillChallengeCreate,
+    session: Session = Depends(get_session),
+    ctx: CampaignContext = Editor,
+) -> SkillChallengeOut:
+    return skill_challenges.create_skill_challenge(
+        session, _campaign(session, ctx.campaign_id),
+        name=body.name, premise=body.premise, total_checks=body.total_checks,
+        success_target=body.success_target, failure_cap=body.failure_cap,
+        approaches=body.approaches, outcomes=body.outcomes,
+        location_id=body.location_id, created_by=ctx.user_id,
+    )
+
+
+@skill_challenges_router.get("/{challenge_id}", response_model=SkillChallengeOut)
+def get_skill_challenge(
+    challenge_id: str,
+    session: Session = Depends(get_session),
+    ctx: CampaignContext = Viewer,
+) -> SkillChallengeOut:
+    try:
+        return skill_challenges.get_skill_challenge(
+            session, _campaign(session, ctx.campaign_id), challenge_id
+        )
+    except skill_challenges.SkillChallengeNotFound as exc:
+        raise _sc_404(exc) from exc
+
+
+@skill_challenges_router.patch("/{challenge_id}", response_model=SkillChallengeOut)
+def update_skill_challenge(
+    challenge_id: str,
+    body: SkillChallengeUpdate,
+    session: Session = Depends(get_session),
+    ctx: CampaignContext = Editor,
+) -> SkillChallengeOut:
+    try:
+        return skill_challenges.update_skill_challenge(
+            session, _campaign(session, ctx.campaign_id), challenge_id,
+            premise=body.premise, total_checks=body.total_checks,
+            success_target=body.success_target, failure_cap=body.failure_cap,
+            approaches=body.approaches, outcomes=body.outcomes,
+        )
+    except skill_challenges.SkillChallengeNotFound as exc:
+        raise _sc_404(exc) from exc
+
+
+@skill_runs_router.post(
+    "", response_model=SkillChallengeRunOut, status_code=status.HTTP_201_CREATED
+)
+def start_skill_run(
+    body: StartSkillRun,
+    session: Session = Depends(get_session),
+    ctx: CampaignContext = Editor,
+) -> SkillChallengeRunOut:
+    try:
+        return skill_challenges.start_run(
+            session, _campaign(session, ctx.campaign_id), body.challenge_id
+        )
+    except skill_challenges.SkillChallengeNotFound as exc:
+        raise _sc_404(exc) from exc
+
+
+@skill_runs_router.get("/{run_id}", response_model=SkillChallengeRunOut)
+def get_skill_run(
+    run_id: str,
+    session: Session = Depends(get_session),
+    ctx: CampaignContext = Viewer,
+) -> SkillChallengeRunOut:
+    try:
+        return skill_challenges.get_run(
+            session, _campaign(session, ctx.campaign_id), run_id
+        )
+    except skill_challenges.SkillRunNotFound as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "skill run not found") from exc
+
+
+@skill_runs_router.post("/{run_id}/checks", response_model=SkillChallengeRunOut)
+def record_skill_check(
+    run_id: str,
+    body: RecordCheckIn,
+    session: Session = Depends(get_session),
+    ctx: CampaignContext = Editor,
+) -> SkillChallengeRunOut:
+    try:
+        return skill_challenges.record_check(
+            session, _campaign(session, ctx.campaign_id), run_id, body
+        )
+    except skill_challenges.SkillRunNotFound as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "skill run not found") from exc
+    except skill_challenges.SkillRunClosed as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, "skill run already resolved") from exc
+
+
+@skill_runs_router.post("/{run_id}/undo", response_model=SkillChallengeRunOut)
+def undo_skill_check(
+    run_id: str, session: Session = Depends(get_session), ctx: CampaignContext = Editor
+) -> SkillChallengeRunOut:
+    try:
+        return skill_challenges.undo_check(
+            session, _campaign(session, ctx.campaign_id), run_id
+        )
+    except skill_challenges.SkillRunNotFound as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "skill run not found") from exc
+
+
+@skill_runs_router.post("/{run_id}/resolve", response_model=SkillChallengeRunOut)
+def resolve_skill_run(
+    run_id: str, session: Session = Depends(get_session), ctx: CampaignContext = Editor
+) -> SkillChallengeRunOut:
+    try:
+        return skill_challenges.resolve_run(
+            session, _campaign(session, ctx.campaign_id), run_id
+        )
+    except skill_challenges.SkillRunNotFound as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "skill run not found") from exc
+
+
+# --------------------------------------------------------------------------- #
+# Random tables (FR-12.x)
+# --------------------------------------------------------------------------- #
+def _table_404(exc: Exception) -> HTTPException:
+    return HTTPException(status.HTTP_404_NOT_FOUND, "random table not found")
+
+
+def _bad_dice(exc: Exception) -> HTTPException:
+    return HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"invalid dice: {exc}")
+
+
+@tables_router.get("", response_model=list[RandomTableOut])
+def list_random_tables(
+    session: Session = Depends(get_session), ctx: CampaignContext = Viewer
+) -> list[RandomTableOut]:
+    return tables.list_random_tables(session, _campaign(session, ctx.campaign_id))
+
+
+@tables_router.post("", response_model=RandomTableOut, status_code=status.HTTP_201_CREATED)
+def create_random_table(
+    body: RandomTableCreate,
+    session: Session = Depends(get_session),
+    ctx: CampaignContext = Editor,
+) -> RandomTableOut:
+    try:
+        return tables.create_random_table(
+            session, _campaign(session, ctx.campaign_id),
+            name=body.name, dice=body.dice, rows=body.rows, created_by=ctx.user_id,
+        )
+    except tables.BadDice as exc:
+        raise _bad_dice(exc) from exc
+
+
+@tables_router.get("/{table_id}", response_model=RandomTableOut)
+def get_random_table(
+    table_id: str,
+    session: Session = Depends(get_session),
+    ctx: CampaignContext = Viewer,
+) -> RandomTableOut:
+    try:
+        return tables.get_random_table(session, _campaign(session, ctx.campaign_id), table_id)
+    except tables.RandomTableNotFound as exc:
+        raise _table_404(exc) from exc
+
+
+@tables_router.patch("/{table_id}", response_model=RandomTableOut)
+def update_random_table(
+    table_id: str,
+    body: RandomTableUpdate,
+    session: Session = Depends(get_session),
+    ctx: CampaignContext = Editor,
+) -> RandomTableOut:
+    try:
+        return tables.update_random_table(
+            session, _campaign(session, ctx.campaign_id), table_id,
+            name=body.name, dice=body.dice, rows=body.rows,
+        )
+    except tables.RandomTableNotFound as exc:
+        raise _table_404(exc) from exc
+    except tables.BadDice as exc:
+        raise _bad_dice(exc) from exc
+
+
+@tables_router.delete("/{table_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_random_table(
+    table_id: str,
+    session: Session = Depends(get_session),
+    ctx: CampaignContext = Editor,
+) -> None:
+    try:
+        tables.delete_random_table(session, _campaign(session, ctx.campaign_id), table_id)
+    except tables.RandomTableNotFound as exc:
+        raise _table_404(exc) from exc
+
+
+@tables_router.post("/{table_id}/roll", response_model=RollOut)
+def roll_random_table(
+    table_id: str,
+    session: Session = Depends(get_session),
+    ctx: CampaignContext = Viewer,
+) -> RollOut:
+    try:
+        return tables.roll(session, _campaign(session, ctx.campaign_id), table_id)
+    except tables.RandomTableNotFound as exc:
+        raise _table_404(exc) from exc
+
+
+# --------------------------------------------------------------------------- #
 # Combat runs (event-sourced, ADR-005)
 # --------------------------------------------------------------------------- #
 def _run_out(session: Session, run: CombatRun) -> CombatRunOut:
@@ -192,7 +444,26 @@ def _run_out(session: Session, run: CombatRun) -> CombatRunOut:
         cursor=run.fold_cursor, total_actions=total,
         can_undo=run.fold_cursor > 0, can_redo=run.fold_cursor < total,
         state=combat.state_of(session, run),
+        combatant_blocks=combat.combatant_blocks(session, run.id),
     )
+
+
+@combat_router.get("", response_model=list[CombatRunBrief])
+def list_combats(
+    encounter_id: str | None = Query(default=None),
+    session: Session = Depends(get_session),
+    ctx: CampaignContext = Viewer,
+) -> list[CombatRunBrief]:
+    if not encounter_id:
+        return []
+    runs = combat.runs_for_encounter(session, ctx.campaign_id, encounter_id)
+    return [
+        CombatRunBrief(
+            run_id=r.id, encounter_id=r.encounter_id, status=r.status,
+            round=combat.state_of(session, r).round,
+        )
+        for r in runs
+    ]
 
 
 @combat_router.post("", response_model=CombatRunOut, status_code=status.HTTP_201_CREATED)

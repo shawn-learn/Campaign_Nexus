@@ -120,6 +120,16 @@ ul.entities li {
 /* Filters row */
 .filters { margin-bottom: 12px; }
 
+/* Shared list toolbar (search + sort + filter slot) */
+.list-toolbar { align-items: center; }
+.search-field { position: relative; display: inline-flex; align-items: center; flex: 1 1 220px; }
+.search-field .toolbar-search { width: 100%; padding-right: 26px; }
+.search-clear {
+  position: absolute; right: 6px; border: none; background: none; cursor: pointer;
+  font-size: 16px; line-height: 1; padding: 0 2px;
+}
+.toolbar-count { white-space: nowrap; }
+
 /* Entity list extras */
 ul.entities li.deleted { opacity: 0.55; }
 ul.entities li a { font-weight: 600; }
@@ -459,6 +469,21 @@ ul.relations li:last-child { border-bottom: none; }
 .pick-row button { padding: 2px 8px; }
 
 /* Classic 5e stat block */
+/* Random table rows + roll result */
+.table-rows { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.table-rows li { padding: 4px 8px; border-radius: 6px; }
+.table-rows li.rolled { background: var(--accent-soft, rgba(120,140,255,0.18)); outline: 1px solid var(--accent, #7c8cff); }
+.roll-result { border-left: 3px solid var(--accent, #7c8cff); }
+
+/* Encounter roster preview on the entity page */
+.roster { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.roster li { padding: 4px 8px; background: var(--panel-2); border-radius: 6px; }
+.roster-count { font-variant-numeric: tabular-nums; color: var(--muted); min-width: 28px; }
+
+/* The combat tracker's stat-block panel — scrolls inside the side column. */
+.combat-statblock { max-height: 460px; overflow: auto; padding: 8px; }
+.combat-statblock .statblock { border-top-width: 3px; }
+
 .statblock {
   background: #f4ecd8;
   color: #1a1206;
@@ -559,6 +584,9 @@ ul.feed li:last-child { border-bottom: none; }
   background: var(--panel-2);
 }
 .leaflet-wrap.edit .leaflet-host { cursor: crosshair; }
+/* A map embedded on a location's entity page — shorter than the full Atlas canvas. */
+.location-map .leaflet-wrap, .location-map .leaflet-host { height: 420px; }
+.location-map { margin: 8px 0; }
 .leaflet-host .leaflet-container { background: var(--panel-2); border-radius: 10px; }
 .map-pin {
   display: block;

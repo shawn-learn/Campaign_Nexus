@@ -18,6 +18,7 @@ from app.modules.rules.interface import (
     FacetValues,
     JsonSchema,
     LayoutSpec,
+    SkillCheckDcs,
     TravelPaceTable,
 )
 from app.modules.rules.systems.dnd5e.content import CONTENT_PACK
@@ -349,6 +350,13 @@ class Dnd5eSystem(BaseRuleSystem):
             "adjusted_xp": adjusted,
             "party_size": len(party),
             "thresholds": {"easy": easy, "medium": medium, "hard": hard, "deadly": deadly},
+        }
+
+    def skill_check_dcs(self) -> SkillCheckDcs:
+        # The DMG "Typical Difficulty Classes" ladder (DMG p.238 / PHB p.174).
+        return {
+            "trivial": 5, "easy": 10, "normal": 15,
+            "hard": 20, "very_hard": 25, "nearly_impossible": 30,
         }
 
 

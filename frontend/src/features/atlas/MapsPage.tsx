@@ -1,4 +1,5 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useSearch } from '@tanstack/react-router'
 import {
   useAddMarker,
   useAddRegion,
@@ -8,17 +9,26 @@ import {
   useEntities,
   useMap,
   useMaps,
+  useSetMapLocation,
   useUpdateMap,
   useUpdateMarker,
   useUploadMap,
 } from '../../api/hooks'
 import { useActiveCampaign } from '../../shell/useActiveCampaign'
 import { useUiStore } from '../../stores/ui'
+import { ListToolbar } from '../../components/ListToolbar'
 import { LeafletMap } from './LeafletMap'
 import type { MapTool } from './LeafletMap'
-import type { MapMarker, MapRegion } from '../../api/client'
+import type { MapMarker, MapRegion, MapSummary } from '../../api/client'
 
 const MAP_KINDS = ['world', 'region', 'city', 'dungeon', 'building'] as const
+
+const MAP_SORTS = [
+  { value: 'name', label: 'Name A–Z' },
+  { value: '-name', label: 'Name Z–A' },
+  { value: 'kind', label: 'Kind' },
+  { value: '-pins', label: 'Most pins' },
+]
 
 // The Atlas (FR-3): upload an image, drop entity-linked markers on a CRS.Simple canvas,
 // and drill world → city → dungeon via child-map markers with a breadcrumb stack back.
@@ -32,6 +42,15 @@ export function MapsPage() {
   const current = stack[stack.length - 1] ?? null
   const { data: detail } = useMap(campaignId, current?.id ?? null)
   const [edit, setEdit] = useState(false)
+
+  // ?open=<mapId> deep link (e.g. "Open in Atlas" on a location page): seed the stack once
+  // the map list is loaded so we can resolve the name — and re-seed if the param changes.
+  const { open: openParam } = useSearch({ from: '/maps' })
+  useEffect(() => {
+    if (!openParam || !maps) return
+    const target = maps.find((m) => m.entity_id === openParam)
+    if (target) setStack([{ id: target.entity_id, name: target.name }])
+  }, [openParam, maps])
 
   if (!campaign) return <p className="muted">Select a campaign to begin.</p>
 
@@ -86,13 +105,7 @@ function MapLibrary({
   onOpen,
 }: {
   campaignId: string
-  maps: {
-    entity_id: string
-    name: string
-    description?: string | null
-    map_kind: string
-    marker_count: number
-  }[]
+  maps: MapSummary[]
   onOpen: (id: string, name: string) => void
 }) {
   const upload = useUploadMap(campaignId)
@@ -102,6 +115,30 @@ function MapLibrary({
   const [kind, setKind] = useState<string>('region')
   const [description, setDescription] = useState('')
   const [err, setErr] = useState<string | null>(null)
+
+  // Client-side search/filter/sort — the map library is small enough to hold in memory.
+  const [query, setQuery] = useState('')
+  const [kindFilter, setKindFilter] = useState('')
+  const [linked, setLinked] = useState('') // '' | 'yes' | 'no'
+  const [sort, setSort] = useState('name')
+
+  const shown = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    const rows = maps.filter((m) => {
+      if (kindFilter && m.map_kind !== kindFilter) return false
+      if (linked === 'yes' && !m.location_id) return false
+      if (linked === 'no' && m.location_id) return false
+      if (q && !`${m.name} ${m.description ?? ''}`.toLowerCase().includes(q)) return false
+      return true
+    })
+    const dir = sort.startsWith('-') ? -1 : 1
+    const key = sort.replace('-', '')
+    return [...rows].sort((a, b) => {
+      if (key === 'pins') return (a.marker_count - b.marker_count) * dir
+      if (key === 'kind') return a.map_kind.localeCompare(b.map_kind) * dir || a.name.localeCompare(b.name)
+      return a.name.localeCompare(b.name) * dir
+    })
+  }, [maps, query, kindFilter, linked, sort])
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -143,9 +180,35 @@ function MapLibrary({
         {err && <p className="tag danger" style={{ marginTop: 8 }}>{err}</p>}
       </form>
 
+      {maps.length > 0 && (
+        <ListToolbar
+          query={query}
+          onQuery={setQuery}
+          placeholder="Search maps…"
+          sort={sort}
+          onSort={setSort}
+          sortOptions={MAP_SORTS}
+          count={shown.length}
+          total={maps.length}
+        >
+          <select value={kindFilter} onChange={(e) => setKindFilter(e.target.value)}>
+            <option value="">All kinds</option>
+            {MAP_KINDS.map((k) => <option key={k} value={k}>{k}</option>)}
+          </select>
+          <select value={linked} onChange={(e) => setLinked(e.target.value)}>
+            <option value="">Any location</option>
+            <option value="yes">Linked to a location</option>
+            <option value="no">Not linked</option>
+          </select>
+        </ListToolbar>
+      )}
+
       <ul className="entities">
         {maps.length === 0 && <p className="muted">No maps yet. Upload one to begin.</p>}
-        {maps.map((m) => (
+        {maps.length > 0 && shown.length === 0 && (
+          <p className="muted">No maps match these filters.</p>
+        )}
+        {shown.map((m) => (
           <li key={m.entity_id}>
             <div style={{ minWidth: 0 }}>
               <button className="linkish" onClick={() => onOpen(m.entity_id, m.name)}>{m.name}</button>
@@ -241,6 +304,12 @@ function MapCanvas({
 
   return (
     <>
+      <DepictsLocation
+        campaignId={campaignId}
+        mapId={detail.entity_id}
+        locationId={detail.location_id ?? null}
+      />
+
       <MapDescription
         campaignId={campaignId}
         mapId={detail.entity_id}
@@ -342,6 +411,60 @@ function MapCanvas({
         )}
       </div>
     </>
+  )
+}
+
+// Which location this map depicts (the `Map.location_id` FK). Setting it makes the map
+// render on that location's entity page; the location page has the same attach/detach.
+function DepictsLocation({
+  campaignId,
+  mapId,
+  locationId,
+}: {
+  campaignId: string
+  mapId: string
+  locationId: string | null
+}) {
+  const { data: locations } = useEntities(campaignId, { entity_type: 'location' })
+  const setLocation = useSetMapLocation(campaignId)
+  const [editing, setEditing] = useState(false)
+  const owner = locations?.find((l) => l.id === locationId)
+
+  const save = (value: string) => {
+    // '' clears the FK on the backend; null would be a no-op.
+    setLocation.mutate({ mapId, locationId: value }, { onSuccess: () => setEditing(false) })
+  }
+
+  return (
+    <div className="row" style={{ gap: 8, marginBottom: 8, alignItems: 'center' }}>
+      <span className="muted" style={{ fontSize: 12 }}>Depicts</span>
+      {editing ? (
+        <>
+          <select
+            defaultValue={locationId ?? ''}
+            onChange={(e) => save(e.target.value)}
+            disabled={setLocation.isPending}
+          >
+            <option value="">— no location —</option>
+            {locations?.map((l) => (
+              <option key={l.id} value={l.id}>{l.name}</option>
+            ))}
+          </select>
+          <button className="ghost" onClick={() => setEditing(false)}>Cancel</button>
+        </>
+      ) : (
+        <>
+          {owner ? (
+            <Link to="/entities/$entityId" params={{ entityId: owner.id }}>{owner.name}</Link>
+          ) : (
+            <span className="muted">no location</span>
+          )}
+          <button className="ghost" onClick={() => setEditing(true)}>
+            {owner ? 'Change' : 'Set location'}
+          </button>
+        </>
+      )}
+    </div>
   )
 }
 

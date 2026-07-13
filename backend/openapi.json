@@ -193,6 +193,22 @@
               "default": false,
               "title": "Include Deleted"
             }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Sort"
+            }
           }
         ],
         "responses": {
@@ -1579,6 +1595,48 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "chronicle"
+        ],
+        "summary": "Delete Entry",
+        "operationId": "delete_entry_api_v1_campaigns__campaign_id__timeline__entry_id__delete",
+        "parameters": [
+          {
+            "name": "entry_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Entry Id"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/campaigns/{campaign_id}/sessions": {
@@ -2238,6 +2296,65 @@
       }
     },
     "/api/v1/campaigns/{campaign_id}/scheduled-events/{event_id}": {
+      "patch": {
+        "tags": [
+          "time"
+        ],
+        "summary": "Update Scheduled",
+        "operationId": "update_scheduled_api_v1_campaigns__campaign_id__scheduled_events__event_id__patch",
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Event Id"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScheduledEventUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduledEventOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
       "delete": {
         "tags": [
           "time"
@@ -3820,6 +3937,66 @@
       }
     },
     "/api/v1/campaigns/{campaign_id}/combats": {
+      "get": {
+        "tags": [
+          "combat"
+        ],
+        "summary": "List Combats",
+        "operationId": "list_combats_api_v1_campaigns__campaign_id__combats_get",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          },
+          {
+            "name": "encounter_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Encounter Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CombatRunBrief"
+                  },
+                  "title": "Response List Combats Api V1 Campaigns  Campaign Id  Combats Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
       "post": {
         "tags": [
           "combat"
@@ -4119,6 +4296,777 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CombatSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/skill-challenges": {
+      "get": {
+        "tags": [
+          "skill-challenges"
+        ],
+        "summary": "List Skill Challenges",
+        "operationId": "list_skill_challenges_api_v1_campaigns__campaign_id__skill_challenges_get",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SkillChallengeOut"
+                  },
+                  "title": "Response List Skill Challenges Api V1 Campaigns  Campaign Id  Skill Challenges Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "skill-challenges"
+        ],
+        "summary": "Create Skill Challenge",
+        "operationId": "create_skill_challenge_api_v1_campaigns__campaign_id__skill_challenges_post",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SkillChallengeCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkillChallengeOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/skill-challenges/{challenge_id}": {
+      "get": {
+        "tags": [
+          "skill-challenges"
+        ],
+        "summary": "Get Skill Challenge",
+        "operationId": "get_skill_challenge_api_v1_campaigns__campaign_id__skill_challenges__challenge_id__get",
+        "parameters": [
+          {
+            "name": "challenge_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Challenge Id"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkillChallengeOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "skill-challenges"
+        ],
+        "summary": "Update Skill Challenge",
+        "operationId": "update_skill_challenge_api_v1_campaigns__campaign_id__skill_challenges__challenge_id__patch",
+        "parameters": [
+          {
+            "name": "challenge_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Challenge Id"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SkillChallengeUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkillChallengeOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/skill-runs": {
+      "post": {
+        "tags": [
+          "skill-challenges"
+        ],
+        "summary": "Start Skill Run",
+        "operationId": "start_skill_run_api_v1_campaigns__campaign_id__skill_runs_post",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartSkillRun"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkillChallengeRunOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/skill-runs/{run_id}": {
+      "get": {
+        "tags": [
+          "skill-challenges"
+        ],
+        "summary": "Get Skill Run",
+        "operationId": "get_skill_run_api_v1_campaigns__campaign_id__skill_runs__run_id__get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkillChallengeRunOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/skill-runs/{run_id}/checks": {
+      "post": {
+        "tags": [
+          "skill-challenges"
+        ],
+        "summary": "Record Skill Check",
+        "operationId": "record_skill_check_api_v1_campaigns__campaign_id__skill_runs__run_id__checks_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordCheckIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkillChallengeRunOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/skill-runs/{run_id}/undo": {
+      "post": {
+        "tags": [
+          "skill-challenges"
+        ],
+        "summary": "Undo Skill Check",
+        "operationId": "undo_skill_check_api_v1_campaigns__campaign_id__skill_runs__run_id__undo_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkillChallengeRunOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/skill-runs/{run_id}/resolve": {
+      "post": {
+        "tags": [
+          "skill-challenges"
+        ],
+        "summary": "Resolve Skill Run",
+        "operationId": "resolve_skill_run_api_v1_campaigns__campaign_id__skill_runs__run_id__resolve_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkillChallengeRunOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/random-tables": {
+      "get": {
+        "tags": [
+          "random-tables"
+        ],
+        "summary": "List Random Tables",
+        "operationId": "list_random_tables_api_v1_campaigns__campaign_id__random_tables_get",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RandomTableOut"
+                  },
+                  "title": "Response List Random Tables Api V1 Campaigns  Campaign Id  Random Tables Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "random-tables"
+        ],
+        "summary": "Create Random Table",
+        "operationId": "create_random_table_api_v1_campaigns__campaign_id__random_tables_post",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RandomTableCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RandomTableOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/random-tables/{table_id}": {
+      "get": {
+        "tags": [
+          "random-tables"
+        ],
+        "summary": "Get Random Table",
+        "operationId": "get_random_table_api_v1_campaigns__campaign_id__random_tables__table_id__get",
+        "parameters": [
+          {
+            "name": "table_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Table Id"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RandomTableOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "random-tables"
+        ],
+        "summary": "Update Random Table",
+        "operationId": "update_random_table_api_v1_campaigns__campaign_id__random_tables__table_id__patch",
+        "parameters": [
+          {
+            "name": "table_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Table Id"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RandomTableUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RandomTableOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "random-tables"
+        ],
+        "summary": "Delete Random Table",
+        "operationId": "delete_random_table_api_v1_campaigns__campaign_id__random_tables__table_id__delete",
+        "parameters": [
+          {
+            "name": "table_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Table Id"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/random-tables/{table_id}/roll": {
+      "post": {
+        "tags": [
+          "random-tables"
+        ],
+        "summary": "Roll Random Table",
+        "operationId": "roll_random_table_api_v1_campaigns__campaign_id__random_tables__table_id__roll_post",
+        "parameters": [
+          {
+            "name": "table_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Table Id"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RollOut"
                 }
               }
             }
@@ -7542,6 +8490,65 @@
         ],
         "title": "CampaignOut"
       },
+      "CheckRecord": {
+        "properties": {
+          "skill": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "Skill",
+            "default": ""
+          },
+          "difficulty": {
+            "type": "string",
+            "pattern": "^(trivial|easy|normal|hard|very_hard|nearly_impossible)$",
+            "title": "Difficulty",
+            "default": "normal"
+          },
+          "dc": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dc"
+          },
+          "outcome": {
+            "type": "string",
+            "pattern": "^(success|failure|critical_success|critical_failure)$",
+            "title": "Outcome"
+          },
+          "actor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "outcome"
+        ],
+        "title": "CheckRecord"
+      },
       "ClockFormatted": {
         "properties": {
           "label": {
@@ -7654,6 +8661,41 @@
         ],
         "title": "CombatActionIn"
       },
+      "CombatRunBrief": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "encounter_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Encounter Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "round": {
+            "type": "integer",
+            "title": "Round"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id",
+          "encounter_id",
+          "status",
+          "round"
+        ],
+        "title": "CombatRunBrief"
+      },
       "CombatRunOut": {
         "properties": {
           "run_id": {
@@ -7693,6 +8735,14 @@
           },
           "state": {
             "$ref": "#/components/schemas/CombatState"
+          },
+          "combatant_blocks": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Combatant Blocks",
+            "default": {}
           }
         },
         "type": "object",
@@ -8824,6 +9874,40 @@
           "narrative"
         ],
         "title": "FiredEvent"
+      },
+      "GraduatedOutcome": {
+        "properties": {
+          "min_failures": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Min Failures"
+          },
+          "label": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Label"
+          },
+          "narrative": {
+            "type": "string",
+            "title": "Narrative",
+            "default": ""
+          },
+          "effects": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Effects",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "min_failures",
+          "label"
+        ],
+        "title": "GraduatedOutcome"
       },
       "HTTPValidationError": {
         "properties": {
@@ -10656,6 +11740,116 @@
         "type": "object",
         "title": "QuestUpdate"
       },
+      "RandomTableCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "dice": {
+            "type": "string",
+            "maxLength": 20,
+            "title": "Dice",
+            "default": "1d20"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/TableRow"
+            },
+            "type": "array",
+            "title": "Rows",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "RandomTableCreate"
+      },
+      "RandomTableOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "dice": {
+            "type": "string",
+            "title": "Dice"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/TableRowOut"
+            },
+            "type": "array",
+            "title": "Rows"
+          },
+          "row_count": {
+            "type": "integer",
+            "title": "Row Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "dice",
+          "rows",
+          "row_count"
+        ],
+        "title": "RandomTableOut"
+      },
+      "RandomTableUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "dice": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dice"
+          },
+          "rows": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/TableRow"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rows"
+          }
+        },
+        "type": "object",
+        "title": "RandomTableUpdate"
+      },
       "RealtimeRequest": {
         "properties": {
           "enabled": {
@@ -10668,6 +11862,65 @@
           "enabled"
         ],
         "title": "RealtimeRequest"
+      },
+      "RecordCheckIn": {
+        "properties": {
+          "skill": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "Skill",
+            "default": ""
+          },
+          "difficulty": {
+            "type": "string",
+            "pattern": "^(trivial|easy|normal|hard|very_hard|nearly_impossible)$",
+            "title": "Difficulty",
+            "default": "normal"
+          },
+          "outcome": {
+            "type": "string",
+            "pattern": "^(success|failure|critical_success|critical_failure)$",
+            "title": "Outcome"
+          },
+          "dc": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dc"
+          },
+          "actor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "outcome"
+        ],
+        "title": "RecordCheckIn"
       },
       "ReferencesOut": {
         "properties": {
@@ -11080,6 +12333,76 @@
         ],
         "title": "RestResult"
       },
+      "RollOut": {
+        "properties": {
+          "roll": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Roll"
+          },
+          "index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Index"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "target_entity_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Entity Id"
+          },
+          "target_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Name"
+          },
+          "target_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "roll",
+          "index",
+          "text"
+        ],
+        "title": "RollOut"
+      },
       "RuleSystemInfo": {
         "properties": {
           "id": {
@@ -11278,6 +12601,12 @@
             "type": "string",
             "title": "Action Type"
           },
+          "action_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Action Json",
+            "default": {}
+          },
           "recurrence_days": {
             "anyOf": [
               {
@@ -11305,6 +12634,72 @@
           "status"
         ],
         "title": "ScheduledEventOut"
+      },
+      "ScheduledEventUpdate": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "fire_at_game": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fire At Game"
+          },
+          "action_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(narrate|set_flag)$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Action Type"
+          },
+          "action_json": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Action Json"
+          },
+          "recurrence_days": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recurrence Days"
+          }
+        },
+        "type": "object",
+        "title": "ScheduledEventUpdate"
       },
       "SessionCreate": {
         "properties": {
@@ -11614,6 +13009,390 @@
         ],
         "title": "SetPin"
       },
+      "SkillApproach": {
+        "properties": {
+          "skill": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Skill"
+          },
+          "difficulty": {
+            "type": "string",
+            "pattern": "^(trivial|easy|normal|hard|very_hard|nearly_impossible)$",
+            "title": "Difficulty",
+            "default": "normal"
+          },
+          "hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hint"
+          }
+        },
+        "type": "object",
+        "required": [
+          "skill"
+        ],
+        "title": "SkillApproach"
+      },
+      "SkillChallengeCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "premise": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Premise"
+          },
+          "total_checks": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total Checks",
+            "default": 0
+          },
+          "success_target": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Success Target"
+          },
+          "failure_cap": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Cap"
+          },
+          "approaches": {
+            "items": {
+              "$ref": "#/components/schemas/SkillApproach"
+            },
+            "type": "array",
+            "title": "Approaches",
+            "default": []
+          },
+          "outcomes": {
+            "items": {
+              "$ref": "#/components/schemas/GraduatedOutcome"
+            },
+            "type": "array",
+            "title": "Outcomes",
+            "default": []
+          },
+          "location_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "SkillChallengeCreate"
+      },
+      "SkillChallengeOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "premise": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Premise"
+          },
+          "total_checks": {
+            "type": "integer",
+            "title": "Total Checks"
+          },
+          "success_target": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Success Target"
+          },
+          "failure_cap": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Cap"
+          },
+          "approaches": {
+            "items": {
+              "$ref": "#/components/schemas/SkillApproach"
+            },
+            "type": "array",
+            "title": "Approaches"
+          },
+          "outcomes": {
+            "items": {
+              "$ref": "#/components/schemas/GraduatedOutcome"
+            },
+            "type": "array",
+            "title": "Outcomes"
+          },
+          "dcs": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Dcs"
+          },
+          "location_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "premise",
+          "total_checks",
+          "success_target",
+          "failure_cap",
+          "approaches",
+          "outcomes",
+          "dcs",
+          "location_id"
+        ],
+        "title": "SkillChallengeOut"
+      },
+      "SkillChallengeRunOut": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "challenge_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Challenge Id"
+          },
+          "challenge_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Challenge Name"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/CheckRecord"
+            },
+            "type": "array",
+            "title": "Checks"
+          },
+          "successes": {
+            "type": "integer",
+            "title": "Successes"
+          },
+          "failures": {
+            "type": "integer",
+            "title": "Failures"
+          },
+          "checks_made": {
+            "type": "integer",
+            "title": "Checks Made"
+          },
+          "checks_remaining": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checks Remaining"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GraduatedOutcome"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "resolved": {
+            "type": "boolean",
+            "title": "Resolved"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id",
+          "challenge_id",
+          "challenge_name",
+          "status",
+          "checks",
+          "successes",
+          "failures",
+          "checks_made",
+          "checks_remaining",
+          "outcome",
+          "resolved"
+        ],
+        "title": "SkillChallengeRunOut"
+      },
+      "SkillChallengeUpdate": {
+        "properties": {
+          "premise": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Premise"
+          },
+          "total_checks": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Checks"
+          },
+          "success_target": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Success Target"
+          },
+          "failure_cap": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Cap"
+          },
+          "approaches": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SkillApproach"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approaches"
+          },
+          "outcomes": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/GraduatedOutcome"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcomes"
+          }
+        },
+        "type": "object",
+        "title": "SkillChallengeUpdate"
+      },
       "StartCombat": {
         "properties": {
           "encounter_id": {
@@ -11630,6 +13409,23 @@
         },
         "type": "object",
         "title": "StartCombat"
+      },
+      "StartSkillRun": {
+        "properties": {
+          "challenge_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Challenge Id"
+          }
+        },
+        "type": "object",
+        "title": "StartSkillRun"
       },
       "StatBlockCreate": {
         "properties": {
@@ -12095,6 +13891,142 @@
           "condition_expr"
         ],
         "title": "Suggestion"
+      },
+      "TableRow": {
+        "properties": {
+          "min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "weight": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weight"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Text",
+            "default": ""
+          },
+          "target_entity_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Entity Id"
+          }
+        },
+        "type": "object",
+        "title": "TableRow"
+      },
+      "TableRowOut": {
+        "properties": {
+          "min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "weight": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weight"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Text",
+            "default": ""
+          },
+          "target_entity_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Entity Id"
+          },
+          "target_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Name"
+          },
+          "target_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Type"
+          }
+        },
+        "type": "object",
+        "title": "TableRowOut"
       },
       "TagCreate": {
         "properties": {

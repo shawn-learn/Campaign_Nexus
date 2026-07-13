@@ -14,7 +14,9 @@ import { SheetsPage } from './features/rules/SheetsPage'
 import { BestiaryPage } from './features/rules/BestiaryPage'
 import { PartyPage } from './features/playbook/PartyPage'
 import { EncountersPage } from './features/playbook/EncountersPage'
+import { SkillChallengesPage } from './features/playbook/SkillChallengesPage'
 import { CombatPage } from './features/playbook/CombatPage'
+import { RandomTablesPage } from './features/playbook/RandomTablesPage'
 import { MapsPage } from './features/atlas/MapsPage'
 import { QuestsPage } from './features/playbook/QuestsPage'
 import { NpcsPage } from './features/npcs/NpcsPage'
@@ -70,6 +72,10 @@ const sheetsRoute = createRoute({
 const bestiaryRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/bestiary',
+  // ?q=<name> seeds the search box (e.g. picking a monster in the ⌘K palette).
+  validateSearch: (search: Record<string, unknown>): { q?: string } => ({
+    q: typeof search.q === 'string' ? search.q : undefined,
+  }),
   component: BestiaryPage,
 })
 
@@ -85,15 +91,31 @@ const encountersRoute = createRoute({
   component: EncountersPage,
 })
 
+const skillChallengesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/skill-challenges',
+  component: SkillChallengesPage,
+})
+
 const combatRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/combat',
   component: CombatPage,
 })
 
+const randomTablesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/random-tables',
+  component: RandomTablesPage,
+})
+
 const mapsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/maps',
+  // ?open=<mapId> deep-links straight to a map (e.g. from a location's embedded map card).
+  validateSearch: (search: Record<string, unknown>): { open?: string } => ({
+    open: typeof search.open === 'string' ? search.open : undefined,
+  }),
   component: MapsPage,
 })
 
@@ -126,7 +148,9 @@ const routeTree = rootRoute.addChildren([
   bestiaryRoute,
   partyRoute,
   encountersRoute,
+  skillChallengesRoute,
   combatRoute,
+  randomTablesRoute,
   mapsRoute,
   questsRoute,
   npcsRoute,

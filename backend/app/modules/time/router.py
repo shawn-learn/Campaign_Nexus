@@ -18,6 +18,7 @@ from app.modules.time.schemas import (
     RealtimeRequest,
     ScheduledEventCreate,
     ScheduledEventOut,
+    ScheduledEventUpdate,
     SetClockRequest,
 )
 
@@ -119,6 +120,20 @@ def create_scheduled(
 ) -> ScheduledEventOut:
     cal = service.calendar_for(_load(session, ctx.campaign_id))
     event = scheduled.create(session, ctx.campaign_id, body)
+    return scheduled.to_out(cal, event)
+
+
+@router.patch("/scheduled-events/{event_id}", response_model=ScheduledEventOut)
+def update_scheduled(
+    event_id: str,
+    body: ScheduledEventUpdate,
+    session: Session = Depends(get_session),
+    ctx: CampaignContext = Editor,
+) -> ScheduledEventOut:
+    cal = service.calendar_for(_load(session, ctx.campaign_id))
+    event = scheduled.update(session, ctx.campaign_id, event_id, body)
+    if event is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "scheduled event not found")
     return scheduled.to_out(cal, event)
 
 

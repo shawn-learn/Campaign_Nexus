@@ -149,6 +149,161 @@ class EncounterOut(BaseModel):
     location_id: str | None
 
 
+# --- skill challenges (FR-12.x) -------------------------------------------- #
+#: The difficulty tiers a challenge authors against; the rules plugin prices each as a DC.
+DIFFICULTY_TIERS = ("trivial", "easy", "normal", "hard", "very_hard", "nearly_impossible")
+#: How a single recorded check turned out. Criticals count as their non-critical sibling for
+#: success/failure tallies but let the UI surface flavour (e.g. a Vecna whisper on a crit).
+CHECK_OUTCOMES = ("success", "failure", "critical_success", "critical_failure")
+
+_DIFFICULTY_PATTERN = "^(" + "|".join(DIFFICULTY_TIERS) + ")$"
+_OUTCOME_PATTERN = "^(" + "|".join(CHECK_OUTCOMES) + ")$"
+
+
+def _difficulty_field() -> Any:
+    return Field(default="normal", pattern=_DIFFICULTY_PATTERN)
+
+
+class SkillApproach(BaseModel):
+    skill: str = Field(min_length=1, max_length=80)
+    difficulty: str = _difficulty_field()
+    hint: str | None = None
+
+
+class GraduatedOutcome(BaseModel):
+    #: This outcome applies when failures are ≥ this and less than the next tier's threshold.
+    min_failures: int = Field(ge=0)
+    label: str = Field(min_length=1, max_length=120)
+    narrative: str = ""
+    #: Free-form mechanical consequences the GM applies by hand (e.g. "Party starts Slowed").
+    effects: list[str] = []
+
+
+class SkillChallengeCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    premise: str | None = None
+    total_checks: int = Field(default=0, ge=0)
+    success_target: int | None = Field(default=None, ge=1)
+    failure_cap: int | None = Field(default=None, ge=1)
+    approaches: list[SkillApproach] = []
+    outcomes: list[GraduatedOutcome] = []
+    location_id: str | None = None  # optional 'located_at' link
+
+
+class SkillChallengeUpdate(BaseModel):
+    premise: str | None = None
+    total_checks: int | None = Field(default=None, ge=0)
+    success_target: int | None = Field(default=None, ge=1)
+    failure_cap: int | None = Field(default=None, ge=1)
+    approaches: list[SkillApproach] | None = None
+    outcomes: list[GraduatedOutcome] | None = None
+
+
+class SkillChallengeOut(BaseModel):
+    id: str
+    name: str
+    premise: str | None
+    total_checks: int
+    success_target: int | None
+    failure_cap: int | None
+    approaches: list[SkillApproach]
+    outcomes: list[GraduatedOutcome]
+    #: The DCs this campaign's rule system assigns each difficulty tier — the UI shows them
+    #: next to each approach without hard-coding any system's numbers.
+    dcs: dict[str, int]
+    location_id: str | None
+
+
+class CheckRecord(BaseModel):
+    skill: str = Field(default="", max_length=80)
+    difficulty: str = _difficulty_field()
+    #: The DC actually used; the service fills it from the plugin when omitted.
+    dc: int | None = None
+    outcome: str = Field(pattern=_OUTCOME_PATTERN)
+    actor: str | None = None
+    note: str | None = None
+
+
+class RecordCheckIn(BaseModel):
+    skill: str = Field(default="", max_length=80)
+    difficulty: str = _difficulty_field()
+    outcome: str = Field(pattern=_OUTCOME_PATTERN)
+    #: Override the plugin's DC for this one check (e.g. an ad-hoc call at the table).
+    dc: int | None = None
+    actor: str | None = None
+    note: str | None = None
+
+
+class StartSkillRun(BaseModel):
+    challenge_id: str | None = None
+
+
+class SkillChallengeRunOut(BaseModel):
+    run_id: str
+    challenge_id: str | None
+    challenge_name: str | None
+    status: str  # active | resolved
+    checks: list[CheckRecord]
+    successes: int
+    failures: int
+    checks_made: int
+    #: How many more checks the graduated form runs before it resolves (None in race mode).
+    checks_remaining: int | None
+    #: The outcome tier the current failure count maps to — shown live as a projection while
+    #: active, and the final reading once ``status == "resolved"``.
+    outcome: GraduatedOutcome | None
+    resolved: bool
+
+
+# --- random tables (FR-12.x) ----------------------------------------------- #
+class TableRow(BaseModel):
+    #: Inclusive roll range for dice mode (ignored in weighted mode).
+    min: int | None = None
+    max: int | None = None
+    #: Relative weight for weighted mode (dice == "").
+    weight: int | None = Field(default=None, ge=1)
+    text: str = Field(default="", max_length=2000)
+    #: A result can link to any entity — an encounter to run, an NPC, or another table.
+    target_entity_id: str | None = None
+
+
+class TableRowOut(TableRow):
+    target_name: str | None = None
+    target_type: str | None = None
+
+
+class RandomTableCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    #: ``NdM`` (e.g. "1d20", "d100") for range tables; "" for weighted tables.
+    dice: str = Field(default="1d20", max_length=20)
+    rows: list[TableRow] = []
+
+
+class RandomTableUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    dice: str | None = Field(default=None, max_length=20)
+    rows: list[TableRow] | None = None
+
+
+class RandomTableOut(BaseModel):
+    id: str
+    name: str
+    dice: str
+    rows: list[TableRowOut]
+    row_count: int
+
+
+class RollOut(BaseModel):
+    #: The number rolled (None in weighted mode).
+    roll: int | None
+    #: Index of the selected row, or None if nothing matched the roll.
+    index: int | None
+    text: str
+    target_entity_id: str | None = None
+    target_name: str | None = None
+    target_type: str | None = None
+
+
 # --- combat ---------------------------------------------------------------- #
 class Combatant(BaseModel):
     id: str
@@ -179,6 +334,15 @@ class CombatRunOut(BaseModel):
     can_undo: bool
     can_redo: bool
     state: CombatState
+    #: combatant id → stat-block id, so the UI can show a combatant's full stat block.
+    combatant_blocks: dict[str, str] = {}
+
+
+class CombatRunBrief(BaseModel):
+    run_id: str
+    encounter_id: str | None
+    status: str
+    round: int
 
 
 class StartCombat(BaseModel):

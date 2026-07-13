@@ -27,7 +27,12 @@ from app.modules.campaign import flags as campaign_flags
 from app.modules.campaign.models import Campaign
 from app.modules.time.calendar import CalendarMath
 from app.modules.time.models import ScheduledEvent
-from app.modules.time.schemas import FiredEvent, ScheduledEventCreate, ScheduledEventOut
+from app.modules.time.schemas import (
+    FiredEvent,
+    ScheduledEventCreate,
+    ScheduledEventOut,
+    ScheduledEventUpdate,
+)
 
 # Protects against a mis-configured recurrence firing forever (docs/07, §9.3).
 FIRING_CEILING = 10_000
@@ -175,6 +180,21 @@ def list_events(
     return list(session.scalars(stmt.order_by(ScheduledEvent.fire_at_game)))
 
 
+def update(
+    session: Session, campaign_id: str, event_id: str, data: ScheduledEventUpdate
+) -> ScheduledEvent | None:
+    event = session.get(ScheduledEvent, event_id)
+    if event is None or event.campaign_id != campaign_id:
+        return None
+    fields = data.model_dump(exclude_unset=True)
+    if "action_json" in fields:
+        event.action_json = json.dumps(fields.pop("action_json") or {})
+    for key, value in fields.items():
+        setattr(event, key, value)
+    session.commit()
+    return event
+
+
 def cancel(session: Session, campaign_id: str, event_id: str) -> bool:
     event = session.get(ScheduledEvent, event_id)
     if event is None or event.campaign_id != campaign_id:
@@ -239,6 +259,7 @@ def to_out(cal: CalendarMath, event: ScheduledEvent) -> ScheduledEventOut:
         fire_at_game=event.fire_at_game,
         fire_at_label=cal.format(event.fire_at_game)["label"],
         action_type=event.action_type,
+        action_json=_action(event),
         recurrence_days=event.recurrence_days,
         status=event.status,
     )

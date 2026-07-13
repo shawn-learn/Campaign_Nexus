@@ -1,5 +1,12 @@
 import { useState } from 'react'
-import { useClearTimeline, useCreateManualEntry, useSessions, useTimeline } from '../../api/hooks'
+import {
+  useClearTimeline,
+  useCreateManualEntry,
+  useDeleteTimelineEntry,
+  useSessions,
+  useSetTimelineHidden,
+  useTimeline,
+} from '../../api/hooks'
 import { useActiveCampaign } from '../../shell/useActiveCampaign'
 import { useCalendar } from '../../lib/useCalendar'
 
@@ -23,6 +30,8 @@ export function TimelinePage() {
 
   const create = useCreateManualEntry(campaignId ?? '')
   const clear = useClearTimeline(campaignId ?? '')
+  const setHidden = useSetTimelineHidden(campaignId ?? '')
+  const del = useDeleteTimelineEntry(campaignId ?? '')
   const [title, setTitle] = useState('')
   const [whenDay, setWhenDay] = useState(0)
 
@@ -87,15 +96,38 @@ export function TimelinePage() {
 
       <ul className="timeline">
         {entries?.map((e) => (
-          <li key={e.id} className={`sig-${e.significance}`}>
+          <li key={e.id} className={`sig-${e.significance}${e.is_hidden ? ' deleted' : ''}`}>
             <span className="tl-icon">{e.icon ?? '•'}</span>
-            <div>
+            <div style={{ flex: 1 }}>
               <div className="tl-title">{e.title}</div>
               <div className="muted tl-date">
                 {fmt(e.occurred_at_game)}
                 {e.event_id === null ? ' · lore' : ''}
+                {e.is_hidden ? ' · hidden' : ''}
               </div>
             </div>
+            <span className="row tl-actions" style={{ gap: 6 }}>
+              <button
+                className="ghost linkish"
+                disabled={setHidden.isPending}
+                onClick={() => setHidden.mutate({ entryId: e.id, hidden: !e.is_hidden })}
+              >
+                {e.is_hidden ? 'Unhide' : 'Hide'}
+              </button>
+              {e.event_id === null && (
+                <button
+                  className="ghost tag-x"
+                  aria-label="delete entry"
+                  disabled={del.isPending}
+                  onClick={() => {
+                    if (window.confirm(`Delete lore entry “${e.title}”? This cannot be undone.`))
+                      del.mutate(e.id)
+                  }}
+                >
+                  ×
+                </button>
+              )}
+            </span>
           </li>
         ))}
         {entries?.length === 0 && <p className="muted">No timeline entries yet.</p>}

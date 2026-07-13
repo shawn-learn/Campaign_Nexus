@@ -60,6 +60,38 @@ def test_start_combat_seeds_combatants(client: TestClient) -> None:
     assert {c["name"] for c in combatants.values()} == {"Goblin 1", "Goblin 2"}
 
 
+def test_combatant_blocks_map_points_at_a_stat_block(client: TestClient) -> None:
+    cid = _demo(client)
+    run_id = _start_from_two_goblins(client, cid)
+    run = client.get(f"/api/v1/campaigns/{cid}/combats/{run_id}").json()
+    blocks = run["combatant_blocks"]
+    # Every combatant maps to a stat block, and that block is fetchable + is a Goblin.
+    assert set(blocks) == set(run["state"]["combatants"])
+    block_id = next(iter(blocks.values()))
+    block = client.get(f"/api/v1/campaigns/{cid}/stat-blocks/{block_id}")
+    assert block.status_code == 200, block.text
+    assert block.json()["sheet_type"] == "monster"
+
+
+def test_list_combats_by_encounter(client: TestClient) -> None:
+    cid = _demo(client)
+    goblin = _monster(client, cid, "Goblin")
+    enc = client.post(
+        f"/api/v1/campaigns/{cid}/encounters",
+        json={"name": "Ambush", "combatants": [{"monster_id": goblin, "count": 1}]},
+    ).json()
+    assert client.get(f"/api/v1/campaigns/{cid}/combats?encounter_id={enc['id']}").json() == []
+
+    run = client.post(
+        f"/api/v1/campaigns/{cid}/combats", json={"encounter_id": enc["id"]}
+    ).json()
+    listed = client.get(f"/api/v1/campaigns/{cid}/combats?encounter_id={enc['id']}").json()
+    assert [r["run_id"] for r in listed] == [run["run_id"]]
+    assert listed[0]["status"] == "active" and listed[0]["round"] == 1
+    # No filter → empty (the endpoint is scoped to an encounter, not a firehose).
+    assert client.get(f"/api/v1/campaigns/{cid}/combats").json() == []
+
+
 def test_actions_undo_redo_and_resume(client: TestClient) -> None:
     cid = _demo(client)
     run_id = _start_from_two_goblins(client, cid)

@@ -4,8 +4,10 @@ import {
   useClock,
   useCreateScheduledEvent,
   useScheduledEvents,
+  useUpdateScheduledEvent,
 } from '../../api/hooks'
 import { useActiveCampaign } from '../../shell/useActiveCampaign'
+import type { ScheduledEvent } from '../../api/client'
 
 const SECONDS_PER_DAY = 24 * 60 * 60 // both shipped calendars use 24h days
 
@@ -27,6 +29,7 @@ export function ScheduledEventsPage() {
   const [flagValue, setFlagValue] = useState(true)
   const [recurring, setRecurring] = useState(false)
   const [everyDays, setEveryDays] = useState(7)
+  const [editingId, setEditingId] = useState<string | null>(null)
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -114,24 +117,155 @@ export function ScheduledEventsPage() {
       <ul className="entities">
         {events?.map((ev) => (
           <li key={ev.id} className={ev.status !== 'pending' ? 'deleted' : ''}>
-            <span>
-              <strong>{ev.title}</strong>
-              <span className="muted"> — {ev.fire_at_label}</span>
-              {ev.recurrence_days ? <span className="tag">every {ev.recurrence_days}d</span> : null}
-            </span>
-            <span className="row" style={{ gap: 8 }}>
-              <span className="badge">{ev.action_type}</span>
-              <span className="badge">{ev.status}</span>
-              {ev.status === 'pending' && (
-                <button className="tag-x" onClick={() => cancel.mutate(ev.id)} aria-label="cancel">
-                  ×
-                </button>
-              )}
-            </span>
+            {editingId === ev.id && clock ? (
+              <EditEventForm
+                campaignId={campaignId ?? ''}
+                nowGame={clock.time_game}
+                event={ev}
+                onDone={() => setEditingId(null)}
+              />
+            ) : (
+              <>
+                <span>
+                  <strong>{ev.title}</strong>
+                  <span className="muted"> — {ev.fire_at_label}</span>
+                  {ev.recurrence_days ? (
+                    <span className="tag">every {ev.recurrence_days}d</span>
+                  ) : null}
+                </span>
+                <span className="row" style={{ gap: 8 }}>
+                  <span className="badge">{ev.action_type}</span>
+                  <span className="badge">{ev.status}</span>
+                  {ev.status === 'pending' && (
+                    <>
+                      <button className="ghost linkish" onClick={() => setEditingId(ev.id)}>
+                        Edit
+                      </button>
+                      <button
+                        className="tag-x"
+                        onClick={() => cancel.mutate(ev.id)}
+                        aria-label="cancel"
+                      >
+                        ×
+                      </button>
+                    </>
+                  )}
+                </span>
+              </>
+            )}
           </li>
         ))}
         {events?.length === 0 && <p className="muted">No scheduled events yet.</p>}
       </ul>
     </>
+  )
+}
+
+// Inline editor for a pending event. Rescheduling is expressed as "in N days from now" to
+// match the create form; the offset is seeded from the event's current fire time.
+function EditEventForm({
+  campaignId,
+  nowGame,
+  event,
+  onDone,
+}: {
+  campaignId: string
+  nowGame: number
+  event: ScheduledEvent
+  onDone: () => void
+}) {
+  const update = useUpdateScheduledEvent(campaignId)
+  const [title, setTitle] = useState(event.title)
+  const [inDays, setInDays] = useState(
+    Math.max(0, Math.round((event.fire_at_game - nowGame) / SECONDS_PER_DAY)),
+  )
+  const [actionType, setActionType] = useState(event.action_type)
+  const action = (event.action_json ?? {}) as { text?: string; key?: string; value?: unknown }
+  const [text, setText] = useState(typeof action.text === 'string' ? action.text : '')
+  const [flagKey, setFlagKey] = useState(typeof action.key === 'string' ? action.key : '')
+  const [flagValue, setFlagValue] = useState(action.value !== false)
+  const [recurring, setRecurring] = useState(!!event.recurrence_days)
+  const [everyDays, setEveryDays] = useState(event.recurrence_days ?? 7)
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!title.trim()) return
+    const action_json =
+      actionType === 'narrate'
+        ? { text: text.trim() || title.trim() }
+        : { key: flagKey.trim(), value: flagValue }
+    update.mutate(
+      {
+        eventId: event.id,
+        title: title.trim(),
+        fire_at_game: nowGame + inDays * SECONDS_PER_DAY,
+        action_type: actionType,
+        action_json,
+        recurrence_days: recurring ? everyDays : null,
+      },
+      { onSuccess: onDone },
+    )
+  }
+
+  return (
+    <form className="card" style={{ width: '100%' }} onSubmit={submit}>
+      <div className="field">
+        <span className="muted">Title</span>
+        <input value={title} onChange={(e) => setTitle(e.target.value)} />
+      </div>
+      <div className="row" style={{ gap: 16, flexWrap: 'wrap' }}>
+        <label className="field" style={{ minWidth: 120 }}>
+          <span className="muted">In (days from now)</span>
+          <input type="number" min={0} value={inDays} onChange={(e) => setInDays(+e.target.value)} />
+        </label>
+        <label className="field" style={{ minWidth: 140 }}>
+          <span className="muted">Action</span>
+          <select value={actionType} onChange={(e) => setActionType(e.target.value)}>
+            <option value="narrate">Narrate</option>
+            <option value="set_flag">Set flag</option>
+          </select>
+        </label>
+        <label className="row muted" style={{ gap: 6, alignSelf: 'flex-end' }}>
+          <input type="checkbox" checked={recurring} onChange={(e) => setRecurring(e.target.checked)} />
+          Repeat every
+          <input
+            type="number"
+            min={1}
+            value={everyDays}
+            onChange={(e) => setEveryDays(+e.target.value)}
+            disabled={!recurring}
+            style={{ width: 52 }}
+          />
+          days
+        </label>
+      </div>
+
+      {actionType === 'narrate' ? (
+        <div className="field">
+          <span className="muted">Narration</span>
+          <input value={text} onChange={(e) => setText(e.target.value)} placeholder="What happens…" />
+        </div>
+      ) : (
+        <div className="row" style={{ gap: 12 }}>
+          <label className="field">
+            <span className="muted">Flag key</span>
+            <input value={flagKey} onChange={(e) => setFlagKey(e.target.value)} placeholder="merchant_alive" />
+          </label>
+          <label className="row muted" style={{ gap: 6, alignSelf: 'flex-end' }}>
+            <input type="checkbox" checked={flagValue} onChange={(e) => setFlagValue(e.target.checked)} />
+            value = true
+          </label>
+        </div>
+      )}
+
+      <div className="row" style={{ gap: 8 }}>
+        <button type="submit" disabled={!title.trim() || update.isPending}>
+          {update.isPending ? 'Saving…' : 'Save'}
+        </button>
+        <button type="button" className="ghost" onClick={onDone}>
+          Cancel
+        </button>
+      </div>
+    </form>
   )
 }

@@ -95,6 +95,9 @@ def _seed_actions(
                         "type": "add_combatant", "id": new_id(), "name": label,
                         "side": spec.get("side", "foe"), "max_hp": profile["max_hp"],
                         "initiative": profile["initiative"],
+                        # Carried for the UI's stat-block panel; the reducer ignores it, so
+                        # the folded state and its golden fixtures are unaffected.
+                        "stat_block_id": block.id if block else None,
                     })
 
     # Party PCs join as allies with their live HP.
@@ -111,9 +114,42 @@ def _seed_actions(
         seed.append({
             "type": "add_combatant", "id": new_id(), "name": member.name or "PC",
             "side": "ally", "max_hp": profile["max_hp"], "hp": profile["hp"],
-            "initiative": profile["initiative"],
+            "initiative": profile["initiative"], "stat_block_id": member.stat_block_id,
         })
     return seed
+
+
+def combatant_blocks(session: Session, run_id: str) -> dict[str, str]:
+    """Map each combatant id → its stat-block id, read from the ``add_combatant`` log.
+
+    Cursor-independent (the seed actions are always present), so it's stable across
+    undo/redo — the stat-block panel keeps working no matter where the fold sits.
+    """
+    out: dict[str, str] = {}
+    for action in _actions(session, run_id):
+        if action.action_type != "add_combatant":
+            continue
+        payload = json.loads(action.payload_json)
+        block_id = payload.get("stat_block_id")
+        if block_id:
+            out[payload["id"]] = block_id
+    return out
+
+
+def runs_for_encounter(
+    session: Session, campaign_id: str, encounter_id: str
+) -> list[CombatRun]:
+    """Combat runs started from an encounter, newest first (runs id-sort by ULID = time)."""
+    return list(
+        session.scalars(
+            select(CombatRun)
+            .where(
+                CombatRun.campaign_id == campaign_id,
+                CombatRun.encounter_id == encounter_id,
+            )
+            .order_by(CombatRun.id.desc())
+        )
+    )
 
 
 def _round_length(campaign: Campaign) -> int:
