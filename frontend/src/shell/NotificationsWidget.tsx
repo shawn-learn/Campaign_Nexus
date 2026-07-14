@@ -4,6 +4,7 @@ import {
   useClock,
   useScheduledEvents,
   useRollWeather,
+  useRandomTables,
 } from '../api/hooks'
 import { CalendarMath } from '../lib/calendar'
 import type { CalendarDef } from '../lib/calendar'
@@ -60,7 +61,12 @@ function renderDescription(text: string | null | undefined) {
 export function NotificationsWidget({ campaignId }: { campaignId: string }) {
   const { data: clock } = useClock(campaignId)
   const { data: events } = useScheduledEvents(campaignId, 'fired')
+  const { data: tables } = useRandomTables(campaignId)
   const rollWeather = useRollWeather(campaignId)
+
+  const weatherTableId = useMemo(() => {
+    return tables?.find((t) => t.name === 'Barovian Weather')?.id
+  }, [tables])
 
   const [open, setOpen] = useState(false)
   
@@ -239,6 +245,26 @@ export function NotificationsWidget({ campaignId }: { campaignId: string }) {
                         >
                           {rollWeather.isPending ? 'Rolling...' : '🎲 Re-roll Weather'}
                         </button>
+                        {weatherTableId && (
+                          <Link
+                            to="/entities/$entityId"
+                            params={{ entityId: weatherTableId }}
+                            style={{
+                              fontSize: 11,
+                              padding: '4px 8px',
+                              background: 'var(--accent)',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: 4,
+                              textDecoration: 'none',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center'
+                            }}
+                          >
+                            📋 Open Weather Table
+                          </Link>
+                        )}
                       </div>
                     )}
                   </li>
