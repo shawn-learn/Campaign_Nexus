@@ -31,12 +31,15 @@ migrations.upgrade_to_head = lambda: None  # type: ignore[assignment]
 
 @pytest.fixture
 def db() -> Iterator[Session]:
-    metadata.drop_all(engine)
-    metadata.create_all(engine)
-    # FTS tables aren't part of ORM metadata; reset and recreate them explicitly.
+    engine.dispose()
     with engine.begin() as conn:
+        conn.execute(text("PRAGMA foreign_keys=OFF"))
+        metadata.drop_all(conn)
+        metadata.create_all(conn)
+        # FTS tables aren't part of ORM metadata; reset and recreate them explicitly.
         conn.execute(text("DROP TABLE IF EXISTS entity_fts"))
         conn.execute(text("DROP TABLE IF EXISTS entity_fts_map"))
+        conn.execute(text("PRAGMA foreign_keys=ON"))
     session = SessionLocal()
     wiki_search.ensure_search_schema(session)
     session.commit()
@@ -44,6 +47,7 @@ def db() -> Iterator[Session]:
         yield session
     finally:
         session.close()
+        engine.dispose()
 
 
 @pytest.fixture

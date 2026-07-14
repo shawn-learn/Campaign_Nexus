@@ -70,6 +70,7 @@ class ScheduledEventCreate(BaseModel):
     action_type: str = Field(pattern="^(narrate|set_flag)$")
     action_json: dict[str, object] = {}
     recurrence_days: int | None = Field(default=None, ge=1)
+    description: str | None = None
 
 
 class ScheduledEventUpdate(BaseModel):
@@ -78,6 +79,7 @@ class ScheduledEventUpdate(BaseModel):
     action_type: str | None = Field(default=None, pattern="^(narrate|set_flag)$")
     action_json: dict[str, object] | None = None
     recurrence_days: int | None = Field(default=None, ge=1)
+    description: str | None = None
 
 
 class ScheduledEventOut(BaseModel):
@@ -88,4 +90,5 @@ class ScheduledEventOut(BaseModel):
     action_type: str
     action_json: dict[str, object] = {}
     recurrence_days: int | None
+    description: str | None
     status: str

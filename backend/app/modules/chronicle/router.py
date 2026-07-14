@@ -12,8 +12,6 @@ from app.core.domain_event import DomainEvent
 from app.modules.campaign.deps import CampaignContext, require_campaign_role
 from app.modules.campaign.models import Campaign
 from app.modules.chronicle import service
-from app.modules.time import service as time_service
-from app.modules.time.schemas import ClockOut
 from app.modules.chronicle.schemas import (
     ManualEntryCreate,
     NoteCreate,
@@ -25,6 +23,8 @@ from app.modules.chronicle.schemas import (
     TimelineEntryOut,
     TimelineEntryPatch,
 )
+from app.modules.time import service as time_service
+from app.modules.time.schemas import ClockOut
 
 router = APIRouter(prefix="/api/v1/campaigns/{campaign_id}", tags=["chronicle"])
 

@@ -4,11 +4,14 @@ import { CampaignSwitcher } from './CampaignSwitcher'
 import { ClockWidget } from './ClockWidget'
 import { CommandPalette } from './CommandPalette'
 import { EntityPeek } from './EntityPeek'
+import { NotificationsWidget } from './NotificationsWidget'
 import { useUiStore } from '../stores/ui'
+import { useActiveCampaign } from './useActiveCampaign'
 
 // The application shell (docs/09-ui-architecture.md, §11.1): top bar (search + campaign
 // switcher) + left nav + routed main view, with the ⌘K palette and peek panel overlaid.
 export function Layout() {
+  const { campaign } = useActiveCampaign()
   const setPaletteOpen = useUiStore((s) => s.setPaletteOpen)
   const paletteOpen = useUiStore((s) => s.paletteOpen)
 
@@ -33,6 +36,7 @@ export function Layout() {
           <kbd>⌘K</kbd>
         </button>
         <ClockWidget />
+        {campaign && <NotificationsWidget campaignId={campaign.id} />}
         <CampaignSwitcher />
       </header>
       <nav className="nav">

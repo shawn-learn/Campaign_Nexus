@@ -90,5 +90,39 @@ HARPTOS: dict[str, Any] = {
     ],
 }
 
-PRESETS: dict[str, dict[str, Any]] = {"generic": GENERIC, "harptos": HARPTOS}
+# Barovian Calendar: 12 moons of 30 days, starting at year 735 BC.
+BAROVIAN: dict[str, Any] = {
+    "id": "barovian",
+    "name": "Barovian Calendar",
+    "epoch_label": "BC",
+    "start_year": 735,
+    "seconds_per_minute": 60,
+    "minutes_per_hour": 60,
+    "hours_per_day": 24,
+    "weekdays": [
+        "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday",
+    ],
+    "months": [
+        {"name": "Lunas (1st Moon)", "days": 30},
+        {"name": "Feralis (2nd Moon)", "days": 30},
+        {"name": "Solis (3rd Moon)", "days": 30},
+        {"name": "Spurius (4th Moon)", "days": 30},
+        {"name": "Templum (5th Moon)", "days": 30},
+        {"name": "Nebulis (6th Moon)", "days": 30},
+        {"name": "Umbral (7th Moon)", "days": 30},
+        {"name": "Sanguinis (8th Moon)", "days": 30},
+        {"name": "Gothica (9th Moon)", "days": 30},
+        {"name": "Moralis (10th Moon)", "days": 30},
+        {"name": "Mortis (11th Moon)", "days": 30},
+        {"name": "Draculas (12th Moon)", "days": 30},
+    ],
+    "seasons": [
+        {"name": "Winter", "start_month_index": 10},
+        {"name": "Spring", "start_month_index": 1},
+        {"name": "Summer", "start_month_index": 4},
+        {"name": "Autumn", "start_month_index": 7},
+    ],
+}
+
+PRESETS: dict[str, dict[str, Any]] = {"generic": GENERIC, "harptos": HARPTOS, "barovian": BAROVIAN}
 DEFAULT_CALENDAR: dict[str, Any] = GENERIC

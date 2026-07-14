@@ -164,6 +164,7 @@ def create(session: Session, campaign_id: str, data: ScheduledEventCreate) -> Sc
         action_json=json.dumps(data.action_json),
         title=data.title,
         created_by_kind="gm",
+        description=data.description,
         status="pending",
     )
     session.add(event)
@@ -232,6 +233,7 @@ def schedule_for_source(
     fire_at_game: int,
     title: str,
     created_by_kind: str,
+    description: str | None = None,
 ) -> ScheduledEvent:
     """Replace an entity's pending machine-scheduled event of this type with a new one."""
     cancel_pending_for_source(session, campaign_id, source_entity_id, action_type)
@@ -245,6 +247,7 @@ def schedule_for_source(
         title=title,
         created_by_kind=created_by_kind,
         source_entity_id=source_entity_id,
+        description=description,
         status="pending",
     )
     session.add(event)
@@ -261,6 +264,7 @@ def to_out(cal: CalendarMath, event: ScheduledEvent) -> ScheduledEventOut:
         action_type=event.action_type,
         action_json=_action(event),
         recurrence_days=event.recurrence_days,
+        description=event.description,
         status=event.status,
     )
 

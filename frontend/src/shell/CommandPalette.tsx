@@ -61,11 +61,20 @@ export function CommandPalette() {
       return
     }
     const q = query.trim()
+    let cancelled = false
     const handle = setTimeout(() => {
-      void searchEntitiesFts(campaignId, q).then(setHits)
-      void searchMonsters(campaignId, q).then(setMonsterHits)
+      void searchEntitiesFts(campaignId, q).then((results) => {
+        if (!cancelled) setHits(results)
+      }).catch(() => {
+        if (!cancelled) setHits([])
+      })
+      void searchMonsters(campaignId, q).then((results) => {
+        if (!cancelled) setMonsterHits(results)
+      }).catch(() => {
+        if (!cancelled) setMonsterHits([])
+      })
     }, 120)
-    return () => clearTimeout(handle)
+    return () => { cancelled = true; clearTimeout(handle) }
   }, [query, campaignId])
 
   const commands: CommandRow[] = useMemo(
@@ -119,7 +128,8 @@ export function CommandPalette() {
 
   return (
     <div className="palette-overlay" onMouseDown={() => setOpen(false)}>
-      <div className="palette" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="palette" role="dialog" aria-modal="true" aria-label="Command palette"
+        onMouseDown={(e) => e.stopPropagation()}>
         <input
           ref={inputRef}
           className="palette-input"

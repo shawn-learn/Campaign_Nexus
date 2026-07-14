@@ -119,6 +119,50 @@
         }
       }
     },
+    "/api/v1/campaigns/{campaign_id}/weather/roll": {
+      "post": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "Post Roll Weather",
+        "operationId": "post_roll_weather_api_v1_campaigns__campaign_id__weather_roll_post",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Post Roll Weather Api V1 Campaigns  Campaign Id  Weather Roll Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/campaigns/{campaign_id}/entities": {
       "get": {
         "tags": [
@@ -8442,6 +8486,11 @@
             "type": "string",
             "title": "Rule System Id",
             "default": "dnd5e"
+          },
+          "calendar_id": {
+            "type": "string",
+            "title": "Calendar Id",
+            "default": "generic"
           }
         },
         "type": "object",
@@ -12569,6 +12618,17 @@
               }
             ],
             "title": "Recurrence Days"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
           }
         },
         "type": "object",
@@ -12618,6 +12678,17 @@
             ],
             "title": "Recurrence Days"
           },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
           "status": {
             "type": "string",
             "title": "Status"
@@ -12631,6 +12702,7 @@
           "fire_at_label",
           "action_type",
           "recurrence_days",
+          "description",
           "status"
         ],
         "title": "ScheduledEventOut"
@@ -12696,6 +12768,17 @@
               }
             ],
             "title": "Recurrence Days"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
           }
         },
         "type": "object",

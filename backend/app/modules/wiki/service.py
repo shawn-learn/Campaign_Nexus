@@ -555,7 +555,7 @@ def _snapshot_article(session: Session, entity: Entity, now: str) -> None:
         session.scalars(
             select(ArticleSnapshot.id)
             .where(ArticleSnapshot.entity_id == entity.id)
-            .order_by(ArticleSnapshot.created_at_real.desc())
+            .order_by(ArticleSnapshot.created_at_real.desc(), ArticleSnapshot.id.desc())
             .offset(_SNAPSHOT_KEEP)
         )
     )
@@ -575,7 +575,7 @@ def list_article_snapshots(session: Session, campaign_id: str, entity_id: str) -
         session.scalars(
             select(ArticleSnapshot)
             .where(ArticleSnapshot.entity_id == entity_id)
-            .order_by(ArticleSnapshot.created_at_real.desc())
+            .order_by(ArticleSnapshot.created_at_real.desc(), ArticleSnapshot.id.desc())
         )
     )
 

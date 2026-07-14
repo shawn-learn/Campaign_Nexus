@@ -22,5 +22,6 @@ class ScheduledEvent(Base):
     title: Mapped[str] = mapped_column(String, nullable=False)
     created_by_kind: Mapped[str] = mapped_column(String, nullable=False, default="gm")
     source_entity_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
     # pending | fired | cancelled
     status: Mapped[str] = mapped_column(String, nullable=False, default="pending")

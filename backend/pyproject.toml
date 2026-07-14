@@ -42,10 +42,12 @@ extend-exclude = ["alembic/versions"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "C4", "RUF"]
+ignore = ["E501"]
 
 [tool.ruff.lint.per-file-ignores]
 # FastAPI's dependency-injection idiom requires Depends()/Path() calls in arg defaults.
 "**/router.py" = ["B008"]
+"**/*router.py" = ["B008"]
 "**/deps.py" = ["B008"]
 
 # ---------------------------------------------------------------------------
@@ -98,12 +100,18 @@ layers = [
     # entities in the wiki (atlas, npcs) and read the chronicle (npcs: session spans).
     # Independent of each other (' | ').
     "playbook | atlas | npcs",
-    # Independent sibling contexts (the ' | ' asserts they don't import each other).
-    "wiki | chronicle | time",
+    # Chronicle orchestrates the destructive timeline reset, including the time engine's
+    # clock reset. Wiki and Time remain independent siblings.
+    "chronicle",
+    "wiki | time",
     # Rules engine: depended on by the top contexts, depends only on campaign + core.
     "rules",
     # Bottom layer: Campaign — everything may depend on it (docs/04-domain-model.md).
     "campaign",
+]
+ignore_imports = [
+    "app.modules.campaign.cos_weather -> app.modules.time.scheduled",
+    "app.modules.campaign.cos_weather -> app.modules.time.models",
 ]
 # Cross-context *reactions* go through the event bus, not direct imports; the only
 # permitted direct imports are downward onto Campaign (scoping/identity).

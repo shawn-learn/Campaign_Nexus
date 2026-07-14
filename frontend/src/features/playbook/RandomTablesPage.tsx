@@ -55,18 +55,21 @@ const buildRows = (rows: DraftRow[], weighted: boolean): RowPayload[] =>
 // locations, or other tables. Rolling happens on the table's own entity page.
 export function RandomTablesPage() {
   const { campaign } = useActiveCampaign()
-  const campaignId = campaign?.id ?? null
+  // Keep hooks callable before the no-campaign early return. An empty id disables queries
+  // and is never submitted because the form is not rendered without a campaign.
+  const campaignId = campaign?.id ?? ''
   const { data: tables } = useRandomTables(campaignId)
   const create = useCreateRandomTable(campaignId ?? '')
   const del = useDeleteRandomTable(campaignId ?? '')
   const [createKey, setCreateKey] = useState(0)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   if (!campaign) return <p className="muted">Select a campaign to begin.</p>
 
   const remove = (t: RandomTable) => {
     if (window.confirm(`Delete table “${t.name}” and its ${t.row_count} rows? This cannot be undone.`))
-      del.mutate(t.id)
+      del.mutate(t.id, { onError: (e) => setError((e as Error).message) })
   }
 
   return (
@@ -76,15 +79,17 @@ export function RandomTablesPage() {
         Roll tables whose results can link to encounters, NPCs, or other tables. Open a table
         to roll it; use Edit to change its rows.
       </p>
+      {error && <p className="form-error" role="alert">{error}</p>}
 
       <TableForm
         key={createKey}
         campaignId={campaignId}
         submitLabel="Create table"
         pending={create.isPending}
-        onSubmit={(payload) =>
-          create.mutate(payload, { onSuccess: () => setCreateKey((k) => k + 1) })
-        }
+        onSubmit={(payload) => create.mutate(payload, {
+          onSuccess: () => { setError(null); setCreateKey((k) => k + 1) },
+          onError: (e) => setError((e as Error).message),
+        })}
       />
 
       <ul className="entities">
@@ -95,6 +100,7 @@ export function RandomTablesPage() {
                 campaignId={campaignId}
                 table={t}
                 onDone={() => setEditingId(null)}
+                onError={(e) => setError(e)}
               />
             </li>
           ) : (
@@ -127,10 +133,12 @@ function EditTableRow({
   campaignId,
   table,
   onDone,
+  onError,
 }: {
   campaignId: string
   table: RandomTable
   onDone: () => void
+  onError: (error: string) => void
 }) {
   const update = useUpdateRandomTable(campaignId, table.id)
   return (
@@ -142,7 +150,10 @@ function EditTableRow({
       submitLabel="Save changes"
       pending={update.isPending}
       onCancel={onDone}
-      onSubmit={(payload) => update.mutate(payload, { onSuccess: onDone })}
+      onSubmit={(payload) => update.mutate(payload, {
+        onSuccess: onDone,
+        onError: (e) => onError((e as Error).message),
+      })}
     />
   )
 }
@@ -240,7 +251,7 @@ function RowTarget({
   onPick,
   onClear,
 }: {
-  campaignId: string | null
+  campaignId: string
   target?: { id: string; name: string }
   onPick: (t: { id: string; name: string }) => void
   onClear: () => void

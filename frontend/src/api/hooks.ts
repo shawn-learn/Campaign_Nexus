@@ -383,6 +383,7 @@ export function useCreateScheduledEvent(campaignId: string) {
       action_type: string
       action_json?: Record<string, unknown>
       recurrence_days?: number | null
+      description?: string | null
     }) =>
       unwrap(
         await api.POST('/api/v1/campaigns/{campaign_id}/scheduled-events', {
@@ -405,6 +406,7 @@ export function useUpdateScheduledEvent(campaignId: string) {
       action_type?: string
       action_json?: Record<string, unknown>
       recurrence_days?: number | null
+      description?: string | null
     }) => {
       const { eventId, ...body } = vars
       return unwrap(
@@ -2015,5 +2017,25 @@ export function useSkillRunAction(
       ),
     onSuccess: (run) =>
       void qc.setQueryData(['skill-run', campaignId, runId], run),
+  })
+}
+
+export function useRollWeather(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async () =>
+      unwrap(
+        await api.POST('/api/v1/campaigns/{campaign_id}/weather/roll', {
+          params: { path: { campaign_id: campaignId } },
+        }),
+        'roll weather',
+      ),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['scheduled-events', campaignId] })
+      void qc.invalidateQueries({ queryKey: ['timeline', campaignId] })
+      void qc.invalidateQueries({ queryKey: ['flags', campaignId] })
+      void qc.invalidateQueries({ queryKey: ['events', campaignId] })
+      void qc.invalidateQueries({ queryKey: ['dashboard', campaignId] })
+    },
   })
 }

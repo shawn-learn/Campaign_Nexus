@@ -56,6 +56,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/campaigns/{campaign_id}/weather/roll": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Roll Weather */
+        post: operations["post_roll_weather_api_v1_campaigns__campaign_id__weather_roll_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/campaigns/{campaign_id}/entities": {
         parameters: {
             query?: never;
@@ -2179,6 +2196,11 @@ export interface components {
              * @default dnd5e
              */
             rule_system_id?: string;
+            /**
+             * Calendar Id
+             * @default generic
+             */
+            calendar_id?: string;
         };
         /** CampaignOut */
         CampaignOut: {
@@ -3521,6 +3543,8 @@ export interface components {
             };
             /** Recurrence Days */
             recurrence_days?: number | null;
+            /** Description */
+            description?: string | null;
         };
         /** ScheduledEventOut */
         ScheduledEventOut: {
@@ -3543,6 +3567,8 @@ export interface components {
             };
             /** Recurrence Days */
             recurrence_days: number | null;
+            /** Description */
+            description: string | null;
             /** Status */
             status: string;
         };
@@ -3560,6 +3586,8 @@ export interface components {
             } | null;
             /** Recurrence Days */
             recurrence_days?: number | null;
+            /** Description */
+            description?: string | null;
         };
         /** SessionCreate */
         SessionCreate: {
@@ -4274,6 +4302,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CampaignOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_roll_weather_api_v1_campaigns__campaign_id__weather_roll_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */

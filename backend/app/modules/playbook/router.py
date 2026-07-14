@@ -40,9 +40,9 @@ from app.modules.playbook.schemas import (
     RandomTableOut,
     RandomTableUpdate,
     RecordCheckIn,
-    RollOut,
     RestRequest,
     RestResult,
+    RollOut,
     SetLocation,
     SetPin,
     SkillChallengeCreate,
@@ -358,6 +358,10 @@ def _bad_dice(exc: Exception) -> HTTPException:
     return HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"invalid dice: {exc}")
 
 
+def _invalid_table(exc: Exception) -> HTTPException:
+    return HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc))
+
+
 @tables_router.get("", response_model=list[RandomTableOut])
 def list_random_tables(
     session: Session = Depends(get_session), ctx: CampaignContext = Viewer
@@ -378,6 +382,8 @@ def create_random_table(
         )
     except tables.BadDice as exc:
         raise _bad_dice(exc) from exc
+    except tables.InvalidTable as exc:
+        raise _invalid_table(exc) from exc
 
 
 @tables_router.get("/{table_id}", response_model=RandomTableOut)
@@ -408,6 +414,8 @@ def update_random_table(
         raise _table_404(exc) from exc
     except tables.BadDice as exc:
         raise _bad_dice(exc) from exc
+    except tables.InvalidTable as exc:
+        raise _invalid_table(exc) from exc
 
 
 @tables_router.delete("/{table_id}", status_code=status.HTTP_204_NO_CONTENT)
