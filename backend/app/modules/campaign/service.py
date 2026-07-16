@@ -12,7 +12,7 @@ import json
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.calendars import DEFAULT_CALENDAR
+from app.core.calendars import DEFAULT_CALENDAR, PRESETS
 from app.core.clock import now_real_iso
 from app.core.ids import new_id
 from app.core.pipeline import command_tx
@@ -73,18 +73,20 @@ def create_campaign(
     description: str | None,
     rule_system_id: str,
     created_by: str,
+    calendar_id: str = "generic",
 ) -> Campaign:
     """Create a campaign, make the creator its owner, and record ``campaign_created``."""
     if session.get(RuleSystem, rule_system_id) is None:
         raise UnknownRuleSystem(rule_system_id)
 
+    calendar_preset = PRESETS.get(calendar_id, DEFAULT_CALENDAR)
     now = now_real_iso()
     campaign = Campaign(
         id=new_id(),
         name=name,
         description=description,
         rule_system_id=rule_system_id,
-        calendar_json=json.dumps(DEFAULT_CALENDAR),
+        calendar_json=json.dumps(calendar_preset),
         created_by=created_by,
         created_at_real=now,
     )

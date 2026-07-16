@@ -143,6 +143,8 @@ def list_maps(session: Session, campaign_id: str) -> list[MapSummary]:
             map_kind=m.map_kind,
             width_px=m.width_px, height_px=m.height_px, location_id=m.location_id,
             parent_map_id=m.parent_map_id, marker_count=count or 0,
+            scale_pixels_per_unit=m.scale_pixels_per_unit,
+            scale_unit=m.scale_unit,
         ))
     return summaries
 
@@ -213,6 +215,8 @@ def get_map(session: Session, campaign_id: str, map_id: str) -> MapDetail:
         markers=[_marker_out(session, mk) for mk in markers],
         regions=[_region_out(session, rg) for rg in regions],
         layers=layers,
+        scale_pixels_per_unit=m.scale_pixels_per_unit,
+        scale_unit=m.scale_unit,
     )
 
 
@@ -229,6 +233,8 @@ def update_map(
     name: str | None, map_kind: str | None,
     location_id: str | None, parent_map_id: str | None,
     description: str | None = None, description_set: bool = False,
+    scale_pixels_per_unit: float | None = None, scale_unit: str | None = None,
+    scale_set: bool = False,
 ) -> MapDetail:
     m = _require_map(session, campaign_id, map_id)
     if map_kind is not None:
@@ -237,6 +243,9 @@ def update_map(
         m.location_id = location_id or None
     if parent_map_id is not None:
         m.parent_map_id = parent_map_id or None
+    if scale_set:
+        m.scale_pixels_per_unit = scale_pixels_per_unit
+        m.scale_unit = scale_unit or "mile"
     if name is not None or description_set:
         entity = session.get(Entity, m.entity_id)
         if entity is not None:

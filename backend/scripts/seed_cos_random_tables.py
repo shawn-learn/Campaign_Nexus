@@ -296,12 +296,30 @@ VALLAKI_HOUSES = [
     _row(19, 20, "2d4 cultists led by 1 cult fanatic — devil-worshippers under Lady Wachter; hostile if their rites are disrupted.", "Vallakian Cultists"),
 ]
 
+BAROVIAN_WEATHER = [
+    _row(1, 1, "Rare Break in the Clouds: A single ray of pale sunlight pierces the gloom, offering a fleeting, mocking glimpse of clear skies. No mist, no wind, no rain. (Normal temp: 5°C)", None),
+    _row(2, 3, "Clinging Fog: Thick, freezing mist rolls in off the Svalich Woods. Visibility is limited to 120 feet. Light breeze, damp air. (Normal temp: 5°C)", None),
+    _row(4, 5, "Biting Chilly Gale: A howling, icy wind blows from Mount Baratok. Strong winds (disadvantage on ranged attacks and hearing Perception). Light fog. (Normal temp: 5°C)", None),
+    _row(6, 7, "Dread Drizzle: A persistent, miserable drizzle begins, chilling the bones. Light rain, light fog (visibility 120 ft). (Normal temp: 5°C)", None),
+    _row(8, 9, "Howling Cold Rain: Biting cold wind accompanied by a heavy downpour. Strong winds, heavy rain (disadvantage on sight/hearing Perception). (Normal temp: 5°C)", None),
+    _row(10, 11, "Oppressive Overcast: No wind, no rain, but the sky is a leaden shield. A heavy, heavy gloom settles over the valley. Light fog. (Normal temp: 5°C)", None),
+    _row(12, 13, "Svalich Blanket: A dense, heavy fog rolls down from the mountains, reducing visibility to 60 feet. Calm winds. (Normal temp: 5°C)", None),
+    _row(14, 14, "Freezing Drizzle: A cold front hits the valley. Precipitation is a light drizzle that freezes on impact. Light fog. (Colder: 2°C)", None),
+    _row(15, 15, "Ominous Calm: Absolute, dead silence. No wind, no precipitation. The fog lifts slightly, but the air feels thick and heavy with anticipation. (Normal temp: 5°C)", None),
+    _row(16, 16, "Freezing Storm: Heavy rain/snow combined with strong winds. Colder temp (0°C). (Disadvantage on sight/hearing Perception and ranged attacks).", None),
+    _row(17, 17, "Black Mist: An unnatural, dark fog limits visibility to 60 feet. The air smells faintly of ozone and rot. (Normal temp: 5°C)", None),
+    _row(18, 18, "Unseasonable Humid Gloom: A warm, damp wind blows from the south. The temperature rises slightly, turning the fog into a humid, stifling shroud. (Hotter: 10°C)", None),
+    _row(19, 19, "Choking Svalich Mist: The mist thickens to a choking soup. Visibility is essentially 0; all sight-based attacks have disadvantage. (Normal temp: 5°C)", None),
+    _row(20, 20, "Strahd's Wrath (Symphonic Storm): A sudden, violent thunderstorm erupts. Lightning flashes illuminate the valley, followed by percussive thunder. Strong winds, heavy rain, choking mist. (Normal temp: 5°C)", None),
+]
+
 TABLES = [
     ("Barovia — Wilderness & Roads (Daytime)", "d12+d8", WILDERNESS_DAY),
     ("Barovia — Wilderness & Roads (Nighttime)", "d12+d8", WILDERNESS_NIGHT),
     ("Castle Ravenloft", "d12+d8", CASTLE),
     ("Village of Barovia — Abandoned Houses", "1d20", VILLAGE_HOUSES),
     ("Vallaki — Unmarked Houses", "1d20", VALLAKI_HOUSES),
+    ("Barovian Weather", "1d20", BAROVIAN_WEATHER),
 ]
 
 # The placeholder table + stub encounters from the first (pre-purchase) scaffold pass.
@@ -319,7 +337,7 @@ def _request(method: str, url: str, body: dict | None = None) -> dict | list:
     if data is not None:
         req.add_header("Content-Type", "application/json")
     try:
-        with urllib.request.urlopen(req) as resp:  # noqa: S310 - localhost dev tooling
+        with urllib.request.urlopen(req) as resp:
             return json.loads(resp.read() or "null")
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode(errors="replace")

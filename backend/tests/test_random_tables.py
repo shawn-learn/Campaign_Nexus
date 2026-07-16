@@ -112,6 +112,41 @@ def test_bad_dice_rejected(client: TestClient) -> None:
     assert resp.status_code == 422
 
 
+def test_range_rows_must_cover_each_roll_once(client: TestClient) -> None:
+    cid = _demo(client)
+    resp = client.post(
+        f"/api/v1/campaigns/{cid}/random-tables",
+        json={
+            "name": "Broken ranges",
+            "dice": "d6",
+            "rows": [{"min": 1, "max": 2, "text": "gap"}],
+        },
+    )
+    assert resp.status_code == 422
+    assert "cover every possible roll" in resp.json()["detail"]
+
+
+def test_row_target_must_belong_to_the_campaign(client: TestClient) -> None:
+    cid = _demo(client)
+    other = client.post("/api/v1/campaigns", json={"name": "Other campaign"}).json()
+    foreign_entity = client.post(
+        f"/api/v1/campaigns/{other['id']}/entities",
+        json={"entity_type": "npc", "name": "Not ours"},
+    ).json()
+    resp = client.post(
+        f"/api/v1/campaigns/{cid}/random-tables",
+        json={
+            "name": "Unsafe target",
+            "dice": "d1",
+            "rows": [
+                {"min": 1, "max": 1, "text": "Nope", "target_entity_id": foreign_entity["id"]}
+            ],
+        },
+    )
+    assert resp.status_code == 422
+    assert "this campaign" in resp.json()["detail"]
+
+
 def test_edit_name_dice_and_rows(client: TestClient) -> None:
     cid = _demo(client)
     table = _fog_table(client, cid)

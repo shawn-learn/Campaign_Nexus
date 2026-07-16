@@ -11,6 +11,8 @@ ENTITY_TYPES = (
     "quest",
     "monster",
     "item",
+    "equipment",
+    "merchant",
     "map",
     "encounter",
     "skill_challenge",

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from '@tanstack/react-router'
-import { useEntities, useMap, useMaps, useSetMapLocation } from '../../api/hooks'
+import { useEntities, useMap, useMaps, useSetMapLocation, useParty, usePatchParty } from '../../api/hooks'
 import { useUiStore } from '../../stores/ui'
 import { LeafletMap } from '../atlas/LeafletMap'
 import type { MapMarker, MapRegion, MapSummary } from '../../api/client'
@@ -17,6 +17,8 @@ export function LocationMapCard({
 }) {
   const { data: maps } = useMaps(campaignId)
   const setLocation = useSetMapLocation(campaignId)
+  const { data: party } = useParty(campaignId)
+  const patchParty = usePatchParty(campaignId)
 
   // location_id is not unique — a location may have several maps (region + city + dungeon).
   const attached = useMemo(
@@ -29,6 +31,8 @@ export function LocationMapCard({
       ? selectedId
       : attached[0]?.entity_id ?? null
 
+  const isPartyHere = party?.current_location_id === entityId
+
   // Reset the manual selection when it stops pointing at an attached map (e.g. detach).
   useEffect(() => {
     if (selectedId && !attached.some((m) => m.entity_id === selectedId)) setSelectedId(null)
@@ -39,7 +43,23 @@ export function LocationMapCard({
   return (
     <div className="card">
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3 style={{ margin: 0 }}>Map</h3>
+        <div className="row" style={{ gap: 10, alignItems: 'center' }}>
+          <h3 style={{ margin: 0 }}>Map</h3>
+          {party && (
+            isPartyHere ? (
+              <span className="tag success" style={{ fontSize: 11, padding: '2px 6px' }}>📍 Party is here</span>
+            ) : (
+              <button
+                className="ghost"
+                style={{ fontSize: 11, padding: '2px 6px', border: '1px solid var(--border)' }}
+                disabled={patchParty.isPending}
+                onClick={() => patchParty.mutate({ current_location_id: entityId, location_set: true })}
+              >
+                📍 Move Party Here
+              </button>
+            )
+          )}
+        </div>
         {shownId && (
           <span className="row" style={{ gap: 6 }}>
             <Link to="/maps" search={{ open: shownId }}>Open in Atlas</Link>

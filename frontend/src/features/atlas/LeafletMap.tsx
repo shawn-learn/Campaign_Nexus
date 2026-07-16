@@ -8,7 +8,7 @@ import { imageSpaceToLeaflet, leafletToImageSpace } from './mapGeometry'
 // 12k×12k map pans/zooms at 60fps without a tile pyramid (docs/09 §11.2, FR-3.1). Markers
 // and region polygons carry pixel coords with y measured from the top of the image (the
 // natural export space); we convert to/from Leaflet's bottom-left origin here.
-export type MapTool = 'pin' | 'region'
+export type MapTool = 'pin' | 'region' | 'ruler'
 
 interface Props {
   imageUrl: string
@@ -20,12 +20,18 @@ interface Props {
   hiddenLayers: string[]
   editMode: boolean
   tool: MapTool
-  /** Vertices placed so far while drawing a region, in image space. */
+  /** Vertices placed so far while drawing a region/ruler, in image space. */
   draft: [number, number][]
   onMapClick: (x: number, y: number) => void
   onMarkerClick: (marker: MapMarker) => void
   onRegionClick: (region: MapRegion) => void
   onMarkerMove?: (marker: MapMarker, x: number, y: number) => void
+  scalePixelsPerUnit?: number | null
+  scaleUnit?: string | null
+  partyLocationId?: string | null
+  partyX?: number | null
+  partyY?: number | null
+  onPartyMove?: (x: number, y: number) => void
 }
 
 const TYPE_COLOR: Record<string, string> = {
@@ -71,6 +77,12 @@ export function LeafletMap({
   onMarkerClick,
   onRegionClick,
   onMarkerMove,
+  scalePixelsPerUnit,
+  scaleUnit,
+  partyLocationId,
+  partyX,
+  partyY,
+  onPartyMove,
 }: Props) {
   const elRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
@@ -78,15 +90,18 @@ export function LeafletMap({
   const shapeRef = useRef<L.LayerGroup | null>(null)
   const pinRef = useRef<L.LayerGroup | null>(null)
   const draftRef = useRef<L.LayerGroup | null>(null)
+  const partyRef = useRef<L.LayerGroup | null>(null)
   // Latest callbacks/flags without re-initializing the map instance on every render.
   const clickRef = useRef(onMapClick)
   const markerClickRef = useRef(onMarkerClick)
   const regionClickRef = useRef(onRegionClick)
   const markerMoveRef = useRef(onMarkerMove)
+  const partyMoveRef = useRef(onPartyMove)
   clickRef.current = onMapClick
   markerClickRef.current = onMarkerClick
   regionClickRef.current = onRegionClick
   markerMoveRef.current = onMarkerMove
+  partyMoveRef.current = onPartyMove
 
   // Initialize once per map image (bounds depend on width/height/url).
   useEffect(() => {
@@ -107,13 +122,28 @@ export function LeafletMap({
     shapeRef.current = L.layerGroup().addTo(map)
     pinRef.current = L.layerGroup().addTo(map)
     draftRef.current = L.layerGroup().addTo(map)
+    partyRef.current = L.layerGroup().addTo(map)
     mapRef.current = map
     return () => {
       map.remove()
       mapRef.current = null
-      shapeRef.current = pinRef.current = draftRef.current = null
+      shapeRef.current = pinRef.current = draftRef.current = partyRef.current = null
     }
   }, [imageUrl, width, height])
+
+  // Toggle map dragging and cursor style based on active tool.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    const container = map.getContainer()
+    if (tool === 'ruler' || (tool === 'region' && editMode)) {
+      map.dragging.disable()
+      container.style.cursor = 'crosshair'
+    } else {
+      map.dragging.enable()
+      container.style.cursor = ''
+    }
+  }, [tool, editMode])
 
   // The edit sidebar resizes our container; tell Leaflet so tiles/overlay re-fit.
   useEffect(() => {
@@ -172,18 +202,112 @@ export function LeafletMap({
     }
   }, [regions, hiddenLayers, height])
 
-  // The in-progress polygon: vertices + the open chain between them.
+  // The in-progress polygon or ruler: vertices + the open chain between them.
   useEffect(() => {
     const layer = draftRef.current
     if (!layer) return
     layer.clearLayers()
-    if (!editMode || tool !== 'region' || draft.length === 0) return
+    if (draft.length === 0) return
+    if (tool === 'region' && !editMode) return
+
     const latlngs = draft.map(([x, y]) => L.latLng(height - y, x))
-    L.polyline(latlngs, { color: '#9b8cff', weight: 2, dashArray: '4 4' }).addTo(layer)
-    for (const ll of latlngs) {
-      L.circleMarker(ll, { radius: 4, color: '#9b8cff', fillOpacity: 1 }).addTo(layer)
+    const color = tool === 'ruler' ? '#ffd700' : '#9b8cff'
+    
+    L.polyline(latlngs, {
+      color,
+      weight: 3,
+      dashArray: tool === 'ruler' ? '6 6' : '4 4',
+    }).addTo(layer)
+
+    let cumulativeDist = 0
+    for (let i = 0; i < latlngs.length; i++) {
+      const ll = latlngs[i]
+      if (i > 0) {
+        const p1 = draft[i - 1]
+        const p2 = draft[i]
+        const pixels = Math.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2)
+        if (scalePixelsPerUnit && scalePixelsPerUnit > 0) {
+          cumulativeDist += pixels / scalePixelsPerUnit
+        } else {
+          cumulativeDist += pixels
+        }
+      }
+
+      const circle = L.circleMarker(ll, {
+        radius: 5,
+        color,
+        fillColor: '#fff',
+        fillOpacity: 1,
+        weight: 2,
+      }).addTo(layer)
+
+      const UNIT_LABELS: Record<string, string> = {
+        mile: 'mi',
+        km: 'km',
+        m: 'm',
+        foot: 'ft',
+      }
+      const unitLabel = scalePixelsPerUnit ? (UNIT_LABELS[scaleUnit ?? 'mile'] ?? scaleUnit ?? 'mi') : 'px'
+      const label = i === 0 ? 'Start' : `${cumulativeDist.toFixed(1)} ${unitLabel}`
+      
+      circle.bindTooltip(label, {
+        permanent: true,
+        direction: 'top',
+        offset: [0, -6],
+        className: 'ruler-tooltip',
+      })
     }
-  }, [draft, editMode, tool, height])
+  }, [draft, editMode, tool, height, scalePixelsPerUnit, scaleUnit])
+
+  // Re-draw party marker.
+  useEffect(() => {
+    const layer = partyRef.current
+    const map = mapRef.current
+    if (!layer || !map) return
+    layer.clearLayers()
+
+    let px = partyX
+    let py = partyY
+
+    // Fallback to location marker/region pin if free coordinates are not set
+    if ((px === null || py === null || px === undefined || py === undefined) && partyLocationId) {
+      const locMarker = markers.find((m) => m.target_entity_id === partyLocationId)
+      if (locMarker) {
+        px = locMarker.x
+        py = locMarker.y
+      } else {
+        const locRegion = regions.find((r) => r.target_entity_id === partyLocationId)
+        if (locRegion && locRegion.polygon.length > 0) {
+          const xs = locRegion.polygon.map((p) => p[0])
+          const ys = locRegion.polygon.map((p) => p[1])
+          px = xs.reduce((a, b) => a + b, 0) / xs.length
+          py = ys.reduce((a, b) => a + b, 0) / ys.length
+        }
+      }
+    }
+
+    if (px !== null && py !== null && px !== undefined && py !== undefined) {
+      const pMarker = L.marker(imageSpaceToLeaflet(height, px, py), {
+        icon: L.divIcon({
+          className: 'map-party-wrap',
+          html: `<span class="map-party" style="background:#ffd700;box-shadow:0 0 5px 3px rgba(255,215,0,0.5);border:2px solid #000;display:inline-block;width:24px;height:24px;border-radius:50%;text-align:center;line-height:22px;font-size:14px;font-weight:bold;z-index:9999;cursor:grab;">👑</span>`,
+          iconSize: [24, 24],
+          iconAnchor: [12, 12],
+        }),
+        draggable: true,
+      })
+
+      pMarker.bindTooltip('The Party', { direction: 'top', offset: [0, -12] })
+      
+      pMarker.on('dragend', (e: L.DragEndEvent) => {
+        const { lat, lng } = e.target.getLatLng()
+        const next = leafletToImageSpace(height, lat, lng)
+        partyMoveRef.current?.(next.x, next.y)
+      })
+
+      pMarker.addTo(layer)
+    }
+  }, [partyX, partyY, partyLocationId, markers, regions, height])
 
   // The dynamic class lives on the wrapper, never on the div Leaflet owns — otherwise a
   // React re-render would reset className and wipe Leaflet's own classes off the element.

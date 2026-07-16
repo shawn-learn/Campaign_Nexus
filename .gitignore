@@ -38,3 +38,8 @@ cos/
 
 # TypeScript incremental build info — generated
 frontend/tsconfig.app.tsbuildinfo
+
+# pytest temp dirs (permission-locked on Windows)
+backend/.pytest-tmp/
+backend/.pytest-tmp-verify/
+backend/.pytest-tmp-verify2/

@@ -44,12 +44,12 @@ class BadDice(ValueError):
     pass
 
 
-def parse_dice_terms(dice: str) -> list[tuple[int, int]] | None:
-    """Parse an additive dice expression into ``(count, sides)`` terms that are summed on a roll.
+class InvalidTable(ValueError):
+    pass
 
-    ``"d20"`` → ``[(1, 20)]``; ``"2d6"`` → ``[(2, 6)]``; ``"d12+d8"`` → ``[(1, 12), (1, 8)]``
-    (Barovia's 2–20 encounter tables); ``""`` → ``None`` (weighted mode).
-    """
+
+def parse_dice_terms(dice: str) -> list[tuple[int, int]] | None:
+    """Parse additive dice terms that are summed on a roll; empty input selects weighted mode."""
     if not dice.strip():
         return None
     terms: list[tuple[int, int]] = []
@@ -75,19 +75,23 @@ def parse_dice(dice: str) -> tuple[int, int] | None:
     return terms[0]
 
 
-def _target(session: Session, entity_id: str | None) -> tuple[str | None, str | None]:
+def _target(
+    session: Session, campaign_id: str, entity_id: str | None
+) -> tuple[str | None, str | None]:
     if not entity_id:
         return None, None
     entity = session.get(Entity, entity_id)
-    if entity is None:
+    if entity is None or entity.campaign_id != campaign_id or entity.deleted_at_real is not None:
         return None, None
     return entity.name, entity.entity_type
 
 
-def _rows_out(session: Session, rows: list[dict[str, Any]]) -> list[TableRowOut]:
+def _rows_out(
+    session: Session, campaign_id: str, rows: list[dict[str, Any]]
+) -> list[TableRowOut]:
     out: list[TableRowOut] = []
     for row in rows:
-        name, etype = _target(session, row.get("target_entity_id"))
+        name, etype = _target(session, campaign_id, row.get("target_entity_id"))
         out.append(TableRowOut(**row, target_name=name, target_type=etype))
     return out
 
@@ -99,9 +103,51 @@ def to_out(session: Session, table: RandomTable) -> RandomTableOut:
         id=table.entity_id,
         name=entity.name if entity else "",
         dice=table.dice,
-        rows=_rows_out(session, rows),
+        rows=_rows_out(session, table.campaign_id, rows),
         row_count=len(rows),
     )
+
+
+def validate_rows(session: Session, campaign_id: str, dice: str, rows: list[TableRow]) -> None:
+    """Reject tables that cannot produce an unambiguous, campaign-safe result."""
+    terms = parse_dice_terms(dice)
+    if not rows:
+        raise InvalidTable("a random table needs at least one row")
+
+    for row in rows:
+        if not row.text.strip() and row.target_entity_id is None:
+            raise InvalidTable("each row needs result text or a linked entity")
+        if row.target_entity_id is not None:
+            target = session.get(Entity, row.target_entity_id)
+            if (
+                target is None
+                or target.campaign_id != campaign_id
+                or target.deleted_at_real is not None
+            ):
+                raise InvalidTable("row target must be an active entity in this campaign")
+
+    if terms is None:
+        return
+
+    minimum = sum(count for count, _ in terms)
+    maximum = sum(count * sides for count, sides in terms)
+    ranges: list[tuple[int, int]] = []
+    for row in rows:
+        if row.min is None or row.max is None:
+            raise InvalidTable("dice tables require a min and max for every row")
+        if row.min > row.max:
+            raise InvalidTable("a row minimum cannot exceed its maximum")
+        if row.min < minimum or row.max > maximum:
+            raise InvalidTable(f"row ranges must stay within {minimum} to {maximum}")
+        ranges.append((row.min, row.max))
+    ranges.sort()
+    expected = minimum
+    for lo, hi in ranges:
+        if lo != expected:
+            raise InvalidTable("row ranges must cover every possible roll exactly once")
+        expected = hi + 1
+    if expected != maximum + 1:
+        raise InvalidTable("row ranges must cover every possible roll exactly once")
 
 
 def create_random_table(
@@ -113,7 +159,7 @@ def create_random_table(
     rows: list[TableRow],
     created_by: str,
 ) -> RandomTableOut:
-    parse_dice_terms(dice)  # validate up front (raises BadDice)
+    validate_rows(session, campaign.id, dice, rows)
     entity = wiki_service.create_entity(
         session, campaign.id,
         data=EntityCreate(entity_type="random_table", name=name), created_by=created_by,
@@ -155,8 +201,12 @@ def update_random_table(
     rows: list[TableRow] | None,
 ) -> RandomTableOut:
     table = _require(session, campaign.id, table_id)
+    next_dice = dice if dice is not None else table.dice
+    next_rows = rows
+    if next_rows is None:
+        next_rows = [TableRow(**row) for row in json.loads(table.rows_json)]
+    validate_rows(session, campaign.id, next_dice, next_rows)
     if dice is not None:
-        parse_dice_terms(dice)
         table.dice = dice
     if rows is not None:
         table.rows_json = json.dumps([r.model_dump() for r in rows])
@@ -237,7 +287,7 @@ def roll(
     if index is None:
         return RollOut(roll=rolled, index=None, text="(no matching row)")
     row = rows[index]
-    name, etype = _target(session, row.get("target_entity_id"))
+    name, etype = _target(session, campaign.id, row.get("target_entity_id"))
     return RollOut(
         roll=rolled, index=index, text=str(row.get("text", "")),
         target_entity_id=row.get("target_entity_id"), target_name=name, target_type=etype,

@@ -28,6 +28,8 @@ from app.modules.playbook.schemas import (
     EncounterCreate,
     EncounterOut,
     EncounterUpdate,
+    LocationConnectionCreate,
+    LocationConnectionOut,
     ObjectiveToggle,
     PartyOut,
     PartyPatch,
@@ -40,9 +42,9 @@ from app.modules.playbook.schemas import (
     RandomTableOut,
     RandomTableUpdate,
     RecordCheckIn,
-    RollOut,
     RestRequest,
     RestResult,
+    RollOut,
     SetLocation,
     SetPin,
     SkillChallengeCreate,
@@ -98,9 +100,27 @@ def patch_party(
     session: Session = Depends(get_session),
     ctx: CampaignContext = Editor,
 ) -> PartyOut:
-    if body.gold is not None:
-        service.set_gold(session, ctx.campaign_id, body.gold)
-    return service.to_out(session, service.get_or_create_party(session, ctx.campaign_id))
+    party = service.patch_party(session, ctx.campaign_id, body)
+    return service.to_out(session, party)
+
+
+@router.get("/connections", response_model=list[LocationConnectionOut])
+def list_connections(
+    session: Session = Depends(get_session), ctx: CampaignContext = Viewer
+) -> list[LocationConnectionOut]:
+    return service.list_connections(session, ctx.campaign_id)
+
+
+@router.post("/connections", response_model=LocationConnectionOut)
+def create_connection(
+    body: LocationConnectionCreate,
+    session: Session = Depends(get_session),
+    ctx: CampaignContext = Editor,
+) -> LocationConnectionOut:
+    try:
+        return service.upsert_connection(session, ctx.campaign_id, body)
+    except service.PlaybookError as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
 
 
 @router.post("/members", response_model=PartyOut)
@@ -358,6 +378,10 @@ def _bad_dice(exc: Exception) -> HTTPException:
     return HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"invalid dice: {exc}")
 
 
+def _invalid_table(exc: Exception) -> HTTPException:
+    return HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc))
+
+
 @tables_router.get("", response_model=list[RandomTableOut])
 def list_random_tables(
     session: Session = Depends(get_session), ctx: CampaignContext = Viewer
@@ -378,6 +402,8 @@ def create_random_table(
         )
     except tables.BadDice as exc:
         raise _bad_dice(exc) from exc
+    except tables.InvalidTable as exc:
+        raise _invalid_table(exc) from exc
 
 
 @tables_router.get("/{table_id}", response_model=RandomTableOut)
@@ -408,6 +434,8 @@ def update_random_table(
         raise _table_404(exc) from exc
     except tables.BadDice as exc:
         raise _bad_dice(exc) from exc
+    except tables.InvalidTable as exc:
+        raise _invalid_table(exc) from exc
 
 
 @tables_router.delete("/{table_id}", status_code=status.HTTP_204_NO_CONTENT)

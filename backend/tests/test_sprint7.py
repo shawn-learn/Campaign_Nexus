@@ -94,3 +94,31 @@ def test_future_event_not_yet_due(client: TestClient) -> None:
     _schedule(client, cid, title="Later", fire_at_game=100 * DAY, action_type="narrate")
     report = client.post(f"/api/v1/campaigns/{cid}/clock/advance", json={"days": 3}).json()
     assert report["fired"] == []
+
+
+def test_scheduled_event_description_preserved(client: TestClient) -> None:
+    cid = _demo(client)
+    # 1. Create with description
+    ev = _schedule(
+        client, cid, title="Festival begins", fire_at_game=2 * DAY,
+        action_type="narrate", action_json={"text": "The Feast of Lanterns begins."},
+        description="A great annual festival that links to [Combat](/combat) or [Encounter](/entities/123).",
+    ).json()
+    assert ev["description"] == "A great annual festival that links to [Combat](/combat) or [Encounter](/entities/123)."
+
+    # 2. Get events list and check description is there
+    events = client.get(f"/api/v1/campaigns/{cid}/scheduled-events").json()
+    created_ev = next(e for e in events if e["id"] == ev["id"])
+    assert created_ev["description"] == "A great annual festival that links to [Combat](/combat) or [Encounter](/entities/123)."
+
+    # 3. Update description
+    updated_ev = client.patch(
+        f"/api/v1/campaigns/{cid}/scheduled-events/{ev['id']}",
+        json={"description": "Updated description with link [Combat](/combat)."},
+    ).json()
+    assert updated_ev["description"] == "Updated description with link [Combat](/combat)."
+
+    # 4. Check list again
+    events = client.get(f"/api/v1/campaigns/{cid}/scheduled-events").json()
+    created_ev = next(e for e in events if e["id"] == ev["id"])
+    assert created_ev["description"] == "Updated description with link [Combat](/combat)."

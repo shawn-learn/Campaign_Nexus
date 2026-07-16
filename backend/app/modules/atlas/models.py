@@ -66,6 +66,8 @@ class Map(Base):
         String, ForeignKey("map.entity_id", ondelete="SET NULL"), nullable=True
     )
     map_kind: Mapped[str] = mapped_column(String, nullable=False, default="region")
+    scale_pixels_per_unit: Mapped[float | None] = mapped_column(Float, nullable=True)
+    scale_unit: Mapped[str | None] = mapped_column(String, nullable=True, default="mile")
 
 
 class MapMarker(Base):

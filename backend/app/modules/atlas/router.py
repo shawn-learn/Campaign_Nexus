@@ -112,6 +112,8 @@ def update_map(
             name=body.name, map_kind=body.map_kind,
             location_id=body.location_id, parent_map_id=body.parent_map_id,
             description=body.description, description_set=body.description_set,
+            scale_pixels_per_unit=body.scale_pixels_per_unit, scale_unit=body.scale_unit,
+            scale_set=body.scale_set,
         )
     except service.MapNotFound as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "map not found") from exc

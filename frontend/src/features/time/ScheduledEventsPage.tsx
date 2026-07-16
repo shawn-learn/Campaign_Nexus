@@ -22,6 +22,7 @@ export function ScheduledEventsPage() {
   const cancel = useCancelScheduledEvent(campaignId ?? '')
 
   const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
   const [inDays, setInDays] = useState(7)
   const [actionType, setActionType] = useState('narrate')
   const [text, setText] = useState('')
@@ -30,7 +31,7 @@ export function ScheduledEventsPage() {
   const [recurring, setRecurring] = useState(false)
   const [everyDays, setEveryDays] = useState(7)
   const [editingId, setEditingId] = useState<string | null>(null)
-
+ 
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!campaignId || !title.trim() || !clock) return
@@ -42,12 +43,13 @@ export function ScheduledEventsPage() {
     create.mutate(
       {
         title: title.trim(),
+        description: description.trim() || null,
         fire_at_game,
         action_type: actionType,
         action_json,
         recurrence_days: recurring ? everyDays : null,
       },
-      { onSuccess: () => { setTitle(''); setText(''); setFlagKey('') } },
+      { onSuccess: () => { setTitle(''); setDescription(''); setText(''); setFlagKey('') } },
     )
   }
 
@@ -63,6 +65,16 @@ export function ScheduledEventsPage() {
         <div className="field">
           <span className="muted">Title</span>
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Feast of Lanterns" />
+        </div>
+        <div className="field">
+          <span className="muted">Description</span>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Details... (Supports markdown links, e.g. [Combat](/combat) or [Encounter](/entities/id))"
+            rows={2}
+            style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit', padding: 8 }}
+          />
         </div>
         <div className="row" style={{ gap: 16, flexWrap: 'wrap' }}>
           <label className="field" style={{ minWidth: 120 }}>
@@ -126,12 +138,19 @@ export function ScheduledEventsPage() {
               />
             ) : (
               <>
-                <span>
-                  <strong>{ev.title}</strong>
-                  <span className="muted"> — {ev.fire_at_label}</span>
-                  {ev.recurrence_days ? (
-                    <span className="tag">every {ev.recurrence_days}d</span>
-                  ) : null}
+                <span style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span>
+                    <strong>{ev.title}</strong>
+                    <span className="muted"> — {ev.fire_at_label}</span>
+                    {ev.recurrence_days ? (
+                      <span className="tag">every {ev.recurrence_days}d</span>
+                    ) : null}
+                  </span>
+                  {ev.description && (
+                    <span className="muted" style={{ fontSize: '0.85em', marginTop: 4 }}>
+                      {ev.description}
+                    </span>
+                  )}
                 </span>
                 <span className="row" style={{ gap: 8 }}>
                   <span className="badge">{ev.action_type}</span>
@@ -176,6 +195,7 @@ function EditEventForm({
 }) {
   const update = useUpdateScheduledEvent(campaignId)
   const [title, setTitle] = useState(event.title)
+  const [description, setDescription] = useState(event.description ?? '')
   const [inDays, setInDays] = useState(
     Math.max(0, Math.round((event.fire_at_game - nowGame) / SECONDS_PER_DAY)),
   )
@@ -198,6 +218,7 @@ function EditEventForm({
       {
         eventId: event.id,
         title: title.trim(),
+        description: description.trim() || null,
         fire_at_game: nowGame + inDays * SECONDS_PER_DAY,
         action_type: actionType,
         action_json,
@@ -212,6 +233,16 @@ function EditEventForm({
       <div className="field">
         <span className="muted">Title</span>
         <input value={title} onChange={(e) => setTitle(e.target.value)} />
+      </div>
+      <div className="field">
+        <span className="muted">Description</span>
+        <textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Details... (Supports markdown links, e.g. [Combat](/combat) or [Encounter](/entities/id))"
+          rows={2}
+          style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit', padding: 8 }}
+        />
       </div>
       <div className="row" style={{ gap: 16, flexWrap: 'wrap' }}>
         <label className="field" style={{ minWidth: 120 }}>

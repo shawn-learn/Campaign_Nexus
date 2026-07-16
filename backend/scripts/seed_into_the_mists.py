@@ -104,7 +104,7 @@ def _request(method: str, url: str, body: dict | None = None) -> dict | list:
     if data is not None:
         req.add_header("Content-Type", "application/json")
     try:
-        with urllib.request.urlopen(req) as resp:  # noqa: S310 - localhost dev tooling
+        with urllib.request.urlopen(req) as resp:
             return json.loads(resp.read() or "null")
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode(errors="replace")

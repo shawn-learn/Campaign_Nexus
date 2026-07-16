@@ -22,7 +22,14 @@ class PartyOut(BaseModel):
     id: str
     current_location_id: str | None = None
     current_location_name: str | None = None
+    current_map_id: str | None = None
+    current_x: float | None = None
+    current_y: float | None = None
+    #: Wealth in copper (exact); ``gold`` is the whole-gp view and ``wealth_label``
+    #: the human breakdown, e.g. "12 gp 3 sp 5 cp".
+    wealth_cp: int
     gold: int
+    wealth_label: str
     inventory: list[Any]
     reputation: dict[str, Any]
     #: What this system calls its rests (5e: short/long; Nimble: field/safe).
@@ -31,7 +38,32 @@ class PartyOut(BaseModel):
 
 
 class PartyPatch(BaseModel):
+    #: Set exact wealth in copper. ``gold`` (whole gp) is accepted for convenience
+    #: and is treated as ``gold * 100`` copper.
+    wealth_cp: int | None = None
     gold: int | None = None
+    current_location_id: str | None = None
+    current_map_id: str | None = None
+    current_x: float | None = None
+    current_y: float | None = None
+    location_set: bool = False
+    coordinates_set: bool = False
+
+
+class LocationConnectionOut(BaseModel):
+    from_location_id: str
+    from_location_name: str | None
+    to_location_id: str
+    to_location_name: str | None
+    distance: float
+    terrain: str
+
+
+class LocationConnectionCreate(BaseModel):
+    from_location_id: str
+    to_location_id: str
+    distance: float
+    terrain: str = "road"
 
 
 class AddMember(BaseModel):
@@ -61,6 +93,7 @@ class TravelLeg(BaseModel):
     pace: str = "normal"
     conveyance: str = "foot"
     to_location_id: str | None = None
+    travel_type: str = "normal"
 
 
 class TravelLegOut(TravelLeg):
@@ -72,6 +105,14 @@ class TravelRequest(BaseModel):
     legs: list[TravelLeg] = Field(min_length=1)
     #: Skip the overnight long rests a multi-day journey would otherwise insert.
     forced_march: bool = False
+
+
+class ForcedMarchSave(BaseModel):
+    #: Cumulative travel-hour across the whole journey (1-based).
+    hour: int
+    #: Which day of travel this save falls on (DCs reset each day).
+    day: int = 1
+    dc: int
 
 
 class TravelPlan(BaseModel):
@@ -89,6 +130,7 @@ class TravelPlan(BaseModel):
     would_fire: list[FiredEvent]
     destination_id: str | None
     destination_name: str | None
+    forced_march_saves: list[ForcedMarchSave] = []
 
 
 class TravelResult(BaseModel):
