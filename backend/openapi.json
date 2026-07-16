@@ -656,7 +656,7 @@
           "wiki"
         ],
         "summary": "Get References",
-        "description": "What points at this entity — shown before a delete so nothing is severed blindly.",
+        "description": "What points at this entity \u2014 shown before a delete so nothing is severed blindly.",
         "operationId": "get_references_api_v1_campaigns__campaign_id__entities__entity_id__references_get",
         "parameters": [
           {
@@ -2767,7 +2767,7 @@
           "rules"
         ],
         "summary": "Get Travel Table",
-        "description": "Paces, conveyances and terrain multipliers — the travel planner's vocabulary.",
+        "description": "Paces, conveyances and terrain multipliers \u2014 the travel planner's vocabulary.",
         "operationId": "get_travel_table_api_v1_rule_systems__system_id__travel_get",
         "parameters": [
           {
@@ -10715,6 +10715,11 @@
             "type": "string",
             "title": "Side"
           },
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "default": "creature"
+          },
           "max_hp": {
             "type": "integer",
             "title": "Max Hp"
@@ -10731,6 +10736,11 @@
             "type": "integer",
             "title": "Initiative"
           },
+          "initiative_tiebreak": {
+            "type": "integer",
+            "title": "Initiative Tiebreak",
+            "default": 0
+          },
           "conditions": {
             "items": {
               "type": "string"
@@ -10745,6 +10755,20 @@
           "defeated": {
             "type": "boolean",
             "title": "Defeated"
+          },
+          "death_saves": {
+            "$ref": "#/components/schemas/DeathSaves",
+            "default": {
+              "successes": 0,
+              "failures": 0
+            }
+          },
+          "legendary": {
+            "$ref": "#/components/schemas/LegendaryActions",
+            "default": {
+              "max": 0,
+              "remaining": 0
+            }
           }
         },
         "type": "object",
@@ -10760,7 +10784,8 @@
           "concentrating",
           "defeated"
         ],
-        "title": "Combatant"
+        "title": "Combatant",
+        "description": "Mirrors the reducer's combatant exactly (``combat_reducer.py``).\n\n``state_of`` model_validates the folded dict through here, and pydantic drops fields it\ndoesn't declare \u2014 so a field added to the reducer but not to this model would be silently\nstripped from the API response and never reach the tracker."
       },
       "CombatantSpec": {
         "properties": {
@@ -10990,6 +11015,22 @@
           "status"
         ],
         "title": "DashboardSession"
+      },
+      "DeathSaves": {
+        "properties": {
+          "successes": {
+            "type": "integer",
+            "title": "Successes",
+            "default": 0
+          },
+          "failures": {
+            "type": "integer",
+            "title": "Failures",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "DeathSaves"
       },
       "DependencyIn": {
         "properties": {
@@ -12447,6 +12488,22 @@
         },
         "type": "object",
         "title": "ItemInstanceUpdate"
+      },
+      "LegendaryActions": {
+        "properties": {
+          "max": {
+            "type": "integer",
+            "title": "Max",
+            "default": 0
+          },
+          "remaining": {
+            "type": "integer",
+            "title": "Remaining",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "LegendaryActions"
       },
       "LibraryEntryCreate": {
         "properties": {

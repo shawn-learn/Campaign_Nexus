@@ -1,17 +1,28 @@
 // TypeScript twin of backend/app/modules/playbook/combat_reducer.py (ADR-005). Powers the
 // combat tracker's optimistic UI; kept byte-for-byte identical via shared golden fixtures.
+//
+// Nothing here rolls a die, and nothing here may — folding the log has to be deterministic
+// or undo/redo silently corrupts the combat. Rolls resolve server-side and arrive as literal
+// results: set_initiative {value: 17}, never roll_initiative {}. Any change here must land in
+// the Python reference and backend/tests/fixtures/combat_golden.json in the same commit.
 
 export interface Combatant {
   id: string
   name: string
   side: string
+  /** 'creature' | 'lair'. A lair sits in the initiative order as an ordinary entry. */
+  kind: string
   max_hp: number
   hp: number
   temp_hp: number
   initiative: number
+  /** Breaks ties before falling back to id (5e: the dex modifier). */
+  initiative_tiebreak: number
   conditions: string[]
   concentrating: boolean
   defeated: boolean
+  death_saves: { successes: number; failures: number }
+  legendary: { max: number; remaining: number }
 }
 
 export interface CombatState {
@@ -35,11 +46,21 @@ export function initialState(): CombatState {
 function reorder(state: CombatState): void {
   const ids = Object.keys(state.combatants)
   ids.sort((a, b) => {
-    const d = state.combatants[b].initiative - state.combatants[a].initiative
-    return d !== 0 ? d : a < b ? -1 : a > b ? 1 : 0
+    const ca = state.combatants[a]
+    const cb = state.combatants[b]
+    const d = cb.initiative - ca.initiative
+    if (d !== 0) return d
+    const t = cb.initiative_tiebreak - ca.initiative_tiebreak
+    if (t !== 0) return t
+    return a < b ? -1 : a > b ? 1 : 0
   })
   state.order = ids
   state.turn_index = ids.length ? Math.min(state.turn_index, ids.length - 1) : 0
+}
+
+// A lair at 0 hp is not a corpse — it has no hit points to lose in the first place.
+function isDefeated(m: Combatant): boolean {
+  return m.hp === 0 && m.kind !== 'lair'
 }
 
 export function applyAction(state: CombatState, action: Action): CombatState {
@@ -50,14 +71,29 @@ export function applyAction(state: CombatState, action: Action): CombatState {
   if (kind === 'add_combatant') {
     const maxHp = toInt(action.max_hp)
     const hp = action.hp === undefined ? maxHp : toInt(action.hp)
+    const entryKind = (action.kind as string) ?? 'creature'
+    const legendaryMax = toInt(action.legendary_max ?? 0)
     c[id] = {
       id, name: String(action.name), side: (action.side as string) ?? 'foe',
+      kind: entryKind,
       max_hp: maxHp, hp, temp_hp: 0, initiative: toInt(action.initiative ?? 0),
-      conditions: [], concentrating: false, defeated: hp <= 0,
+      initiative_tiebreak: toInt(action.initiative_tiebreak ?? 0),
+      conditions: [], concentrating: false,
+      defeated: hp <= 0 && entryKind !== 'lair',
+      death_saves: { successes: 0, failures: 0 },
+      legendary: { max: legendaryMax, remaining: legendaryMax },
     }
     reorder(state)
   } else if (kind === 'set_initiative') {
-    if (c[id]) { c[id].initiative = toInt(action.value); reorder(state) }
+    if (c[id]) {
+      c[id].initiative = toInt(action.value)
+      // Rolling sends the tiebreak along; a manual edit from the rail omits it and leaves
+      // whatever the combatant was seeded with.
+      if (action.initiative_tiebreak !== undefined) {
+        c[id].initiative_tiebreak = toInt(action.initiative_tiebreak)
+      }
+      reorder(state)
+    }
   } else if (kind === 'damage') {
     const m = c[id]
     if (m) {
@@ -66,7 +102,7 @@ export function applyAction(state: CombatState, action: Action): CombatState {
       m.temp_hp -= absorbed
       amount -= absorbed
       m.hp = Math.max(0, m.hp - amount)
-      m.defeated = m.hp === 0
+      m.defeated = isDefeated(m)
       if (m.hp === 0) m.concentrating = false
     }
   } else if (kind === 'heal') {

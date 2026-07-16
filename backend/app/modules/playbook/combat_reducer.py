@@ -4,6 +4,14 @@ Combat is event-sourced *inside* an encounter run: the state is never stored per
 only derived by folding the action log. Undo/redo is a cursor into that log. This module
 is a system-agnostic reducer (HP, conditions, turn order as data); it has a byte-for-byte
 TypeScript twin (frontend/src/lib/combatReducer.ts) verified against shared golden fixtures.
+
+**Nothing here rolls a die, and nothing here may.** Folding the log must be deterministic —
+replaying it has to land on the same state every time, or undo/redo silently corrupts the
+combat. Rolls resolve server-side (``app.core.dice``) and reach this module only as literal
+results: ``set_initiative {value: 17}``, never ``roll_initiative {}``.
+
+Payload keys the reducer doesn't read are legal and ignored (``stat_block_id``, ``roll_id``),
+which is how provenance rides along without touching the folded state or its fixtures.
 """
 
 from __future__ import annotations
@@ -20,9 +28,24 @@ def initial_state() -> State:
 
 def _reorder(state: State) -> None:
     combatants = state["combatants"]
-    ids = sorted(combatants, key=lambda i: (-combatants[i]["initiative"], i))
+    # Ties break on the tiebreak (5e: the dex modifier), then on id. Before initiative was
+    # ever rolled the tiebreak was moot; with real d20s, ties are common and breaking them
+    # on an opaque id would be arbitrary.
+    ids = sorted(
+        combatants,
+        key=lambda i: (
+            -combatants[i]["initiative"],
+            -combatants[i]["initiative_tiebreak"],
+            i,
+        ),
+    )
     state["order"] = ids
     state["turn_index"] = min(state["turn_index"], len(ids) - 1) if ids else 0
+
+
+def _defeated(combatant: dict[str, Any]) -> bool:
+    """A lair at 0 hp is not a corpse — it has no hit points to lose in the first place."""
+    return bool(combatant["hp"] == 0 and combatant["kind"] != "lair")
 
 
 def apply_action(state: State, action: Action) -> State:
@@ -33,17 +56,30 @@ def apply_action(state: State, action: Action) -> State:
         cid = action["id"]
         max_hp = int(action["max_hp"])
         hp = int(action.get("hp", max_hp))
+        entry_kind = action.get("kind", "creature")
+        legendary_max = int(action.get("legendary_max", 0))
         combatants[cid] = {
             "id": cid, "name": action["name"], "side": action.get("side", "foe"),
+            # "creature" | "lair". A lair rides in the initiative order as an ordinary
+            # entry (5e: count 20) so its turn needs no special case anywhere.
+            "kind": entry_kind,
             "max_hp": max_hp, "hp": hp, "temp_hp": 0,
             "initiative": int(action.get("initiative", 0)),
-            "conditions": [], "concentrating": False, "defeated": hp <= 0,
+            "initiative_tiebreak": int(action.get("initiative_tiebreak", 0)),
+            "conditions": [], "concentrating": False,
+            "defeated": hp <= 0 and entry_kind != "lair",
+            "death_saves": {"successes": 0, "failures": 0},
+            "legendary": {"max": legendary_max, "remaining": legendary_max},
         }
         _reorder(state)
     elif kind == "set_initiative":
         m = combatants.get(action["id"])
         if m:
             m["initiative"] = int(action["value"])
+            # Rolling initiative sends the tiebreak along with the value; a manual edit
+            # from the rail omits it and leaves whatever the combatant was seeded with.
+            if "initiative_tiebreak" in action:
+                m["initiative_tiebreak"] = int(action["initiative_tiebreak"])
             _reorder(state)
     elif kind == "damage":
         m = combatants.get(action["id"])
@@ -53,7 +89,7 @@ def apply_action(state: State, action: Action) -> State:
             m["temp_hp"] -= absorbed
             amount -= absorbed
             m["hp"] = max(0, m["hp"] - amount)
-            m["defeated"] = m["hp"] == 0
+            m["defeated"] = _defeated(m)
             if m["hp"] == 0:
                 m["concentrating"] = False
     elif kind == "heal":

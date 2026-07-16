@@ -27,6 +27,26 @@ def test_reducer_golden() -> None:
         assert fold(case["actions"]) == case["expected"], case["name"]
 
 
+def test_api_combatant_carries_every_reducer_field(client: TestClient) -> None:
+    """The wire shape must match the reducer's exactly.
+
+    ``state_of`` model_validates the folded dict through the ``Combatant`` pydantic model,
+    and pydantic *drops* fields the model doesn't declare. A field added to the reducer but
+    forgotten in schemas.py would vanish between the fold and the response with nothing
+    failing — so compare the two shapes directly rather than trust either alone.
+    """
+    cid = _demo(client)
+    run_id = _start_from_two_goblins(client, cid)
+    run = client.get(f"/api/v1/campaigns/{cid}/combats/{run_id}").json()
+
+    reference = fold([
+        {"type": "add_combatant", "id": "x", "name": "X", "side": "foe",
+         "max_hp": 7, "initiative": 2},
+    ])["combatants"]["x"]
+    over_the_wire = next(iter(run["state"]["combatants"].values()))
+    assert set(over_the_wire) == set(reference), "wire shape drifted from the reducer"
+
+
 def test_reducer_undo_redo_identity() -> None:
     actions = [
         {"type": "add_combatant", "id": "a", "name": "A", "side": "foe",

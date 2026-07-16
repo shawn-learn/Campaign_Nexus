@@ -347,17 +347,40 @@ class RollOut(BaseModel):
 
 
 # --- combat ---------------------------------------------------------------- #
+class DeathSaves(BaseModel):
+    successes: int = 0
+    failures: int = 0
+
+
+class LegendaryActions(BaseModel):
+    max: int = 0
+    remaining: int = 0
+
+
 class Combatant(BaseModel):
+    """Mirrors the reducer's combatant exactly (``combat_reducer.py``).
+
+    ``state_of`` model_validates the folded dict through here, and pydantic drops fields it
+    doesn't declare — so a field added to the reducer but not to this model would be silently
+    stripped from the API response and never reach the tracker.
+    """
+
     id: str
     name: str
     side: str
+    #: "creature" | "lair" — a lair rides the order as an ordinary entry and is never defeated.
+    kind: str = "creature"
     max_hp: int
     hp: int
     temp_hp: int
     initiative: int
+    #: Breaks ties before id (5e: the dex modifier).
+    initiative_tiebreak: int = 0
     conditions: list[str]
     concentrating: bool
     defeated: bool
+    death_saves: DeathSaves = DeathSaves()
+    legendary: LegendaryActions = LegendaryActions()
 
 
 class CombatState(BaseModel):

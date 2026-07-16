@@ -1,6 +1,6 @@
 import { render, cleanup, within, fireEvent, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { CombatState } from '../../lib/combatReducer'
+import type { CombatState, Combatant } from '../../lib/combatReducer'
 
 // The reducer twin is unit-tested elsewhere (combatReducer.test.ts); this test covers the
 // wiring the page adds on top: hook plumbing, the optimistic-then-reconcile action flow,
@@ -31,20 +31,26 @@ vi.mock('../../api/hooks', () => ({
 
 import { CombatPage } from './CombatPage'
 
+// One place to absorb combatant-shape changes, so adding a reducer field doesn't mean
+// editing every fixture in the file.
+function combatant(over: Partial<Combatant> & Pick<Combatant, 'id'>): Combatant {
+  return {
+    name: 'Someone', side: 'foe', kind: 'creature', max_hp: 10, hp: 10, temp_hp: 0,
+    initiative: 0, initiative_tiebreak: 0, conditions: [], concentrating: false,
+    defeated: false, death_saves: { successes: 0, failures: 0 },
+    legendary: { max: 0, remaining: 0 },
+    ...over,
+  }
+}
+
 function stateWith(round: number, turnIndex: number): CombatState {
   return {
     round,
     turn_index: turnIndex,
     order: ['g1', 's1'],
     combatants: {
-      g1: {
-        id: 'g1', name: 'Goblin', side: 'foe', max_hp: 7, hp: 7, temp_hp: 0,
-        initiative: 17, conditions: [], concentrating: false, defeated: false,
-      },
-      s1: {
-        id: 's1', name: 'Serah', side: 'ally', max_hp: 30, hp: 30, temp_hp: 0,
-        initiative: 12, conditions: [], concentrating: false, defeated: false,
-      },
+      g1: combatant({ id: 'g1', name: 'Goblin', side: 'foe', max_hp: 7, hp: 7, initiative: 17 }),
+      s1: combatant({ id: 's1', name: 'Serah', side: 'ally', max_hp: 30, hp: 30, initiative: 12 }),
     },
   }
 }

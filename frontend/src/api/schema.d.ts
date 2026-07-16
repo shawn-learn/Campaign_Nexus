@@ -2680,7 +2680,14 @@ export interface components {
             /** To Time */
             to_time: number;
         };
-        /** Combatant */
+        /**
+         * Combatant
+         * @description Mirrors the reducer's combatant exactly (``combat_reducer.py``).
+         *
+         *     ``state_of`` model_validates the folded dict through here, and pydantic drops fields it
+         *     doesn't declare — so a field added to the reducer but not to this model would be silently
+         *     stripped from the API response and never reach the tracker.
+         */
         Combatant: {
             /** Id */
             id: string;
@@ -2688,6 +2695,11 @@ export interface components {
             name: string;
             /** Side */
             side: string;
+            /**
+             * Kind
+             * @default creature
+             */
+            kind?: string;
             /** Max Hp */
             max_hp: number;
             /** Hp */
@@ -2696,12 +2708,31 @@ export interface components {
             temp_hp: number;
             /** Initiative */
             initiative: number;
+            /**
+             * Initiative Tiebreak
+             * @default 0
+             */
+            initiative_tiebreak?: number;
             /** Conditions */
             conditions: string[];
             /** Concentrating */
             concentrating: boolean;
             /** Defeated */
             defeated: boolean;
+            /**
+             * @default {
+             *       "successes": 0,
+             *       "failures": 0
+             *     }
+             */
+            death_saves?: components["schemas"]["DeathSaves"];
+            /**
+             * @default {
+             *       "max": 0,
+             *       "remaining": 0
+             *     }
+             */
+            legendary?: components["schemas"]["LegendaryActions"];
         };
         /** CombatantSpec */
         CombatantSpec: {
@@ -2777,6 +2808,19 @@ export interface components {
             session_number: number;
             /** Status */
             status: string;
+        };
+        /** DeathSaves */
+        DeathSaves: {
+            /**
+             * Successes
+             * @default 0
+             */
+            successes?: number;
+            /**
+             * Failures
+             * @default 0
+             */
+            failures?: number;
         };
         /** DependencyIn */
         DependencyIn: {
@@ -3232,6 +3276,19 @@ export interface components {
             instance_label?: string | null;
             /** Notes */
             notes?: string | null;
+        };
+        /** LegendaryActions */
+        LegendaryActions: {
+            /**
+             * Max
+             * @default 0
+             */
+            max?: number;
+            /**
+             * Remaining
+             * @default 0
+             */
+            remaining?: number;
         };
         /** LibraryEntryCreate */
         LibraryEntryCreate: {
