@@ -22,8 +22,16 @@ ContentPack = dict[str, Any]  # {"id","version","attribution","monsters": [{"nam
 # {"supported", "distance_unit", "paces": {pace: {conveyance: distance_per_day}},
 #  "terrain": {terrain: multiplier}, "forced_march_after_seconds": int|None}
 TravelPaceTable = dict[str, Any]
-# {"max_hp": int, "hp": int, "initiative": int} — everything the combat tracker needs to
-# seed a combatant. The playbook reads *this*, never the stat-block document (docs/04 §6.8).
+# Everything the combat tracker needs to seed a combatant. The playbook reads *this*, never
+# the stat-block document (docs/04 §6.8):
+#   max_hp, hp, initiative  — as before; ``initiative`` is the pre-roll seed / static ranking.
+#   ac              — the number an attack must meet to hit, or None if the system has no
+#                     such concept (Nimble's armour reduces damage; it is not a target).
+#                     A None ac means the tracker reports the roll and lets the GM judge.
+#   initiative_dice — the die initiative is rolled on ("1d20"), or None if the system does
+#                     not roll for it at all — in which case ``initiative`` above already
+#                     *is* the order and the tracker must not offer to roll.
+#   initiative_mod  — what's added to that die, and the tiebreak between equal initiatives.
 CombatProfile = dict[str, Any]
 # Ordered {tier: dc} — how a system prices skill-challenge difficulty tiers as concrete
 # target numbers. The skill-challenge feature is system-agnostic; this is its one hook into
@@ -145,8 +153,12 @@ class BaseRuleSystem:
     def combat_profile(
         self, sheet_type: str, doc: Document, status: Document | None = None
     ) -> CombatProfile:
-        # A system that ships no combat model still yields a well-formed combatant.
-        return {"max_hp": 0, "hp": 0, "initiative": 0}
+        # A system that ships no combat model still yields a well-formed combatant: no AC to
+        # hit, no die to roll for order. The tracker degrades to a manual list, not an error.
+        return {
+            "max_hp": 0, "hp": 0, "initiative": 0,
+            "ac": None, "initiative_dice": None, "initiative_mod": 0,
+        }
 
     def rest_types(self) -> list[str]:
         return []

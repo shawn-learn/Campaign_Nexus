@@ -267,10 +267,16 @@ class Dnd5eSystem(BaseRuleSystem):
     ) -> CombatProfile:
         max_hp = self._max_hp(sheet_type, doc)
         abilities = doc.get("abilities") or {}
+        dex_mod = _mod(int(abilities.get("dex", 10)))
         return {
             "max_hp": max_hp,
             "hp": int((status or {}).get("current_hit_points", max_hp)),
-            "initiative": _mod(int(abilities.get("dex", 10))),
+            # The pre-roll seed. 5e initiative is 1d20+dex, so this is only the order a
+            # combat falls into before anyone rolls — the tracker replaces it on roll.
+            "initiative": dex_mod,
+            "ac": int(doc["armor_class"]) if "armor_class" in doc else None,
+            "initiative_dice": "1d20",
+            "initiative_mod": dex_mod,
         }
 
     def rest_types(self) -> list[str]:

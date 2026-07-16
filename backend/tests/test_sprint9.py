@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from app.core import dice
 from app.modules.rules import registry
 from fastapi.testclient import TestClient
 
@@ -33,8 +34,17 @@ def test_plugin_conformance(system) -> None:
         status = system.initial_status(sheet_type, {})
         assert isinstance(status, dict)
         profile = system.combat_profile(sheet_type, {}, status)
-        assert {"max_hp", "hp", "initiative"} <= profile.keys()
-        assert all(isinstance(profile[k], int) for k in ("max_hp", "hp", "initiative"))
+        ints = ("max_hp", "hp", "initiative", "initiative_mod")
+        assert {*ints, "ac", "initiative_dice"} <= profile.keys()
+        assert all(isinstance(profile[k], int) for k in ints)
+        # `ac` is the number an attack must meet, or None where the system has no such
+        # concept — Nimble's armour reduces damage rather than being a target to beat.
+        assert profile["ac"] is None or isinstance(profile["ac"], int)
+        # `initiative_dice` is None when a system doesn't roll for order (Nimble: the party
+        # acts first). When it *is* set, it must be notation the core engine can roll —
+        # otherwise the tracker would only discover the typo at the table.
+        if profile["initiative_dice"] is not None:
+            dice.roll(profile["initiative_dice"])
 
     # Rests: whatever they are called, they must be durable and self-consistent.
     rests = system.rest_types()
@@ -47,6 +57,32 @@ def test_plugin_conformance(system) -> None:
 
     assert system.round_length_seconds() > 0
     assert isinstance(system.travel_pace_table().get("supported"), bool)
+
+
+def test_combat_profile_carries_ac_and_the_initiative_die_for_5e() -> None:
+    # AC and the initiative die are the only route from a stat block to the combat tracker
+    # (docs/04 §6.8) — the playbook must never read `armor_class` out of the doc itself.
+    system = registry.get_system("dnd5e")
+    doc = {"size": "Small", "type": "humanoid", "armor_class": 15, "hit_points": 7,
+           "challenge_rating": 0.25, "abilities": {"str": 8, "dex": 14, "int": 10,
+                                                   "wis": 8, "cha": 8, "con": 10}}
+    profile = system.combat_profile("monster", doc)
+    assert profile["ac"] == 15
+    assert profile["max_hp"] == 7
+    assert profile["initiative_dice"] == "1d20"
+    assert profile["initiative_mod"] == 2  # dex 14
+    assert profile["initiative"] == 2      # pre-roll seed, replaced once rolled
+
+
+def test_combat_profile_has_no_ac_or_initiative_die_for_nimble() -> None:
+    # Nimble's armour reduces damage instead of being a target number, and it rolls no
+    # initiative at all. Both must surface as None rather than a 5e-shaped guess.
+    system = registry.get_system("nimble")
+    doc = {"level": 1, "role": "standard", "max_hp": 8, "armor": "light"}
+    profile = system.combat_profile("monster", doc)
+    assert profile["ac"] is None
+    assert profile["initiative_dice"] is None
+    assert profile["initiative"] == 0  # monsters act after the party — the ranking is the rule
 
 
 def test_rule_systems_listed(client: TestClient) -> None:

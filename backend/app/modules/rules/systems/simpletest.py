@@ -129,6 +129,10 @@ class SimpleTestSystem(BaseRuleSystem):
             "max_hp": max_hp,
             "hp": int((status or {}).get("hp", max_hp)),
             "initiative": 0,  # this system has no initiative; insertion order wins
+            # No AC, and no die to roll for order — same as the two above.
+            "ac": None,
+            "initiative_dice": None,
+            "initiative_mod": 0,
         }
 
 

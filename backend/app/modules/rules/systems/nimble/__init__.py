@@ -208,6 +208,13 @@ class NimbleSystem(BaseRuleSystem):
             # Nimble rolls no initiative: the party acts, then the monsters do. The tracker
             # orders by initiative descending, so this ranking *is* the rule.
             "initiative": 1 if sheet_type in ("pc", "npc") else 0,
+            # No armour class to hit: Nimble's armour turns aside damage on a hit (see
+            # ``_ARMOR_VALUE``), so there is no target number and nothing to compare a roll
+            # against. ``initiative_dice: None`` says the same about order — there is no die
+            # to roll, so the tracker must leave the ranking above alone.
+            "ac": None,
+            "initiative_dice": None,
+            "initiative_mod": 0,
         }
 
     # -- rests -------------------------------------------------------------
