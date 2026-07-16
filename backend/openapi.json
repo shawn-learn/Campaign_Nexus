@@ -10524,6 +10524,18 @@
         "properties": {
           "action_type": {
             "type": "string",
+            "enum": [
+              "add_combatant",
+              "remove_combatant",
+              "set_initiative",
+              "damage",
+              "heal",
+              "set_temp_hp",
+              "add_condition",
+              "remove_condition",
+              "set_concentration",
+              "next_turn"
+            ],
             "title": "Action Type"
           },
           "payload": {

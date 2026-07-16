@@ -74,6 +74,34 @@ def test_combat_profile_carries_ac_and_the_initiative_die_for_5e() -> None:
     assert profile["initiative"] == 2      # pre-roll seed, replaced once rolled
 
 
+@pytest.mark.parametrize("system", registry.all_systems(), ids=lambda s: s.id)
+def test_with_hit_points_touches_only_hp(system) -> None:
+    """The write half of combat_profile's read — it must not disturb the rest of a status.
+
+    end_combat writes a PC's folded HP back through this. Reaching for initial_status
+    instead would have been the obvious shortcut and would have silently reset exhaustion
+    and conditions every time a fight ended.
+    """
+    for sheet_type in system.sheet_types():
+        status = system.initial_status(sheet_type, {})
+        # Whatever this system tracks besides HP, spoil it and check it survives.
+        marked = {**status, "conditions": ["poisoned"], "exhaustion": 3, "_probe": "keep me"}
+        result = system.with_hit_points(marked, {}, 7)
+        assert result["conditions"] == ["poisoned"]
+        assert result["exhaustion"] == 3
+        assert result["_probe"] == "keep me"
+        # And the system's own HP key — whatever it calls it — now reads back as 7.
+        profile = system.combat_profile(sheet_type, {}, result)
+        if profile["max_hp"] or "hp" in status or "current_hit_points" in status:
+            assert profile["hp"] == 7
+
+    # Mutating the caller's dict would corrupt state that is mid-transaction.
+    original = system.initial_status(system.sheet_types()[0], {})
+    snapshot = dict(original)
+    system.with_hit_points(original, {}, 3)
+    assert original == snapshot
+
+
 def test_combat_profile_has_no_ac_or_initiative_die_for_nimble() -> None:
     # Nimble's armour reduces damage instead of being a target number, and it rolls no
     # initiative at all. Both must surface as None rather than a 5e-shaped guess.

@@ -16,10 +16,28 @@ which is how provenance rides along without touching the folded state or its fix
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal, get_args
 
 Action = dict[str, Any]
 State = dict[str, Any]
+
+#: The complete action vocabulary — every type ``apply_action`` below actually handles.
+#: It lives here, next to the implementation, so the API's validation cannot drift from what
+#: the reducer understands. Add a type here and to ``apply_action`` in the same change; an
+#: unhandled name would otherwise persist to the log, advance the cursor, and do nothing.
+ActionType = Literal[
+    "add_combatant",
+    "remove_combatant",
+    "set_initiative",
+    "damage",
+    "heal",
+    "set_temp_hp",
+    "add_condition",
+    "remove_condition",
+    "set_concentration",
+    "next_turn",
+]
+ACTION_TYPES: tuple[str, ...] = get_args(ActionType)
 
 
 def initial_state() -> State:

@@ -7,6 +7,7 @@ import {
   getCombat,
   startCombat,
   useEncounters,
+  type CombatActionType,
 } from '../../api/hooks'
 import { applyOptimistic } from '../../lib/combatReducer'
 import type { CombatState } from '../../lib/combatReducer'
@@ -79,7 +80,7 @@ export function CombatPage() {
   }
 
   const push = useCallback(
-    async (type: string, payload: Record<string, unknown>) => {
+    async (type: CombatActionType, payload: Record<string, unknown>) => {
       if (!campaignId || !runId || !state) return
       setState(applyOptimistic(state, { type, ...payload })) // instant
       ingest((await combatAction(campaignId, runId, type, payload)) as RunOut) // reconcile

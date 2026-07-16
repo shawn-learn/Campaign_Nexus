@@ -225,3 +225,41 @@ class CombatAction(Base):
     action_type: Mapped[str] = mapped_column(String, nullable=False)
     payload_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
     recorded_at_real: Mapped[str] = mapped_column(String, nullable=False)
+
+
+class CombatRoll(Base):
+    """A die rolled during a combat — a *record*, deliberately outside the fold.
+
+    Rolls are not state: nothing about the combat changes because a d20 came up 17. Logging
+    them as ``combat_action`` rows would give each one a ``fold_cursor`` slot, so Undo after
+    an attack would step back over the roll and appear to do nothing. Here instead, the log
+    is append-only and undo never un-rolls a die — which is also the honest model, since a
+    roll that happened at the table cannot be taken back.
+
+    The resulting action carries ``roll_id`` in its payload (the reducer ignores it), so
+    "where did this 8 damage come from" stays answerable.
+    """
+
+    __tablename__ = "combat_roll"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    combat_run_id: Mapped[str] = mapped_column(
+        String, ForeignKey("combat_run.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    #: The folded-state combatant id — not an FK: combatants live in the log, not a table.
+    combatant_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    #: initiative | attack | damage | save | death_save
+    kind: Mapped[str] = mapped_column(String, nullable=False)
+    #: What was rolled, for the log: "Greatclub", "CON save", "Initiative".
+    label: Mapped[str] = mapped_column(String, nullable=False, default="")
+    expression: Mapped[str] = mapped_column(String, nullable=False)
+    #: normal | advantage | disadvantage
+    mode: Mapped[str] = mapped_column(String, nullable=False, default="normal")
+    #: The individual faces + modifier, so the UI can show "17 (17, 9) + 5".
+    detail_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    total: Mapped[int] = mapped_column(Integer, nullable=False)
+    #: The AC or DC this was rolled against, when there was one.
+    target: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    #: hit | miss | crit | fumble | success | failure — None when there was no target.
+    outcome: Mapped[str | None] = mapped_column(String, nullable=True)
+    recorded_at_real: Mapped[str] = mapped_column(String, nullable=False)

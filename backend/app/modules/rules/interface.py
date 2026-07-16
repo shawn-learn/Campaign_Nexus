@@ -74,6 +74,9 @@ class RuleSystem(Protocol):
     def combat_profile(
         self, sheet_type: str, doc: Document, status: Document | None = None
     ) -> CombatProfile: ...
+    def with_hit_points(
+        self, status: Document, doc: Document, hit_points: int
+    ) -> Document: ...
 
     # -- rests (docs/08, §10.2) --------------------------------------------
     def rest_types(self) -> list[str]: ...
@@ -159,6 +162,12 @@ class BaseRuleSystem:
             "max_hp": 0, "hp": 0, "initiative": 0,
             "ac": None, "initiative_dice": None, "initiative_mod": 0,
         }
+
+    def with_hit_points(self, status: Document, doc: Document, hit_points: int) -> Document:
+        # The write half of ``combat_profile``'s read: that method pulls live HP *out* of a
+        # status; this one puts it back after combat, without disturbing anything else in
+        # there (conditions, exhaustion). A system with no HP model writes nothing.
+        return dict(status)
 
     def rest_types(self) -> list[str]:
         return []

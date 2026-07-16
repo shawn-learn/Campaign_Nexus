@@ -641,6 +641,11 @@ export function useRest(campaignId: string) {
 }
 
 // --- combat -----------------------------------------------------------------
+// The reducer's action vocabulary, straight from the generated schema (the backend pins it
+// to a Literal). A typo is a compile error here rather than a 422 at the table.
+export type CombatActionType =
+  components['schemas']['CombatActionIn']['action_type']
+
 export async function startCombat(campaignId: string, encounterId: string) {
   return unwrap(
     await api.POST('/api/v1/campaigns/{campaign_id}/combats', {
@@ -654,7 +659,7 @@ export async function startCombat(campaignId: string, encounterId: string) {
 export async function combatAction(
   campaignId: string,
   runId: string,
-  actionType: string,
+  actionType: CombatActionType,
   payload: Record<string, unknown>,
 ) {
   return unwrap(

@@ -217,6 +217,11 @@ class NimbleSystem(BaseRuleSystem):
             "initiative_mod": 0,
         }
 
+    def with_hit_points(self, status: Document, doc: Document, hit_points: int) -> Document:
+        new_status = dict(status)
+        new_status["hp"] = max(0, int(hit_points))  # `hp`, not 5e's `current_hit_points`
+        return new_status
+
     # -- rests -------------------------------------------------------------
     def rest_types(self) -> list[str]:
         return ["field", "safe"]

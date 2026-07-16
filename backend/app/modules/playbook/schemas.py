@@ -4,6 +4,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from app.modules.playbook.combat_reducer import ActionType
 from app.modules.time.schemas import ClockOut, FiredEvent
 
 
@@ -415,7 +416,10 @@ class StartCombat(BaseModel):
 
 
 class CombatActionIn(BaseModel):
-    action_type: str
+    #: Constrained to the reducer's own vocabulary, so a typo 422s at the edge. Left as a
+    #: free string, an unknown type persisted to the log, advanced the fold cursor and was
+    #: then silently ignored — a no-op action the GM would have to press Undo to clear.
+    action_type: ActionType
     payload: dict[str, Any] = {}
 
 

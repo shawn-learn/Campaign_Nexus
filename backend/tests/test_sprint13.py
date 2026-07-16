@@ -93,6 +93,57 @@ def test_combatant_blocks_map_points_at_a_stat_block(client: TestClient) -> None
     assert block.json()["sheet_type"] == "monster"
 
 
+def test_unknown_action_type_is_rejected(client: TestClient) -> None:
+    """A typo'd action used to persist, advance the fold cursor, and do nothing.
+
+    The reducer ignores types it doesn't know, so the write "succeeded", the GM saw no
+    change, and Undo was the only way to clear the dead log entry. It 422s at the edge now.
+    """
+    cid = _demo(client)
+    run_id = _start_from_two_goblins(client, cid)
+    before = client.get(f"/api/v1/campaigns/{cid}/combats/{run_id}").json()["total_actions"]
+    resp = client.post(
+        f"/api/v1/campaigns/{cid}/combats/{run_id}/actions",
+        json={"action_type": "rol_initiative", "payload": {}},
+    )
+    assert resp.status_code == 422
+    # And nothing was written — the log is exactly as long as it was.
+    after = client.get(f"/api/v1/campaigns/{cid}/combats/{run_id}").json()["total_actions"]
+    assert after == before
+
+
+def test_party_hp_is_written_back_when_combat_ends(client: TestClient) -> None:
+    """A PC's wounds must outlive the combat that caused them.
+
+    The fold was the only record of damage taken, and nothing reads it once the run is over
+    — so a character walked out of a bruising fight at full health.
+    """
+    cid = _demo(client)
+    pc = client.post(
+        f"/api/v1/campaigns/{cid}/stat-blocks",
+        json={"rule_system_id": "dnd5e", "sheet_type": "pc", "label": "Serah",
+              "doc": {"level": 5, "max_hit_points": 40, "armor_class": 16,
+                      "abilities": {"str": 10, "dex": 14, "con": 12, "int": 10,
+                                    "wis": 10, "cha": 10}}},
+    ).json()["id"]
+    client.post(f"/api/v1/campaigns/{cid}/party/members", json={"stat_block_id": pc})
+
+    run_id = _start_from_two_goblins(client, cid)
+    run = client.get(f"/api/v1/campaigns/{cid}/combats/{run_id}").json()
+    serah = next(c for c in run["state"]["combatants"].values() if c["name"] == "Serah")
+    assert serah["hp"] == 40  # joined at full
+
+    client.post(
+        f"/api/v1/campaigns/{cid}/combats/{run_id}/actions",
+        json={"action_type": "damage", "payload": {"id": serah["id"], "amount": 13}},
+    )
+    client.post(f"/api/v1/campaigns/{cid}/combats/{run_id}/end")
+
+    member = client.get(f"/api/v1/campaigns/{cid}/party").json()["members"][0]
+    assert member["hp"] == 27
+    assert member["status"]["current_hit_points"] == 27
+
+
 def test_list_combats_by_encounter(client: TestClient) -> None:
     cid = _demo(client)
     goblin = _monster(client, cid, "Goblin")

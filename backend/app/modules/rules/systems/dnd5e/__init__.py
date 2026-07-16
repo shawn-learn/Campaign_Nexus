@@ -279,6 +279,11 @@ class Dnd5eSystem(BaseRuleSystem):
             "initiative_mod": dex_mod,
         }
 
+    def with_hit_points(self, status: Document, doc: Document, hit_points: int) -> Document:
+        new_status = dict(status)
+        new_status["current_hit_points"] = max(0, int(hit_points))
+        return new_status
+
     def rest_types(self) -> list[str]:
         return ["short", "long"]
 

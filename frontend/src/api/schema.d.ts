@@ -2610,8 +2610,11 @@ export interface components {
         };
         /** CombatActionIn */
         CombatActionIn: {
-            /** Action Type */
-            action_type: string;
+            /**
+             * Action Type
+             * @enum {string}
+             */
+            action_type: "add_combatant" | "remove_combatant" | "set_initiative" | "damage" | "heal" | "set_temp_hp" | "add_condition" | "remove_condition" | "set_concentration" | "next_turn";
             /**
              * Payload
              * @default {}

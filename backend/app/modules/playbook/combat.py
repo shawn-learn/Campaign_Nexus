@@ -234,6 +234,39 @@ def redo(session: Session, campaign_id: str, run_id: str) -> CombatRun:
     return run
 
 
+def _write_back_party_hp(
+    session: Session, campaign: Campaign, run: CombatRun, state: CombatState
+) -> None:
+    """Persist what the party actually took: folded ally HP → ``PartyMember.status_json``.
+
+    Without this the fold is the only record of a PC's wounds, and nothing reads it once the
+    run is over — so a character walked out of a bruising fight at full health.
+
+    HP goes back through the plugin (``with_hit_points``), never by writing a key into the
+    status dict: 5e keys it ``current_hit_points`` and Nimble ``hp``, and the playbook is not
+    allowed to know which (docs/04 §6.8).
+    """
+    system = registry.get_system(campaign.rule_system_id)
+    blocks = combatant_blocks(session, run.id)
+    members = {
+        m.stat_block_id: m
+        for m in session.scalars(
+            select(PartyMember)
+            .join(StatBlock, StatBlock.id == PartyMember.stat_block_id)
+            .where(StatBlock.campaign_id == campaign.id, PartyMember.active)
+        )
+    }
+    for cid, combatant in state.combatants.items():
+        # Foes and allied NPCs have no party member to write to, and drop out here.
+        member = members.get(blocks.get(cid, ""))
+        if member is None:
+            continue
+        block = session.get(StatBlock, member.stat_block_id)
+        doc = json.loads(block.doc_json) if block else {}
+        status = system.with_hit_points(json.loads(member.status_json), doc, combatant.hp)
+        member.status_json = json.dumps(status)
+
+
 def end_combat(session: Session, campaign: Campaign, run_id: str) -> CombatSummary:
     run = _require(session, campaign.id, run_id)
     state = state_of(session, run)
@@ -256,6 +289,7 @@ def end_combat(session: Session, campaign: Campaign, run_id: str) -> CombatSumma
                 payload={"name": name},
                 narrative=f"{name} was defeated.",
             )
+        _write_back_party_hp(session, campaign, run, state)
         run.status = "completed"
         campaign.realtime_paused = False
         if campaign.realtime_enabled:
