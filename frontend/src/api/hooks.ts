@@ -1,6 +1,8 @@
 // TanStack Query hooks over the typed client. Mutations invalidate the affected
 // queries so views stay fresh without manual refetching (FR-14.3).
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { applyOptimistic } from '../lib/combatReducer'
+import type { CombatState } from '../lib/combatReducer'
 import { api } from './client'
 import type { CampaignCreate, EntityCreate, EntityUpdate } from './client'
 import type { components } from './schema'
@@ -641,70 +643,147 @@ export function useRest(campaignId: string) {
 }
 
 // --- combat -----------------------------------------------------------------
-// The reducer's action vocabulary, straight from the generated schema (the backend pins it
-// to a Literal). A typo is a compile error here rather than a 422 at the table.
-export type CombatActionType =
-  components['schemas']['CombatActionIn']['action_type']
+// Types come straight from the generated OpenAPI schema — the folded combat state is the
+// reducer's own shape (see lib/combatReducer.ts, its TS twin), so a backend contract change
+// surfaces here as a type error rather than at the table.
 
-export async function startCombat(campaignId: string, encounterId: string) {
-  return unwrap(
-    await api.POST('/api/v1/campaigns/{campaign_id}/combats', {
-      params: { path: { campaign_id: campaignId } },
-      body: { encounter_id: encounterId },
-    }),
-    'start combat',
-  )
+export type CombatRun = components['schemas']['CombatRunOut']
+export type CombatStateOut = components['schemas']['CombatState']
+export type CombatantOut = components['schemas']['Combatant']
+export type CombatSummary = components['schemas']['CombatSummary']
+export type ConditionDef = components['schemas']['ConditionOut']
+
+// The reducer's action vocabulary, pinned to a Literal by the backend. A typo is a compile
+// error here rather than a 422 mid-combat.
+export type CombatActionType = components['schemas']['CombatActionIn']['action_type']
+
+const combatKey = (campaignId: string | null, runId: string | null) =>
+  ['combat', campaignId, runId] as const
+
+// A combat write moves more than the tracker: the clock (6s per round), the dashboard's
+// active-combat panel, and — once a run ends — the timeline and the party's HP, since
+// end_combat writes each PC's folded HP back to their sheet.
+function invalidateCombat(qc: ReturnType<typeof useQueryClient>, campaignId: string) {
+  void qc.invalidateQueries({ queryKey: ['clock', campaignId] })
+  void qc.invalidateQueries({ queryKey: ['dashboard', campaignId] })
+  void qc.invalidateQueries({ queryKey: ['party', campaignId] })
+  void qc.invalidateQueries({ queryKey: ['events', campaignId] })
+  void qc.invalidateQueries({ queryKey: ['timeline', campaignId] })
 }
 
-export async function combatAction(
-  campaignId: string,
-  runId: string,
-  actionType: CombatActionType,
-  payload: Record<string, unknown>,
-) {
-  return unwrap(
-    await api.POST('/api/v1/campaigns/{campaign_id}/combats/{run_id}/actions', {
-      params: { path: { campaign_id: campaignId, run_id: runId } },
-      body: { action_type: actionType, payload },
-    }),
-    'combat action',
-  )
+export function useCombat(campaignId: string | null, runId: string | null) {
+  return useQuery({
+    enabled: !!campaignId && !!runId,
+    queryKey: combatKey(campaignId, runId),
+    queryFn: async () =>
+      unwrap(
+        await api.GET('/api/v1/campaigns/{campaign_id}/combats/{run_id}', {
+          params: { path: { campaign_id: campaignId!, run_id: runId! } },
+        }),
+        'load combat',
+      ),
+    // The fold is authoritative and only this client writes to it; refetching on focus
+    // would stomp an optimistic action that is still in flight.
+    refetchOnWindowFocus: false,
+  })
 }
 
-export async function getCombat(campaignId: string, runId: string) {
-  return unwrap(
-    await api.GET('/api/v1/campaigns/{campaign_id}/combats/{run_id}', {
-      params: { path: { campaign_id: campaignId, run_id: runId } },
-    }),
-    'load combat',
-  )
+/** Apply an action optimistically, then reconcile with the server's authoritative fold. */
+export function useCombatAction(campaignId: string, runId: string | null) {
+  const qc = useQueryClient()
+  const key = combatKey(campaignId, runId)
+  return useMutation({
+    mutationFn: async (vars: { type: CombatActionType; payload: Record<string, unknown> }) =>
+      unwrap(
+        await api.POST('/api/v1/campaigns/{campaign_id}/combats/{run_id}/actions', {
+          params: { path: { campaign_id: campaignId, run_id: runId! } },
+          body: { action_type: vars.type, payload: vars.payload },
+        }),
+        'combat action',
+      ),
+    // Optimistic via the TS reducer twin so each action feels instant (NFR-1.3). Rolling
+    // back on failure is the point: this used to leave the optimistic state on screen
+    // permanently, so a rejected action showed the GM a wound the server never recorded.
+    onMutate: async (vars) => {
+      await qc.cancelQueries({ queryKey: key })
+      const previous = qc.getQueryData<CombatRun>(key)
+      if (previous) {
+        qc.setQueryData<CombatRun>(key, {
+          ...previous,
+          state: applyOptimistic(previous.state as CombatState, {
+            type: vars.type,
+            ...vars.payload,
+          }) as CombatRun['state'],
+        })
+      }
+      return { previous }
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) qc.setQueryData(key, ctx.previous)
+    },
+    onSuccess: (run) => {
+      qc.setQueryData(key, run)
+      invalidateCombat(qc, campaignId)
+    },
+  })
 }
 
-export async function combatUndo(campaignId: string, runId: string) {
-  return unwrap(
-    await api.POST('/api/v1/campaigns/{campaign_id}/combats/{run_id}/undo', {
-      params: { path: { campaign_id: campaignId, run_id: runId } },
-    }),
-    'undo',
-  )
+/** Undo and redo move the fold cursor; both skip the optimistic step and take the server's word. */
+function useCursorMove(campaignId: string, runId: string | null, dir: 'undo' | 'redo') {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async () =>
+      unwrap(
+        await api.POST(`/api/v1/campaigns/{campaign_id}/combats/{run_id}/${dir}` as const, {
+          params: { path: { campaign_id: campaignId, run_id: runId! } },
+        }),
+        dir,
+      ),
+    onSuccess: (run) => {
+      qc.setQueryData(combatKey(campaignId, runId), run)
+      invalidateCombat(qc, campaignId)
+    },
+  })
 }
 
-export async function combatRedo(campaignId: string, runId: string) {
-  return unwrap(
-    await api.POST('/api/v1/campaigns/{campaign_id}/combats/{run_id}/redo', {
-      params: { path: { campaign_id: campaignId, run_id: runId } },
-    }),
-    'redo',
-  )
+export const useCombatUndo = (campaignId: string, runId: string | null) =>
+  useCursorMove(campaignId, runId, 'undo')
+export const useCombatRedo = (campaignId: string, runId: string | null) =>
+  useCursorMove(campaignId, runId, 'redo')
+
+export function useEndCombat(campaignId: string, runId: string | null) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async () =>
+      unwrap(
+        await api.POST('/api/v1/campaigns/{campaign_id}/combats/{run_id}/end', {
+          params: { path: { campaign_id: campaignId, run_id: runId! } },
+        }),
+        'end combat',
+      ),
+    onSuccess: () => {
+      // The run's status flipped to completed and PC HP was written back to the party.
+      void qc.invalidateQueries({ queryKey: combatKey(campaignId, runId) })
+      invalidateCombat(qc, campaignId)
+    },
+  })
 }
 
-export async function endCombat(campaignId: string, runId: string) {
-  return unwrap(
-    await api.POST('/api/v1/campaigns/{campaign_id}/combats/{run_id}/end', {
-      params: { path: { campaign_id: campaignId, run_id: runId } },
-    }),
-    'end combat',
-  )
+/** The rule system's own condition list — 5e ships 15, Nimble a different 10. */
+export function useConditions(systemId: string | null) {
+  return useQuery({
+    enabled: !!systemId,
+    queryKey: ['conditions', systemId],
+    queryFn: async () =>
+      unwrap(
+        await api.GET('/api/v1/rule-systems/{system_id}/conditions', {
+          params: { path: { system_id: systemId! } },
+        }),
+        'load conditions',
+      ),
+    // A rule system's conditions cannot change without a redeploy.
+    staleTime: Infinity,
+  })
 }
 
 // --- import / export --------------------------------------------------------
@@ -813,6 +892,9 @@ export function useEncounterCombats(campaignId: string | null, encounterId: stri
   })
 }
 
+// Shared by the encounter panel's "start combat" and the combat page's own picker, so the
+// run is cached either way — arriving at /combat from an encounter shouldn't refetch a run
+// the server just handed us.
 export function useStartCombat(campaignId: string) {
   const qc = useQueryClient()
   return useMutation({
@@ -824,8 +906,11 @@ export function useStartCombat(campaignId: string) {
         }),
         'start combat',
       ),
-    onSuccess: (_run, encounterId) =>
-      void qc.invalidateQueries({ queryKey: ['encounter-combats', campaignId, encounterId] }),
+    onSuccess: (run, encounterId) => {
+      qc.setQueryData(combatKey(campaignId, run.run_id), run)
+      void qc.invalidateQueries({ queryKey: ['encounter-combats', campaignId, encounterId] })
+      invalidateCombat(qc, campaignId)
+    },
   })
 }
 
