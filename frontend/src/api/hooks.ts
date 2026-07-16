@@ -564,7 +564,7 @@ function invalidateParty(qc: ReturnType<typeof useQueryClient>, campaignId: stri
 export function usePatchParty(campaignId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (body: { gold?: number }) =>
+    mutationFn: async (body: components['schemas']['PartyPatch']) =>
       unwrap(
         await api.PATCH('/api/v1/campaigns/{campaign_id}/party', {
           params: { path: { campaign_id: campaignId } },
@@ -573,6 +573,39 @@ export function usePatchParty(campaignId: string) {
         'update party',
       ),
     onSuccess: () => invalidateParty(qc, campaignId),
+  })
+}
+
+export function useConnections(campaignId: string | null) {
+  return useQuery({
+    queryKey: ['connections', campaignId],
+    queryFn: async () => {
+      if (!campaignId) return []
+      return unwrap(
+        await api.GET('/api/v1/campaigns/{campaign_id}/party/connections', {
+          params: { path: { campaign_id: campaignId } },
+        }),
+        'load connections',
+      )
+    },
+    enabled: !!campaignId,
+  })
+}
+
+export function useCreateConnection(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: components['schemas']['LocationConnectionCreate']) =>
+      unwrap(
+        await api.POST('/api/v1/campaigns/{campaign_id}/party/connections', {
+          params: { path: { campaign_id: campaignId } },
+          body,
+        }),
+        'create connection',
+      ),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['connections', campaignId] })
+    },
   })
 }
 
@@ -1150,14 +1183,7 @@ export function useDeleteMap(campaignId: string) {
 export function useUpdateMap(campaignId: string, mapId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (body: {
-      name?: string
-      description?: string | null
-      description_set?: boolean
-      map_kind?: string
-      location_id?: string | null
-      parent_map_id?: string | null
-    }) =>
+    mutationFn: async (body: components['schemas']['MapUpdate']) =>
       unwrap(
         await api.PATCH('/api/v1/campaigns/{campaign_id}/maps/{map_id}', {
           params: { path: { campaign_id: campaignId, map_id: mapId } },
@@ -1519,6 +1545,20 @@ export function useNpcs(campaignId: string | null, filters: NpcFilters = {}) {
   })
 }
 
+export function useNpc(campaignId: string | null, npcId: string | null) {
+  return useQuery({
+    enabled: !!campaignId && !!npcId,
+    queryKey: ['npc', campaignId, npcId],
+    queryFn: async () =>
+      unwrap(
+        await api.GET('/api/v1/campaigns/{campaign_id}/npcs/{npc_id}', {
+          params: { path: { campaign_id: campaignId!, npc_id: npcId! } },
+        }),
+        'load npc',
+      ),
+  })
+}
+
 export function useNpcHistory(campaignId: string | null, npcId: string | null) {
   return useQuery({
     enabled: !!campaignId && !!npcId,
@@ -1696,6 +1736,7 @@ export interface TravelLegInput {
   pace?: string
   conveyance?: string
   to_location_id?: string | null
+  travel_type?: string
 }
 
 export function useTravelTable(systemId: string | null) {
@@ -2037,5 +2078,487 @@ export function useRollWeather(campaignId: string) {
       void qc.invalidateQueries({ queryKey: ['events', campaignId] })
       void qc.invalidateQueries({ queryKey: ['dashboard', campaignId] })
     },
+  })
+}
+
+// --- equipment: catalog (definitions) + items (copies) ----------------------
+// Two tiers mirror the backend: `Equipment` is a reusable definition, `Item` is
+// a physical copy of one. Types come straight from the generated OpenAPI schema.
+
+export type Equipment = components['schemas']['EquipmentOut']
+export type EquipmentCreate = components['schemas']['EquipmentCreate']
+export type EquipmentUpdate = components['schemas']['EquipmentUpdate']
+export type Item = components['schemas']['ItemInstanceOut']
+export type ItemInstanceCreate = components['schemas']['ItemInstanceCreate']
+export type ItemInstanceUpdate = components['schemas']['ItemInstanceUpdate']
+export type TransferIn = components['schemas']['TransferIn']
+export type OwnershipRow = components['schemas']['OwnershipRow']
+
+export interface EquipmentFilters {
+  item_type?: string
+  rarity?: string
+}
+
+export interface ItemFilters {
+  equipment_id?: string
+  holder_type?: string
+  holder_id?: string
+  location_id?: string
+}
+
+function invalidateEquipment(qc: ReturnType<typeof useQueryClient>, campaignId: string) {
+  void qc.invalidateQueries({ queryKey: ['equipment', campaignId] })
+  void qc.invalidateQueries({ queryKey: ['items', campaignId] })
+  void qc.invalidateQueries({ queryKey: ['item-history', campaignId] })
+  void qc.invalidateQueries({ queryKey: ['entities', campaignId] })
+  void qc.invalidateQueries({ queryKey: ['events', campaignId] })
+  void qc.invalidateQueries({ queryKey: ['timeline', campaignId] })
+}
+
+// -- catalog ------------------------------------------------------------------
+
+export function useEquipmentList(campaignId: string | null, filters: EquipmentFilters = {}) {
+  return useQuery({
+    enabled: !!campaignId,
+    queryKey: ['equipment', campaignId, filters],
+    queryFn: async () =>
+      unwrap(
+        await api.GET('/api/v1/campaigns/{campaign_id}/equipment', {
+          params: { path: { campaign_id: campaignId! }, query: filters },
+        }),
+        'load equipment',
+      ),
+  })
+}
+
+export function useEquipment(campaignId: string | null, equipId: string | null) {
+  return useQuery({
+    enabled: !!campaignId && !!equipId,
+    queryKey: ['equipment', campaignId, 'one', equipId],
+    queryFn: async () =>
+      unwrap(
+        await api.GET('/api/v1/campaigns/{campaign_id}/equipment/{equip_id}', {
+          params: { path: { campaign_id: campaignId!, equip_id: equipId! } },
+        }),
+        'load equipment',
+      ),
+  })
+}
+
+export function useCreateEquipment(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: EquipmentCreate) =>
+      unwrap(
+        await api.POST('/api/v1/campaigns/{campaign_id}/equipment', {
+          params: { path: { campaign_id: campaignId } },
+          body,
+        }),
+        'create equipment',
+      ),
+    onSuccess: () => invalidateEquipment(qc, campaignId),
+  })
+}
+
+export function useUpdateEquipment(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (vars: { equipId: string } & EquipmentUpdate) => {
+      const { equipId, ...body } = vars
+      return unwrap(
+        await api.PATCH('/api/v1/campaigns/{campaign_id}/equipment/{equip_id}', {
+          params: { path: { campaign_id: campaignId, equip_id: equipId } },
+          body,
+        }),
+        'update equipment',
+      )
+    },
+    onSuccess: () => invalidateEquipment(qc, campaignId),
+  })
+}
+
+export function useDeleteEquipment(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (equipId: string) =>
+      unwrap(
+        await api.DELETE('/api/v1/campaigns/{campaign_id}/equipment/{equip_id}', {
+          params: { path: { campaign_id: campaignId, equip_id: equipId } },
+        }),
+        'delete equipment',
+      ),
+    onSuccess: () => invalidateEquipment(qc, campaignId),
+  })
+}
+
+// -- item instances -----------------------------------------------------------
+
+export function useItems(campaignId: string | null, filters: ItemFilters = {}) {
+  return useQuery({
+    enabled: !!campaignId,
+    queryKey: ['items', campaignId, filters],
+    queryFn: async () =>
+      unwrap(
+        await api.GET('/api/v1/campaigns/{campaign_id}/items', {
+          params: { path: { campaign_id: campaignId! }, query: filters },
+        }),
+        'load items',
+      ),
+  })
+}
+
+export function useItem(campaignId: string | null, itemId: string | null) {
+  return useQuery({
+    enabled: !!campaignId && !!itemId,
+    queryKey: ['items', campaignId, 'one', itemId],
+    queryFn: async () =>
+      unwrap(
+        await api.GET('/api/v1/campaigns/{campaign_id}/items/{item_id}', {
+          params: { path: { campaign_id: campaignId!, item_id: itemId! } },
+        }),
+        'load item',
+      ),
+  })
+}
+
+export function useItemHistory(campaignId: string | null, itemId: string | null) {
+  return useQuery({
+    enabled: !!campaignId && !!itemId,
+    queryKey: ['item-history', campaignId, itemId],
+    queryFn: async () =>
+      unwrap(
+        await api.GET('/api/v1/campaigns/{campaign_id}/items/{item_id}/history', {
+          params: { path: { campaign_id: campaignId!, item_id: itemId! } },
+        }),
+        'load item history',
+      ),
+  })
+}
+
+export function useCreateItem(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: ItemInstanceCreate) =>
+      unwrap(
+        await api.POST('/api/v1/campaigns/{campaign_id}/items', {
+          params: { path: { campaign_id: campaignId } },
+          body,
+        }),
+        'create item',
+      ),
+    onSuccess: () => invalidateEquipment(qc, campaignId),
+  })
+}
+
+export function useUpdateItem(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (vars: { itemId: string } & ItemInstanceUpdate) => {
+      const { itemId, ...body } = vars
+      return unwrap(
+        await api.PATCH('/api/v1/campaigns/{campaign_id}/items/{item_id}', {
+          params: { path: { campaign_id: campaignId, item_id: itemId } },
+          body,
+        }),
+        'update item',
+      )
+    },
+    onSuccess: () => invalidateEquipment(qc, campaignId),
+  })
+}
+
+export function useTransferItem(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (vars: { itemId: string } & TransferIn) => {
+      const { itemId, ...body } = vars
+      return unwrap(
+        await api.POST('/api/v1/campaigns/{campaign_id}/items/{item_id}/transfer', {
+          params: { path: { campaign_id: campaignId, item_id: itemId } },
+          body,
+        }),
+        'transfer item',
+      )
+    },
+    onSuccess: () => invalidateEquipment(qc, campaignId),
+  })
+}
+
+export function useDeleteItem(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (itemId: string) =>
+      unwrap(
+        await api.DELETE('/api/v1/campaigns/{campaign_id}/items/{item_id}', {
+          params: { path: { campaign_id: campaignId, item_id: itemId } },
+        }),
+        'delete item',
+      ),
+    onSuccess: () => invalidateEquipment(qc, campaignId),
+  })
+}
+
+// --- equipment library (global, campaign-independent templates) --------------
+
+export type LibraryEntry = components['schemas']['LibraryEntryOut']
+export type LibraryEntryCreate = components['schemas']['LibraryEntryCreate']
+export type LibraryEntryUpdate = components['schemas']['LibraryEntryUpdate']
+
+export interface LibraryFilters {
+  item_type?: string
+  rarity?: string
+  q?: string
+}
+
+export function useEquipmentLibrary(filters: LibraryFilters = {}) {
+  return useQuery({
+    queryKey: ['equipment-library', filters],
+    queryFn: async () =>
+      unwrap(
+        await api.GET('/api/v1/equipment-library', { params: { query: filters } }),
+        'load equipment library',
+      ),
+  })
+}
+
+export function useCreateLibraryEntry() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: LibraryEntryCreate) =>
+      unwrap(await api.POST('/api/v1/equipment-library', { body }), 'create library entry'),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['equipment-library'] }),
+  })
+}
+
+export function useUpdateLibraryEntry() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (vars: { entryId: string } & LibraryEntryUpdate) => {
+      const { entryId, ...body } = vars
+      return unwrap(
+        await api.PATCH('/api/v1/equipment-library/{entry_id}', {
+          params: { path: { entry_id: entryId } },
+          body,
+        }),
+        'update library entry',
+      )
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['equipment-library'] }),
+  })
+}
+
+export function useDeleteLibraryEntry() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (entryId: string) =>
+      unwrap(
+        await api.DELETE('/api/v1/equipment-library/{entry_id}', {
+          params: { path: { entry_id: entryId } },
+        }),
+        'delete library entry',
+      ),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['equipment-library'] }),
+  })
+}
+
+export function useImportFromLibrary(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (libraryId: string) =>
+      unwrap(
+        await api.POST('/api/v1/campaigns/{campaign_id}/equipment/import', {
+          params: { path: { campaign_id: campaignId } },
+          body: { library_id: libraryId },
+        }),
+        'import from library',
+      ),
+    onSuccess: () => invalidateEquipment(qc, campaignId),
+  })
+}
+
+export function useSaveToLibrary(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (equipId: string) =>
+      unwrap(
+        await api.POST('/api/v1/campaigns/{campaign_id}/equipment/{equip_id}/save-to-library', {
+          params: { path: { campaign_id: campaignId, equip_id: equipId } },
+        }),
+        'save to library',
+      ),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['equipment-library'] }),
+  })
+}
+
+// --- merchants (shops) -------------------------------------------------------
+
+export type Merchant = components['schemas']['MerchantOut']
+export type MerchantCreate = components['schemas']['MerchantCreate']
+export type MerchantUpdate = components['schemas']['MerchantUpdate']
+export type StockLine = components['schemas']['StockLineOut']
+export type PurchaseResult = components['schemas']['PurchaseResult']
+export type SellbackResult = components['schemas']['SellbackResult']
+
+function invalidateMerchants(qc: ReturnType<typeof useQueryClient>, campaignId: string) {
+  void qc.invalidateQueries({ queryKey: ['merchants', campaignId] })
+  void qc.invalidateQueries({ queryKey: ['merchant-stock', campaignId] })
+}
+
+function invalidateShopTxn(qc: ReturnType<typeof useQueryClient>, campaignId: string) {
+  invalidateMerchants(qc, campaignId)
+  void qc.invalidateQueries({ queryKey: ['party', campaignId] })
+  void qc.invalidateQueries({ queryKey: ['items', campaignId] })
+  void qc.invalidateQueries({ queryKey: ['events', campaignId] })
+  void qc.invalidateQueries({ queryKey: ['timeline', campaignId] })
+  void qc.invalidateQueries({ queryKey: ['dashboard', campaignId] })
+}
+
+export function useMerchants(campaignId: string | null) {
+  return useQuery({
+    enabled: !!campaignId,
+    queryKey: ['merchants', campaignId],
+    queryFn: async () =>
+      unwrap(
+        await api.GET('/api/v1/campaigns/{campaign_id}/merchants', {
+          params: { path: { campaign_id: campaignId! } },
+        }),
+        'load merchants',
+      ),
+  })
+}
+
+export function useCreateMerchant(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: MerchantCreate) =>
+      unwrap(
+        await api.POST('/api/v1/campaigns/{campaign_id}/merchants', {
+          params: { path: { campaign_id: campaignId } },
+          body,
+        }),
+        'create merchant',
+      ),
+    onSuccess: () => invalidateMerchants(qc, campaignId),
+  })
+}
+
+export function useUpdateMerchant(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (vars: { merchantId: string } & MerchantUpdate) => {
+      const { merchantId, ...body } = vars
+      return unwrap(
+        await api.PATCH('/api/v1/campaigns/{campaign_id}/merchants/{merchant_id}', {
+          params: { path: { campaign_id: campaignId, merchant_id: merchantId } },
+          body,
+        }),
+        'update merchant',
+      )
+    },
+    onSuccess: () => invalidateMerchants(qc, campaignId),
+  })
+}
+
+export function useDeleteMerchant(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (merchantId: string) =>
+      unwrap(
+        await api.DELETE('/api/v1/campaigns/{campaign_id}/merchants/{merchant_id}', {
+          params: { path: { campaign_id: campaignId, merchant_id: merchantId } },
+        }),
+        'delete merchant',
+      ),
+    onSuccess: () => invalidateMerchants(qc, campaignId),
+  })
+}
+
+export function useMerchantStock(campaignId: string | null, merchantId: string | null) {
+  return useQuery({
+    enabled: !!campaignId && !!merchantId,
+    queryKey: ['merchant-stock', campaignId, merchantId],
+    queryFn: async () =>
+      unwrap(
+        await api.GET('/api/v1/campaigns/{campaign_id}/merchants/{merchant_id}/stock', {
+          params: { path: { campaign_id: campaignId!, merchant_id: merchantId! } },
+        }),
+        'load stock',
+      ),
+  })
+}
+
+export function useAddStock(campaignId: string, merchantId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: components['schemas']['StockLineCreate']) =>
+      unwrap(
+        await api.POST('/api/v1/campaigns/{campaign_id}/merchants/{merchant_id}/stock', {
+          params: { path: { campaign_id: campaignId, merchant_id: merchantId } },
+          body,
+        }),
+        'add stock',
+      ),
+    onSuccess: () => invalidateMerchants(qc, campaignId),
+  })
+}
+
+export function useUpdateStock(campaignId: string, merchantId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (vars: { lineId: string } & components['schemas']['StockLineUpdate']) => {
+      const { lineId, ...body } = vars
+      return unwrap(
+        await api.PATCH('/api/v1/campaigns/{campaign_id}/merchants/{merchant_id}/stock/{line_id}', {
+          params: { path: { campaign_id: campaignId, merchant_id: merchantId, line_id: lineId } },
+          body,
+        }),
+        'update stock',
+      )
+    },
+    onSuccess: () => invalidateMerchants(qc, campaignId),
+  })
+}
+
+export function useRemoveStock(campaignId: string, merchantId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (lineId: string) =>
+      unwrap(
+        await api.DELETE('/api/v1/campaigns/{campaign_id}/merchants/{merchant_id}/stock/{line_id}', {
+          params: { path: { campaign_id: campaignId, merchant_id: merchantId, line_id: lineId } },
+        }),
+        'remove stock',
+      ),
+    onSuccess: () => invalidateMerchants(qc, campaignId),
+  })
+}
+
+export function useBuyItem(campaignId: string, merchantId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (vars: { lineId: string; quantity?: number }) =>
+      unwrap(
+        await api.POST('/api/v1/campaigns/{campaign_id}/merchants/{merchant_id}/stock/{line_id}/buy', {
+          params: { path: { campaign_id: campaignId, merchant_id: merchantId, line_id: vars.lineId } },
+          body: { quantity: vars.quantity ?? 1 },
+        }),
+        'buy item',
+      ),
+    onSuccess: () => invalidateShopTxn(qc, campaignId),
+  })
+}
+
+export function useSellItem(campaignId: string, merchantId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (itemId: string) =>
+      unwrap(
+        await api.POST('/api/v1/campaigns/{campaign_id}/merchants/{merchant_id}/sell', {
+          params: { path: { campaign_id: campaignId, merchant_id: merchantId } },
+          body: { item_id: itemId },
+        }),
+        'sell item',
+      ),
+    onSuccess: () => invalidateShopTxn(qc, campaignId),
   })
 }

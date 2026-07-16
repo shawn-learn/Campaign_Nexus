@@ -105,7 +105,7 @@ function PartyPanel({ data }: { data: Dashboard }) {
     <div className="dash-panel">
       <h4>
         <span>Party</span>
-        <span className="muted">{party.gold} gp</span>
+        <span className="muted">🪙 {party.wealth_label}</span>
       </h4>
       {party.members.length === 0 && <div className="dash-empty">No party members yet.</div>}
       <ul>

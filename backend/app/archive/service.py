@@ -98,7 +98,7 @@ def export_campaign(session: Session, campaign: Campaign) -> dict[str, Any]:
             for m in _rows(session, Monster, cid)
         ],
         "parties": [
-            dump(p, ["id", "current_location_id", "gold", "inventory_json", "reputation_json"])
+            dump(p, ["id", "current_location_id", "wealth_cp", "inventory_json", "reputation_json"])
             for p in parties
         ],
         "party_members": [
@@ -352,7 +352,8 @@ def import_campaign(
         session.add(Party(
             id=r.new(p["id"]), campaign_id=campaign.id,
             current_location_id=r.get(p.get("current_location_id")),
-            gold=int(p.get("gold", 0)),
+            # Prefer copper; fall back to an older gp-only export.
+            wealth_cp=int(p.get("wealth_cp", int(p.get("gold", 0)) * 100)),
             inventory_json=p.get("inventory_json", "[]"),
             reputation_json=p.get("reputation_json", "{}"),
         ))

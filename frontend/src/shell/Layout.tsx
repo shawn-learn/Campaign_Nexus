@@ -46,22 +46,20 @@ export function Layout() {
         <Link to="/entities">Entities</Link>
         <Link to="/party">Party</Link>
         <Link to="/npcs">NPCs</Link>
+        <Link to="/equipment">Equipment</Link>
+        <Link to="/merchants">Merchants</Link>
         <Link to="/timeline">Timeline</Link>
         <Link to="/sessions">Sessions</Link>
-        <Link to="/sheets">Sheets</Link>
+
         <Link to="/bestiary">Bestiary</Link>
         <Link to="/quests">Quests</Link>
         <Link to="/encounters">Encounters</Link>
         <Link to="/skill-challenges">Skill Challenges</Link>
         <Link to="/random-tables">Tables</Link>
         <Link to="/combat">Combat</Link>
-        <Link to="/maps">Atlas</Link>
         <Link to="/schedule">Schedule</Link>
         <Link to="/data">Data</Link>
         <div className="nav-group">Browse</div>
-        <Link to="/entities" search={{ type: 'npc' }}>
-          NPCs
-        </Link>
         <Link to="/entities" search={{ type: 'location' }}>
           Locations
         </Link>

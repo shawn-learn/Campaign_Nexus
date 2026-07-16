@@ -22,6 +22,12 @@ from app.modules.campaign import service as campaign_service
 from app.modules.campaign.router import router as campaign_router
 from app.modules.chronicle.router import router as events_router
 from app.modules.npcs.router import router as npcs_router
+from app.modules.equipment import library_seed as equipment_library_seed
+from app.modules.equipment import library_seed_cos as equipment_library_seed_cos
+from app.modules.equipment import library_seed_phb as equipment_library_seed_phb
+from app.modules.equipment.router import equipment_router, items_router, library_router
+import app.modules.equipment.projectors  # noqa: F401 — registers projectors on import
+from app.modules.merchant.router import router as merchant_router
 from app.modules.playbook.router import (
     combat_router,
     encounters_router,
@@ -78,6 +84,9 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     with SessionLocal() as session:
         wiki_search.ensure_search_schema(session)
         session.commit()
+        equipment_library_seed.ensure_seeded(session)  # populate the shared equipment library
+        equipment_library_seed_phb.ensure_seeded(session)  # + standard adventuring goods
+        equipment_library_seed_cos.ensure_seeded(session)  # + Curse of Strahd items
         rules_registry.sync_rule_systems(session)  # mirror installed plugins into the catalog
         campaign = campaign_service.ensure_bootstrap(session)
         # Seed the demo campaign's bestiary if its system ships content (idempotent).
@@ -126,6 +135,10 @@ def create_app() -> FastAPI:
     app.include_router(quests_router)
     app.include_router(views_router)
     app.include_router(npcs_router)
+    app.include_router(equipment_router)
+    app.include_router(items_router)
+    app.include_router(library_router)
+    app.include_router(merchant_router)
     app.include_router(story_router)
     app.include_router(atlas_router)
     app.include_router(entity_media_router)

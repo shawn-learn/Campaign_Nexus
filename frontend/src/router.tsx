@@ -10,7 +10,7 @@ import { EntityDetailPage } from './features/wiki/EntityDetailPage'
 import { ScheduledEventsPage } from './features/time/ScheduledEventsPage'
 import { TimelinePage } from './features/chronicle/TimelinePage'
 import { SessionsPage } from './features/chronicle/SessionsPage'
-import { SheetsPage } from './features/rules/SheetsPage'
+
 import { BestiaryPage } from './features/rules/BestiaryPage'
 import { PartyPage } from './features/playbook/PartyPage'
 import { EncountersPage } from './features/playbook/EncountersPage'
@@ -21,6 +21,8 @@ import { MapsPage } from './features/atlas/MapsPage'
 import { QuestsPage } from './features/playbook/QuestsPage'
 import { NpcsPage } from './features/npcs/NpcsPage'
 import { DataPage } from './features/settings/DataPage'
+import { EquipmentPage } from './features/equipment/EquipmentPage'
+import { MerchantsPage } from './features/merchants/MerchantsPage'
 
 const rootRoute = createRootRoute({ component: Layout })
 
@@ -42,6 +44,9 @@ const entitiesRoute = createRoute({
 const entityDetailRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/entities/$entityId',
+  validateSearch: (search: Record<string, unknown>): { tab?: string } => ({
+    tab: typeof search.tab === 'string' ? search.tab : undefined,
+  }),
   component: EntityDetailPage,
 })
 
@@ -63,11 +68,7 @@ const sessionsRoute = createRoute({
   component: SessionsPage,
 })
 
-const sheetsRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/sheets',
-  component: SheetsPage,
-})
+
 
 const bestiaryRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -131,6 +132,18 @@ const npcsRoute = createRoute({
   component: NpcsPage,
 })
 
+const equipmentRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/equipment',
+  component: EquipmentPage,
+})
+
+const merchantsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/merchants',
+  component: MerchantsPage,
+})
+
 const dataRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/data',
@@ -144,7 +157,7 @@ const routeTree = rootRoute.addChildren([
   scheduleRoute,
   timelineRoute,
   sessionsRoute,
-  sheetsRoute,
+
   bestiaryRoute,
   partyRoute,
   encountersRoute,
@@ -154,6 +167,8 @@ const routeTree = rootRoute.addChildren([
   mapsRoute,
   questsRoute,
   npcsRoute,
+  equipmentRoute,
+  merchantsRoute,
   dataRoute,
 ])
 

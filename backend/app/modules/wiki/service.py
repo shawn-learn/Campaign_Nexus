@@ -6,7 +6,7 @@ import json
 import re
 from typing import Any
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, text
 from sqlalchemy.orm import Session
 
 from app.core.clock import now_real_iso
@@ -555,7 +555,9 @@ def _snapshot_article(session: Session, entity: Entity, now: str) -> None:
         session.scalars(
             select(ArticleSnapshot.id)
             .where(ArticleSnapshot.entity_id == entity.id)
-            .order_by(ArticleSnapshot.created_at_real.desc(), ArticleSnapshot.id.desc())
+            # rowid is strictly insertion-ordered — a deterministic tiebreak when
+            # created_at_real ties (coarse OS clocks stamp rapid edits identically).
+            .order_by(ArticleSnapshot.created_at_real.desc(), text("article_snapshot.rowid DESC"))
             .offset(_SNAPSHOT_KEEP)
         )
     )
@@ -575,7 +577,8 @@ def list_article_snapshots(session: Session, campaign_id: str, entity_id: str) -
         session.scalars(
             select(ArticleSnapshot)
             .where(ArticleSnapshot.entity_id == entity_id)
-            .order_by(ArticleSnapshot.created_at_real.desc(), ArticleSnapshot.id.desc())
+            # rowid tiebreak keeps ordering deterministic when timestamps tie.
+            .order_by(ArticleSnapshot.created_at_real.desc(), text("article_snapshot.rowid DESC"))
         )
     )
 

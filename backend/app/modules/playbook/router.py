@@ -28,6 +28,8 @@ from app.modules.playbook.schemas import (
     EncounterCreate,
     EncounterOut,
     EncounterUpdate,
+    LocationConnectionCreate,
+    LocationConnectionOut,
     ObjectiveToggle,
     PartyOut,
     PartyPatch,
@@ -98,9 +100,27 @@ def patch_party(
     session: Session = Depends(get_session),
     ctx: CampaignContext = Editor,
 ) -> PartyOut:
-    if body.gold is not None:
-        service.set_gold(session, ctx.campaign_id, body.gold)
-    return service.to_out(session, service.get_or_create_party(session, ctx.campaign_id))
+    party = service.patch_party(session, ctx.campaign_id, body)
+    return service.to_out(session, party)
+
+
+@router.get("/connections", response_model=list[LocationConnectionOut])
+def list_connections(
+    session: Session = Depends(get_session), ctx: CampaignContext = Viewer
+) -> list[LocationConnectionOut]:
+    return service.list_connections(session, ctx.campaign_id)
+
+
+@router.post("/connections", response_model=LocationConnectionOut)
+def create_connection(
+    body: LocationConnectionCreate,
+    session: Session = Depends(get_session),
+    ctx: CampaignContext = Editor,
+) -> LocationConnectionOut:
+    try:
+        return service.upsert_connection(session, ctx.campaign_id, body)
+    except service.PlaybookError as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
 
 
 @router.post("/members", response_model=PartyOut)

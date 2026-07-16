@@ -65,6 +65,8 @@ class MapSummary(BaseModel):
     location_id: str | None
     parent_map_id: str | None
     marker_count: int
+    scale_pixels_per_unit: float | None = None
+    scale_unit: str | None = "mile"
 
 
 class MapDetail(BaseModel):
@@ -82,6 +84,9 @@ class MapDetail(BaseModel):
     regions: list[RegionOut]
     #: Every layer name in use on this map — the viewer's filter chips (FR-3.x).
     layers: list[str]
+    scale_pixels_per_unit: float | None = None
+    scale_unit: str | None = "mile"
+
 
 
 class MarkerCreate(BaseModel):
@@ -115,6 +120,11 @@ class MapUpdate(BaseModel):
     map_kind: str | None = None
     location_id: str | None = None
     parent_map_id: str | None = None
+    scale_pixels_per_unit: float | None = None
+    scale_unit: str | None = None
+    scale_set: bool = Field(
+        default=False, description="Set true to apply scale (including clearing to null)."
+    )
 
 
 class AttachmentOut(BaseModel):

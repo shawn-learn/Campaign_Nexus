@@ -22,6 +22,14 @@ from app.modules.chronicle.models import (  # noqa: F401
     TimelineEntity,
     TimelineEntry,
 )
+from app.modules.equipment import projectors as _equipment_projectors  # noqa: F401  (registers)
+from app.modules.equipment.models import (  # noqa: F401
+    Equipment,
+    Item,
+    ItemOwnershipHistory,
+    LibraryEntry,
+)
+from app.modules.merchant.models import Merchant, MerchantStock  # noqa: F401
 from app.modules.npcs import projectors as _npc_projectors  # noqa: F401  (registers)
 from app.modules.npcs import service as _npc_service  # noqa: F401  (registers move_npc)
 from app.modules.npcs.models import Npc, NpcLocationHistory, NpcSchedule  # noqa: F401

@@ -14,10 +14,18 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.ids import new_id
+from app.core.money import format_coins
 from app.core.pipeline import command_tx
 from app.modules.campaign.models import Campaign
-from app.modules.playbook.models import Party, PartyMember
-from app.modules.playbook.schemas import PartyMemberOut, PartyOut, RestResult
+from app.modules.playbook.models import LocationConnection, Party, PartyMember
+from app.modules.playbook.schemas import (
+    LocationConnectionCreate,
+    LocationConnectionOut,
+    PartyMemberOut,
+    PartyOut,
+    PartyPatch,
+    RestResult,
+)
 from app.modules.rules import registry
 from app.modules.rules.interface import RuleSystem
 from app.modules.rules.models import StatBlock
@@ -71,7 +79,12 @@ def to_out(session: Session, party: Party) -> PartyOut:
         id=party.id,
         current_location_id=party.current_location_id,
         current_location_name=location.name if location else None,
-        gold=party.gold,
+        current_map_id=party.current_map_id,
+        current_x=party.current_x,
+        current_y=party.current_y,
+        wealth_cp=party.wealth_cp,
+        gold=party.wealth_cp // 100,
+        wealth_label=format_coins(party.wealth_cp),
         inventory=json.loads(party.inventory_json),
         reputation=json.loads(party.reputation_json),
         rest_types=system.rest_types() if system else [],
@@ -83,11 +96,90 @@ def to_out(session: Session, party: Party) -> PartyOut:
     )
 
 
-def set_gold(session: Session, campaign_id: str, gold: int) -> Party:
+def patch_party(session: Session, campaign_id: str, body: PartyPatch) -> Party:
     party = get_or_create_party(session, campaign_id)
-    party.gold = gold
+    if body.wealth_cp is not None:
+        party.wealth_cp = max(0, body.wealth_cp)
+    elif body.gold is not None:
+        party.wealth_cp = max(0, body.gold) * 100
+    if body.location_set:
+        party.current_location_id = body.current_location_id
+        if body.current_location_id:
+            from app.modules.playbook.travel import resolve_location_coordinates
+            map_id, x, y = resolve_location_coordinates(session, body.current_location_id)
+            if map_id is not None:
+                party.current_map_id = map_id
+                party.current_x = x
+                party.current_y = y
+            else:
+                party.current_map_id = None
+                party.current_x = None
+                party.current_y = None
+        else:
+            party.current_map_id = None
+            party.current_x = None
+            party.current_y = None
+    if body.coordinates_set:
+        party.current_map_id = body.current_map_id
+        party.current_x = body.current_x
+        party.current_y = body.current_y
     session.commit()
     return party
+
+
+def list_connections(session: Session, campaign_id: str) -> list[LocationConnectionOut]:
+    rows = session.scalars(
+        select(LocationConnection).where(LocationConnection.campaign_id == campaign_id)
+    ).all()
+    out = []
+    for r in rows:
+        from_loc = session.get(Entity, r.from_location_id)
+        to_loc = session.get(Entity, r.to_location_id)
+        out.append(LocationConnectionOut(
+            from_location_id=r.from_location_id,
+            from_location_name=from_loc.name if from_loc else None,
+            to_location_id=r.to_location_id,
+            to_location_name=to_loc.name if to_loc else None,
+            distance=r.distance,
+            terrain=r.terrain,
+        ))
+    return out
+
+
+def upsert_connection(
+    session: Session, campaign_id: str, body: LocationConnectionCreate
+) -> LocationConnectionOut:
+    from_loc = session.get(Entity, body.from_location_id)
+    to_loc = session.get(Entity, body.to_location_id)
+    if not from_loc or from_loc.campaign_id != campaign_id:
+        raise PlaybookError("from_location not found")
+    if not to_loc or to_loc.campaign_id != campaign_id:
+        raise PlaybookError("to_location not found")
+
+    for (f_id, t_id) in [(body.from_location_id, body.to_location_id), (body.to_location_id, body.from_location_id)]:
+        conn = session.get(LocationConnection, {"campaign_id": campaign_id, "from_location_id": f_id, "to_location_id": t_id})
+        if conn is None:
+            conn = LocationConnection(
+                campaign_id=campaign_id,
+                from_location_id=f_id,
+                to_location_id=t_id,
+                distance=body.distance,
+                terrain=body.terrain,
+            )
+            session.add(conn)
+        else:
+            conn.distance = body.distance
+            conn.terrain = body.terrain
+    session.commit()
+
+    return LocationConnectionOut(
+        from_location_id=body.from_location_id,
+        from_location_name=from_loc.name,
+        to_location_id=body.to_location_id,
+        to_location_name=to_loc.name,
+        distance=body.distance,
+        terrain=body.terrain,
+    )
 
 
 def add_member(

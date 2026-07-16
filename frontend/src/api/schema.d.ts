@@ -910,6 +910,24 @@ export interface paths {
         patch: operations["patch_party_api_v1_campaigns__campaign_id__party_patch"];
         trace?: never;
     };
+    "/api/v1/campaigns/{campaign_id}/party/connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Connections */
+        get: operations["list_connections_api_v1_campaigns__campaign_id__party_connections_get"];
+        put?: never;
+        /** Create Connection */
+        post: operations["create_connection_api_v1_campaigns__campaign_id__party_connections_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/campaigns/{campaign_id}/party/members": {
         parameters: {
             query?: never;
@@ -1657,6 +1675,325 @@ export interface paths {
         put?: never;
         /** Create Schedule */
         post: operations["create_schedule_api_v1_campaigns__campaign_id__npcs__npc_id__schedules_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/equipment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Equipment */
+        get: operations["list_equipment_api_v1_campaigns__campaign_id__equipment_get"];
+        put?: never;
+        /** Create Equipment */
+        post: operations["create_equipment_api_v1_campaigns__campaign_id__equipment_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/equipment/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import From Library
+         * @description Copy a library template into this campaign as a new definition.
+         */
+        post: operations["import_from_library_api_v1_campaigns__campaign_id__equipment_import_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/equipment/{equip_id}/save-to-library": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save To Library
+         * @description Publish a campaign definition into the shared library as a custom template.
+         */
+        post: operations["save_to_library_api_v1_campaigns__campaign_id__equipment__equip_id__save_to_library_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/equipment/{equip_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Equipment */
+        get: operations["get_equipment_api_v1_campaigns__campaign_id__equipment__equip_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Equipment
+         * @description Soft-delete the backing wiki entity.
+         *
+         *     Soft delete does *not* fire the FK cascade, so the ``Item`` copies survive in
+         *     the table; ``list_items``/``get_item`` filter them out by joining to the
+         *     (now-deleted) definition.
+         */
+        delete: operations["delete_equipment_api_v1_campaigns__campaign_id__equipment__equip_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Equipment */
+        patch: operations["update_equipment_api_v1_campaigns__campaign_id__equipment__equip_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/equipment/{equip_id}/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Equipment Items
+         * @description All copies of a specific equipment definition.
+         */
+        get: operations["list_equipment_items_api_v1_campaigns__campaign_id__equipment__equip_id__items_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Items */
+        get: operations["list_items_api_v1_campaigns__campaign_id__items_get"];
+        put?: never;
+        /** Create Item */
+        post: operations["create_item_api_v1_campaigns__campaign_id__items_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/items/{item_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Item */
+        get: operations["get_item_api_v1_campaigns__campaign_id__items__item_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Item */
+        delete: operations["delete_item_api_v1_campaigns__campaign_id__items__item_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Item */
+        patch: operations["update_item_api_v1_campaigns__campaign_id__items__item_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/items/{item_id}/transfer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Transfer Item */
+        post: operations["transfer_item_api_v1_campaigns__campaign_id__items__item_id__transfer_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/items/{item_id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Item History */
+        get: operations["get_item_history_api_v1_campaigns__campaign_id__items__item_id__history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/equipment-library": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Library */
+        get: operations["list_library_api_v1_equipment_library_get"];
+        put?: never;
+        /** Create Library Entry */
+        post: operations["create_library_entry_api_v1_equipment_library_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/equipment-library/{entry_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Library Entry */
+        get: operations["get_library_entry_api_v1_equipment_library__entry_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Library Entry */
+        delete: operations["delete_library_entry_api_v1_equipment_library__entry_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Library Entry */
+        patch: operations["update_library_entry_api_v1_equipment_library__entry_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/merchants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Merchants */
+        get: operations["list_merchants_api_v1_campaigns__campaign_id__merchants_get"];
+        put?: never;
+        /** Create Merchant */
+        post: operations["create_merchant_api_v1_campaigns__campaign_id__merchants_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/merchants/{merchant_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Merchant */
+        get: operations["get_merchant_api_v1_campaigns__campaign_id__merchants__merchant_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Merchant */
+        delete: operations["delete_merchant_api_v1_campaigns__campaign_id__merchants__merchant_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Merchant */
+        patch: operations["update_merchant_api_v1_campaigns__campaign_id__merchants__merchant_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/merchants/{merchant_id}/stock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Stock */
+        get: operations["list_stock_api_v1_campaigns__campaign_id__merchants__merchant_id__stock_get"];
+        put?: never;
+        /** Add Stock */
+        post: operations["add_stock_api_v1_campaigns__campaign_id__merchants__merchant_id__stock_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/merchants/{merchant_id}/stock/{line_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove Stock */
+        delete: operations["remove_stock_api_v1_campaigns__campaign_id__merchants__merchant_id__stock__line_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Stock */
+        patch: operations["update_stock_api_v1_campaigns__campaign_id__merchants__merchant_id__stock__line_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/merchants/{merchant_id}/stock/{line_id}/buy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Buy */
+        post: operations["buy_api_v1_campaigns__campaign_id__merchants__merchant_id__stock__line_id__buy_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/merchants/{merchant_id}/sell": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sell */
+        post: operations["sell_api_v1_campaigns__campaign_id__merchants__merchant_id__sell_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2654,6 +2991,75 @@ export interface components {
              */
             summary_set?: boolean;
         };
+        /** EquipmentCreate */
+        EquipmentCreate: {
+            /** Name */
+            name: string;
+            /** Summary */
+            summary?: string | null;
+            /**
+             * Item Type
+             * @default mundane
+             */
+            item_type?: string;
+            /** Rarity */
+            rarity?: string | null;
+            /**
+             * Requires Attunement
+             * @default false
+             */
+            requires_attunement?: boolean;
+            /** Value Gp */
+            value_gp?: string | null;
+            /** Weight Lb */
+            weight_lb?: number | null;
+            /** Properties */
+            properties?: string | null;
+            /** Attunement Notes */
+            attunement_notes?: string | null;
+        };
+        /** EquipmentOut */
+        EquipmentOut: {
+            /** Entity Id */
+            entity_id: string;
+            /** Name */
+            name: string;
+            /** Summary */
+            summary: string | null;
+            /** Item Type */
+            item_type: string;
+            /** Rarity */
+            rarity: string | null;
+            /** Requires Attunement */
+            requires_attunement: boolean;
+            /** Value Gp */
+            value_gp: string | null;
+            /** Weight Lb */
+            weight_lb: number | null;
+            /** Properties */
+            properties: string | null;
+            /** Attunement Notes */
+            attunement_notes: string | null;
+            /** Instance Count */
+            instance_count: number;
+            /** Library Id */
+            library_id?: string | null;
+        };
+        /** EquipmentUpdate */
+        EquipmentUpdate: {
+            /** Properties */
+            properties?: string | null;
+            /** Attunement Notes */
+            attunement_notes?: string | null;
+            /** Value Gp */
+            value_gp?: string | null;
+            /** Weight Lb */
+            weight_lb?: number | null;
+            /** Rarity */
+            rarity?: string | null;
+            /** Requires Attunement */
+            requires_attunement?: boolean | null;
+        };
         /** EventBrief */
         EventBrief: {
             /** Id */
@@ -2710,6 +3116,18 @@ export interface components {
             /** Narrative */
             narrative: string;
         };
+        /** ForcedMarchSave */
+        ForcedMarchSave: {
+            /** Hour */
+            hour: number;
+            /**
+             * Day
+             * @default 1
+             */
+            day?: number;
+            /** Dc */
+            dc: number;
+        };
         /** GraduatedOutcome */
         GraduatedOutcome: {
             /** Min Failures */
@@ -2747,6 +3165,11 @@ export interface components {
             /** To Label */
             to_label: string | null;
         };
+        /** ImportFromLibrary */
+        ImportFromLibrary: {
+            /** Library Id */
+            library_id: string;
+        };
         /** ImportResult */
         ImportResult: {
             /** Imported */
@@ -2756,6 +3179,132 @@ export interface components {
         InteractionIn: {
             /** Summary */
             summary?: string | null;
+        };
+        /** ItemInstanceCreate */
+        ItemInstanceCreate: {
+            /** Equipment Id */
+            equipment_id: string;
+            /** Instance Label */
+            instance_label?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /** Initial Holder Type */
+            initial_holder_type?: string | null;
+            /** Initial Holder Id */
+            initial_holder_id?: string | null;
+            /** Initial Location Id */
+            initial_location_id?: string | null;
+        };
+        /** ItemInstanceOut */
+        ItemInstanceOut: {
+            /** Item Id */
+            item_id: string;
+            /** Equipment Id */
+            equipment_id: string;
+            /** Equipment Name */
+            equipment_name: string;
+            /** Item Type */
+            item_type: string;
+            /** Rarity */
+            rarity: string | null;
+            /** Requires Attunement */
+            requires_attunement: boolean;
+            /** Value Gp */
+            value_gp: string | null;
+            /** Instance Label */
+            instance_label: string | null;
+            /** Notes */
+            notes: string | null;
+            /** Current Holder Type */
+            current_holder_type: string | null;
+            /** Current Holder Id */
+            current_holder_id: string | null;
+            /** Current Holder Name */
+            current_holder_name: string | null;
+            /** Current Location Id */
+            current_location_id: string | null;
+            /** Current Location Name */
+            current_location_name: string | null;
+        };
+        /** ItemInstanceUpdate */
+        ItemInstanceUpdate: {
+            /** Instance Label */
+            instance_label?: string | null;
+            /** Notes */
+            notes?: string | null;
+        };
+        /** LibraryEntryCreate */
+        LibraryEntryCreate: {
+            /** Name */
+            name: string;
+            /** Summary */
+            summary?: string | null;
+            /**
+             * Item Type
+             * @default mundane
+             */
+            item_type?: string;
+            /** Rarity */
+            rarity?: string | null;
+            /**
+             * Requires Attunement
+             * @default false
+             */
+            requires_attunement?: boolean;
+            /** Value Gp */
+            value_gp?: string | null;
+            /** Weight Lb */
+            weight_lb?: number | null;
+            /** Properties */
+            properties?: string | null;
+            /** Attunement Notes */
+            attunement_notes?: string | null;
+        };
+        /** LibraryEntryOut */
+        LibraryEntryOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Summary */
+            summary: string | null;
+            /** Item Type */
+            item_type: string;
+            /** Rarity */
+            rarity: string | null;
+            /** Requires Attunement */
+            requires_attunement: boolean;
+            /** Value Gp */
+            value_gp: string | null;
+            /** Weight Lb */
+            weight_lb: number | null;
+            /** Properties */
+            properties: string | null;
+            /** Attunement Notes */
+            attunement_notes: string | null;
+            /** Source */
+            source: string;
+        };
+        /** LibraryEntryUpdate */
+        LibraryEntryUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Summary */
+            summary?: string | null;
+            /** Item Type */
+            item_type?: string | null;
+            /** Rarity */
+            rarity?: string | null;
+            /** Requires Attunement */
+            requires_attunement?: boolean | null;
+            /** Value Gp */
+            value_gp?: string | null;
+            /** Weight Lb */
+            weight_lb?: number | null;
+            /** Properties */
+            properties?: string | null;
+            /** Attunement Notes */
+            attunement_notes?: string | null;
         };
         /** LinkCreate */
         LinkCreate: {
@@ -2815,6 +3364,35 @@ export interface components {
              */
             builtin?: boolean;
         };
+        /** LocationConnectionCreate */
+        LocationConnectionCreate: {
+            /** From Location Id */
+            from_location_id: string;
+            /** To Location Id */
+            to_location_id: string;
+            /** Distance */
+            distance: number;
+            /**
+             * Terrain
+             * @default road
+             */
+            terrain?: string;
+        };
+        /** LocationConnectionOut */
+        LocationConnectionOut: {
+            /** From Location Id */
+            from_location_id: string;
+            /** From Location Name */
+            from_location_name: string | null;
+            /** To Location Id */
+            to_location_id: string;
+            /** To Location Name */
+            to_location_name: string | null;
+            /** Distance */
+            distance: number;
+            /** Terrain */
+            terrain: string;
+        };
         /** ManualEntryCreate */
         ManualEntryCreate: {
             /** Title */
@@ -2864,6 +3442,13 @@ export interface components {
             regions: components["schemas"]["RegionOut"][];
             /** Layers */
             layers: string[];
+            /** Scale Pixels Per Unit */
+            scale_pixels_per_unit?: number | null;
+            /**
+             * Scale Unit
+             * @default mile
+             */
+            scale_unit?: string | null;
         };
         /** MapSummary */
         MapSummary: {
@@ -2885,6 +3470,13 @@ export interface components {
             parent_map_id: string | null;
             /** Marker Count */
             marker_count: number;
+            /** Scale Pixels Per Unit */
+            scale_pixels_per_unit?: number | null;
+            /**
+             * Scale Unit
+             * @default mile
+             */
+            scale_unit?: string | null;
         };
         /** MapUpdate */
         MapUpdate: {
@@ -2904,6 +3496,16 @@ export interface components {
             location_id?: string | null;
             /** Parent Map Id */
             parent_map_id?: string | null;
+            /** Scale Pixels Per Unit */
+            scale_pixels_per_unit?: number | null;
+            /** Scale Unit */
+            scale_unit?: string | null;
+            /**
+             * Scale Set
+             * @description Set true to apply scale (including clearing to null).
+             * @default false
+             */
+            scale_set?: boolean;
         };
         /** MarkerCreate */
         MarkerCreate: {
@@ -2972,6 +3574,66 @@ export interface components {
             target_entity_id?: string | null;
             /** Child Map Id */
             child_map_id?: string | null;
+        };
+        /** MerchantCreate */
+        MerchantCreate: {
+            /** Name */
+            name: string;
+            /** Summary */
+            summary?: string | null;
+            /** Npc Id */
+            npc_id?: string | null;
+            /** Location Id */
+            location_id?: string | null;
+            /**
+             * Buyback Pct
+             * @default 50
+             */
+            buyback_pct?: number;
+        };
+        /** MerchantOut */
+        MerchantOut: {
+            /** Entity Id */
+            entity_id: string;
+            /** Name */
+            name: string;
+            /** Summary */
+            summary: string | null;
+            /** Npc Id */
+            npc_id: string | null;
+            /** Npc Name */
+            npc_name: string | null;
+            /** Location Id */
+            location_id: string | null;
+            /** Location Name */
+            location_name: string | null;
+            /** Buyback Pct */
+            buyback_pct: number;
+            /** Stock Count */
+            stock_count: number;
+        };
+        /** MerchantUpdate */
+        MerchantUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Summary */
+            summary?: string | null;
+            /** Npc Id */
+            npc_id?: string | null;
+            /** Location Id */
+            location_id?: string | null;
+            /** Buyback Pct */
+            buyback_pct?: number | null;
+            /**
+             * Clear Npc
+             * @default false
+             */
+            clear_npc?: boolean;
+            /**
+             * Clear Location
+             * @default false
+             */
+            clear_location?: boolean;
         };
         /** MonsterFacets */
         MonsterFacets: {
@@ -3098,6 +3760,27 @@ export interface components {
              */
             done?: boolean;
         };
+        /** OwnershipRow */
+        OwnershipRow: {
+            /** Holder Type */
+            holder_type: string | null;
+            /** Holder Id */
+            holder_id: string | null;
+            /** Holder Name */
+            holder_name: string | null;
+            /** Location Id */
+            location_id: string | null;
+            /** Location Name */
+            location_name: string | null;
+            /** From Game */
+            from_game: number;
+            /** From Label */
+            from_label: string;
+            /** To Game */
+            to_game: number | null;
+            /** To Label */
+            to_label: string | null;
+        };
         /** PartyMemberOut */
         PartyMemberOut: {
             /** Stat Block Id */
@@ -3129,8 +3812,18 @@ export interface components {
             current_location_id?: string | null;
             /** Current Location Name */
             current_location_name?: string | null;
+            /** Current Map Id */
+            current_map_id?: string | null;
+            /** Current X */
+            current_x?: number | null;
+            /** Current Y */
+            current_y?: number | null;
+            /** Wealth Cp */
+            wealth_cp: number;
             /** Gold */
             gold: number;
+            /** Wealth Label */
+            wealth_label: string;
             /** Inventory */
             inventory: unknown[];
             /** Reputation */
@@ -3147,8 +3840,53 @@ export interface components {
         };
         /** PartyPatch */
         PartyPatch: {
+            /** Wealth Cp */
+            wealth_cp?: number | null;
             /** Gold */
             gold?: number | null;
+            /** Current Location Id */
+            current_location_id?: string | null;
+            /** Current Map Id */
+            current_map_id?: string | null;
+            /** Current X */
+            current_x?: number | null;
+            /** Current Y */
+            current_y?: number | null;
+            /**
+             * Location Set
+             * @default false
+             */
+            location_set?: boolean;
+            /**
+             * Coordinates Set
+             * @default false
+             */
+            coordinates_set?: boolean;
+        };
+        /** PurchaseIn */
+        PurchaseIn: {
+            /**
+             * Quantity
+             * @default 1
+             */
+            quantity?: number;
+            /** Instance Label */
+            instance_label?: string | null;
+        };
+        /** PurchaseResult */
+        PurchaseResult: {
+            /** Item Ids */
+            item_ids: string[];
+            /** Total Cp */
+            total_cp: number;
+            /** Total Label */
+            total_label: string;
+            /** Party Gold */
+            party_gold: number;
+            /** Party Wealth Cp */
+            party_wealth_cp: number;
+            /** Party Wealth Label */
+            party_wealth_label: string;
         };
         /** QuestBrief */
         QuestBrief: {
@@ -3589,6 +4327,26 @@ export interface components {
             /** Description */
             description?: string | null;
         };
+        /** SellbackIn */
+        SellbackIn: {
+            /** Item Id */
+            item_id: string;
+        };
+        /** SellbackResult */
+        SellbackResult: {
+            /** Credited Cp */
+            credited_cp: number;
+            /** Credited Label */
+            credited_label: string;
+            /** Credited Gp */
+            credited_gp: number;
+            /** Party Gold */
+            party_gold: number;
+            /** Party Wealth Cp */
+            party_wealth_cp: number;
+            /** Party Wealth Label */
+            party_wealth_label: string;
+        };
         /** SessionCreate */
         SessionCreate: {
             /** Real Date */
@@ -3870,6 +4628,60 @@ export interface components {
             /** Reason */
             reason?: string | null;
         };
+        /** StockLineCreate */
+        StockLineCreate: {
+            /** Library Id */
+            library_id: string;
+            /** Price */
+            price?: string | null;
+            /** Price Cp */
+            price_cp?: number | null;
+            /** Quantity */
+            quantity?: number | null;
+            /** Notes */
+            notes?: string | null;
+        };
+        /** StockLineOut */
+        StockLineOut: {
+            /** Id */
+            id: string;
+            /** Merchant Id */
+            merchant_id: string;
+            /** Library Id */
+            library_id: string;
+            /** Name */
+            name: string;
+            /** Item Type */
+            item_type: string;
+            /** Rarity */
+            rarity: string | null;
+            /** Requires Attunement */
+            requires_attunement: boolean;
+            /** Price Cp */
+            price_cp: number;
+            /** Price Label */
+            price_label: string;
+            /** Quantity */
+            quantity: number | null;
+            /** Notes */
+            notes: string | null;
+        };
+        /** StockLineUpdate */
+        StockLineUpdate: {
+            /** Price */
+            price?: string | null;
+            /** Price Cp */
+            price_cp?: number | null;
+            /** Quantity */
+            quantity?: number | null;
+            /** Notes */
+            notes?: string | null;
+            /**
+             * Clear Quantity
+             * @default false
+             */
+            clear_quantity?: boolean;
+        };
         /** StoryEdgeIn */
         StoryEdgeIn: {
             /** From Node */
@@ -4062,6 +4874,17 @@ export interface components {
             /** Is Hidden */
             is_hidden: boolean;
         };
+        /** TransferIn */
+        TransferIn: {
+            /** Holder Type */
+            holder_type?: string | null;
+            /** Holder Id */
+            holder_id?: string | null;
+            /** Location Id */
+            location_id?: string | null;
+            /** Reason */
+            reason?: string | null;
+        };
         /** TravelLeg */
         TravelLeg: {
             /** Distance */
@@ -4083,6 +4906,11 @@ export interface components {
             conveyance?: string;
             /** To Location Id */
             to_location_id?: string | null;
+            /**
+             * Travel Type
+             * @default normal
+             */
+            travel_type?: string;
         };
         /** TravelLegOut */
         TravelLegOut: {
@@ -4105,6 +4933,11 @@ export interface components {
             conveyance?: string;
             /** To Location Id */
             to_location_id?: string | null;
+            /**
+             * Travel Type
+             * @default normal
+             */
+            travel_type?: string;
             /** Duration Seconds */
             duration_seconds: number;
             /** To Location Name */
@@ -4138,6 +4971,11 @@ export interface components {
             destination_id: string | null;
             /** Destination Name */
             destination_name: string | null;
+            /**
+             * Forced March Saves
+             * @default []
+             */
+            forced_march_saves?: components["schemas"]["ForcedMarchSave"][];
         };
         /** TravelRequest */
         TravelRequest: {
@@ -6353,6 +7191,72 @@ export interface operations {
             };
         };
     };
+    list_connections_api_v1_campaigns__campaign_id__party_connections_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LocationConnectionOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_connection_api_v1_campaigns__campaign_id__party_connections_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LocationConnectionCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LocationConnectionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     add_member_api_v1_campaigns__campaign_id__party_members_post: {
         parameters: {
             query?: never;
@@ -8228,6 +9132,1043 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ScheduleOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_equipment_api_v1_campaigns__campaign_id__equipment_get: {
+        parameters: {
+            query?: {
+                item_type?: string | null;
+                rarity?: string | null;
+            };
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EquipmentOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_equipment_api_v1_campaigns__campaign_id__equipment_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EquipmentCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EquipmentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    import_from_library_api_v1_campaigns__campaign_id__equipment_import_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportFromLibrary"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EquipmentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_to_library_api_v1_campaigns__campaign_id__equipment__equip_id__save_to_library_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                equip_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryEntryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_equipment_api_v1_campaigns__campaign_id__equipment__equip_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                equip_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EquipmentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_equipment_api_v1_campaigns__campaign_id__equipment__equip_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                equip_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_equipment_api_v1_campaigns__campaign_id__equipment__equip_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                equip_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EquipmentUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EquipmentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_equipment_items_api_v1_campaigns__campaign_id__equipment__equip_id__items_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                equip_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemInstanceOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_items_api_v1_campaigns__campaign_id__items_get: {
+        parameters: {
+            query?: {
+                equipment_id?: string | null;
+                holder_type?: string | null;
+                holder_id?: string | null;
+                location_id?: string | null;
+            };
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemInstanceOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_item_api_v1_campaigns__campaign_id__items_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ItemInstanceCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemInstanceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_item_api_v1_campaigns__campaign_id__items__item_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemInstanceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_item_api_v1_campaigns__campaign_id__items__item_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_item_api_v1_campaigns__campaign_id__items__item_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ItemInstanceUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemInstanceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    transfer_item_api_v1_campaigns__campaign_id__items__item_id__transfer_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransferIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemInstanceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_item_history_api_v1_campaigns__campaign_id__items__item_id__history_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OwnershipRow"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_library_api_v1_equipment_library_get: {
+        parameters: {
+            query?: {
+                item_type?: string | null;
+                rarity?: string | null;
+                q?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryEntryOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_library_entry_api_v1_equipment_library_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LibraryEntryCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryEntryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_library_entry_api_v1_equipment_library__entry_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entry_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryEntryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_library_entry_api_v1_equipment_library__entry_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entry_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_library_entry_api_v1_equipment_library__entry_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entry_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LibraryEntryUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryEntryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_merchants_api_v1_campaigns__campaign_id__merchants_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MerchantOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_merchant_api_v1_campaigns__campaign_id__merchants_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MerchantCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MerchantOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_merchant_api_v1_campaigns__campaign_id__merchants__merchant_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                merchant_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MerchantOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_merchant_api_v1_campaigns__campaign_id__merchants__merchant_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                merchant_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_merchant_api_v1_campaigns__campaign_id__merchants__merchant_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                merchant_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MerchantUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MerchantOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_stock_api_v1_campaigns__campaign_id__merchants__merchant_id__stock_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                merchant_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StockLineOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_stock_api_v1_campaigns__campaign_id__merchants__merchant_id__stock_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                merchant_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StockLineCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StockLineOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_stock_api_v1_campaigns__campaign_id__merchants__merchant_id__stock__line_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                merchant_id: string;
+                line_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_stock_api_v1_campaigns__campaign_id__merchants__merchant_id__stock__line_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                merchant_id: string;
+                line_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StockLineUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StockLineOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    buy_api_v1_campaigns__campaign_id__merchants__merchant_id__stock__line_id__buy_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                merchant_id: string;
+                line_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PurchaseIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PurchaseResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sell_api_v1_campaigns__campaign_id__merchants__merchant_id__sell_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                merchant_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SellbackIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SellbackResult"];
                 };
             };
             /** @description Validation Error */

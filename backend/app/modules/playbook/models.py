@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import ForeignKey, Integer, String, Text
+from sqlalchemy import Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
@@ -19,9 +19,34 @@ class Party(Base):
     current_location_id: Mapped[str | None] = mapped_column(
         String, ForeignKey("entity.id", ondelete="SET NULL"), nullable=True
     )
-    gold: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    current_map_id: Mapped[str | None] = mapped_column(
+        String, ForeignKey("map.entity_id", ondelete="SET NULL"), nullable=True
+    )
+    current_x: Mapped[float | None] = mapped_column(Float, nullable=True)
+    current_y: Mapped[float | None] = mapped_column(Float, nullable=True)
+    #: Party wealth in copper pieces (the smallest coin), so sp/cp are tracked
+    #: exactly; the API also exposes a whole-gp view and a formatted breakdown.
+    wealth_cp: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     inventory_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
     reputation_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+
+
+class LocationConnection(Base):
+    """Predefined distances and travel properties between locations (e.g. roads, trails)."""
+
+    __tablename__ = "location_connection"
+
+    campaign_id: Mapped[str] = mapped_column(
+        String, ForeignKey("campaign.id", ondelete="CASCADE"), primary_key=True
+    )
+    from_location_id: Mapped[str] = mapped_column(
+        String, ForeignKey("entity.id", ondelete="CASCADE"), primary_key=True
+    )
+    to_location_id: Mapped[str] = mapped_column(
+        String, ForeignKey("entity.id", ondelete="CASCADE"), primary_key=True
+    )
+    distance: Mapped[float] = mapped_column(Float, nullable=False)
+    terrain: Mapped[str] = mapped_column(String, nullable=False, default="road")
 
 
 class Encounter(Base):

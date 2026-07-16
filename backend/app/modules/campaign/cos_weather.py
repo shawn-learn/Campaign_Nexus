@@ -1,12 +1,17 @@
 from __future__ import annotations
 
+import json
 import random
 from typing import Any
 
 from sqlalchemy.orm import Session
 
+from app.core.db import SessionLocal
+from app.core.event_bus import EventRecord, event_bus
+from app.core.ids import new_id
 from app.core.pipeline import CommandContext
 from app.modules.campaign import flags as campaign_flags
+from app.modules.campaign.models import Campaign
 from app.modules.time import scheduled
 from app.modules.time.models import ScheduledEvent
 
@@ -119,3 +124,102 @@ def _weather_describe(event: ScheduledEvent, action: dict[str, Any]) -> str:
 
 # Register action handler
 scheduled.register_action(WEATHER_ACTION, execute=_weather_execute, describe=_weather_describe)
+
+
+# Custom Action Type for Barovian Full Moon
+FULL_MOON_ACTION = "cos_full_moon"
+
+
+def _full_moon_execute(
+    session: Session,
+    ctx: CommandContext,
+    campaign_id: str,
+    event: ScheduledEvent,
+    action: dict[str, Any],
+    at_time: int,
+) -> str:
+    # 1. Set the is_full_moon campaign flag to True
+    campaign_flags.set_flag(session, campaign_id, "is_full_moon", True, at_game=at_time)
+
+    # 2. Schedule a one-shot set_flag event to clear it at dawn (10 hours later, 6 AM)
+    # 10 hours * 3600 seconds/hour = 36000 seconds
+    clear_time = at_time + 10 * 3600
+
+    scheduled.schedule_for_source(
+        session,
+        campaign_id,
+        source_entity_id="cos_full_moon_tracker",
+        action_type="set_flag",
+        action={"key": "is_full_moon", "value": False},
+        fire_at_game=clear_time,
+        title="Full Moon Ends",
+        created_by_kind="system",
+        description="End of the full moon phase, clearing the is_full_moon flag."
+    )
+
+    narrative = "The full moon rises over Barovia. A silver light bathes the valley, and howls echo in the distance."
+
+    ctx.emit(
+        "world_event",
+        payload={
+            "title": "Full Moon Rises",
+            "scheduled_event_id": event.id,
+        },
+        narrative=narrative,
+        occurred_at_game=at_time,
+    )
+    return narrative
+
+
+def _full_moon_describe(event: ScheduledEvent, action: dict[str, Any]) -> str:
+    return "The full moon rises: sets is_full_moon=True and schedules clearing flag at dawn."
+
+
+# Register action handler for full moon
+scheduled.register_action(FULL_MOON_ACTION, execute=_full_moon_execute, describe=_full_moon_describe)
+
+
+# Event Bus subscriber to auto-schedule the full moon event on campaign creation
+def _on_campaign_created(event: EventRecord) -> None:
+    if event.event_type == "campaign_created":
+        with SessionLocal() as session:
+            campaign = session.get(Campaign, event.campaign_id)
+            if campaign:
+                try:
+                    calendar = json.loads(campaign.calendar_json)
+                except (json.JSONDecodeError, TypeError):
+                    return
+                if calendar.get("id") == "barovian":
+                    from sqlalchemy import select
+                    exists = session.scalar(
+                        select(ScheduledEvent).where(
+                            ScheduledEvent.campaign_id == campaign.id,
+                            ScheduledEvent.action_type == FULL_MOON_ACTION
+                        )
+                    )
+                    if not exists:
+                        # Full moon is on the 15th night (index 14) of the first month (Lunas, index 0)
+                        # rise at 8:00 PM (20:00)
+                        # 14 days * 24 hours/day * 3600 seconds/hour + 20 hours * 3600 seconds/hour
+                        # = 1209600 + 72000 = 1281600 seconds
+                        first_full_moon_seconds = 14 * 24 * 3600 + 20 * 3600
+                        fm_event = ScheduledEvent(
+                            id=new_id(),
+                            campaign_id=campaign.id,
+                            fire_at_game=first_full_moon_seconds,
+                            recurrence_days=30,  # Each Barovian month has exactly 30 days
+                            action_type=FULL_MOON_ACTION,
+                            action_json="{}",
+                            title="Full Moon",
+                            created_by_kind="system",
+                            description="The monthly full moon rises, bathing Barovia in light and triggering werewolf activity.",
+                            status="pending",
+                        )
+                        session.add(fm_event)
+                        session.commit()
+
+
+# Subscribe to campaign created events
+event_bus.subscribe(_on_campaign_created)
+
+

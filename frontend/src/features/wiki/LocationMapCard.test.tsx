@@ -26,6 +26,8 @@ vi.mock('../../api/hooks', () => ({
     data: [{ id: 'loc-other', name: 'Vallaki', entity_type: 'location' }],
   }),
   useSetMapLocation: () => ({ mutate: setLocationMutate, isPending: false }),
+  useParty: () => ({ data: undefined }),
+  usePatchParty: () => ({ mutate: vi.fn(), isPending: false }),
 }))
 
 vi.mock('@tanstack/react-router', () => ({

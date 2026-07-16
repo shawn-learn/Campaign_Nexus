@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from '@tanstack/react-router'
+import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { useRef } from 'react'
 import {
   fetchReferences,
@@ -12,16 +12,24 @@ import {
   useUntagEntity,
   useUpdateEntity,
   useUploadEntityMedia,
+  useNpc,
 } from '../../api/hooks'
 import type { ReferencesOut } from '../../api/client'
 import { useActiveCampaign } from '../../shell/useActiveCampaign'
 import { useRecentsStore } from '../../stores/recents'
 import { ArticleEditor } from './ArticleEditor'
-import { LocationMapCard } from './LocationMapCard'
 import { EncounterPanel } from '../playbook/EncounterPanel'
 import { RandomTablePanel } from '../playbook/RandomTablePanel'
 import { RelationsEditor } from './RelationsEditor'
 import type { LinkRef } from '../../api/client'
+import { Tabs, TabPanel } from '../../components/Tabs'
+import { NpcOverviewTab } from '../npcs/NpcOverviewTab'
+import { NpcArticleTab } from '../npcs/NpcArticleTab'
+import { NpcGameStateTab } from '../npcs/NpcGameStateTab'
+import { NpcSheetTab } from '../npcs/NpcSheetTab'
+import { LocationOverviewTab } from './LocationOverviewTab'
+import { LocationArticleTab } from './LocationArticleTab'
+import { LocationMapTab } from './LocationMapTab'
 
 // Entity detail: rename, edit summary, tag/untag, soft-delete/restore.
 export function EntityDetailPage() {
@@ -36,10 +44,17 @@ export function EntityDetailPage() {
   const restore = useRestoreEntity(campaignId ?? '')
   const tag = useTagEntity(campaignId ?? '', entityId)
   const untag = useUntagEntity(campaignId ?? '', entityId)
+  const { data: npc } = useNpc(campaignId, entity?.entity_type === 'npc' ? entityId : null)
 
   const [name, setName] = useState('')
   const [summary, setSummary] = useState('')
   const [newTag, setNewTag] = useState('')
+  const search = useSearch({ strict: false }) as { tab?: string }
+  const [activeTab, setActiveTab] = useState(search.tab ?? 'overview')
+
+  useEffect(() => {
+    setActiveTab(search.tab ?? 'overview')
+  }, [entityId, search.tab])
   // Delete-preflight (FR-13.3): fetch what points here, then confirm before severing it.
   const [preflight, setPreflight] = useState<ReferencesOut | null>(null)
   const addRecent = useRecentsStore((s) => s.addRecent)
@@ -139,111 +154,197 @@ export function EntityDetailPage() {
         </div>
       )}
 
-      <div className="card">
-        <label className="field">
-          <span className="muted">Name</span>
-          <input value={name} onChange={(e) => setName(e.target.value)} />
-        </label>
-        <label className="field">
-          <span className="muted">Summary</span>
-          <textarea
-            rows={3}
-            value={summary}
-            onChange={(e) => setSummary(e.target.value)}
-            placeholder="A one-line description…"
-          />
-        </label>
-        <button
-          disabled={!dirty || update.isPending}
-          onClick={() =>
-            update.mutate({ name, summary: summary || null, summary_set: true })
-          }
+      {entity.entity_type === 'location' ? (
+        <Tabs
+          tabs={[
+            { id: 'overview', label: 'Overview' },
+            { id: 'article', label: 'Article' },
+            { id: 'map', label: 'Map' },
+          ]}
+          activeTab={activeTab}
+          onChange={setActiveTab}
         >
-          {update.isPending ? 'Saving…' : 'Save'}
-        </button>
-      </div>
+          <TabPanel id="overview" activeTab={activeTab}>
+            {campaignId && (
+              <LocationOverviewTab
+                campaignId={campaignId}
+                entityId={entityId}
+                entity={entity}
+              />
+            )}
+          </TabPanel>
+          <TabPanel id="article" activeTab={activeTab}>
+            {campaignId && (
+              <LocationArticleTab
+                campaignId={campaignId}
+                entityId={entityId}
+                entity={entity}
+              />
+            )}
+          </TabPanel>
+          <TabPanel id="map" activeTab={activeTab}>
+            {campaignId && (
+              <LocationMapTab
+                campaignId={campaignId}
+                entityId={entityId}
+              />
+            )}
+          </TabPanel>
+        </Tabs>
+      ) : entity.entity_type === 'npc' && npc ? (
+        <Tabs
+          tabs={[
+            { id: 'overview', label: 'Overview' },
+            { id: 'article', label: 'Article' },
+            { id: 'game-state', label: 'Game State' },
+            { id: 'sheet', label: 'Sheet' },
+          ]}
+          activeTab={activeTab}
+          onChange={setActiveTab}
+        >
+          <TabPanel id="overview" activeTab={activeTab}>
+            {campaignId && (
+              <NpcOverviewTab
+                campaignId={campaignId}
+                entityId={entityId}
+                entity={entity}
+                npc={npc}
+              />
+            )}
+          </TabPanel>
+          <TabPanel id="article" activeTab={activeTab}>
+            {campaignId && (
+              <NpcArticleTab
+                campaignId={campaignId}
+                entityId={entityId}
+                entity={entity}
+              />
+            )}
+          </TabPanel>
+          <TabPanel id="game-state" activeTab={activeTab}>
+            {campaignId && (
+              <NpcGameStateTab
+                campaignId={campaignId}
+                npc={npc}
+              />
+            )}
+          </TabPanel>
+          <TabPanel id="sheet" activeTab={activeTab}>
+            {campaignId && campaign?.rule_system_id && (
+              <NpcSheetTab
+                campaignId={campaignId}
+                systemId={campaign.rule_system_id}
+              />
+            )}
+          </TabPanel>
+        </Tabs>
+      ) : (
+        <>
+          <div className="card">
+            <label className="field">
+              <span className="muted">Name</span>
+              <input value={name} onChange={(e) => setName(e.target.value)} />
+            </label>
+            <label className="field">
+              <span className="muted">Summary</span>
+              <textarea
+                rows={3}
+                value={summary}
+                onChange={(e) => setSummary(e.target.value)}
+                placeholder="A one-line description…"
+              />
+            </label>
+            <button
+              disabled={!dirty || update.isPending}
+              onClick={() =>
+                update.mutate({ name, summary: summary || null, summary_set: true })
+              }
+            >
+              {update.isPending ? 'Saving…' : 'Save'}
+            </button>
+          </div>
 
-      {campaignId && <EntityImages campaignId={campaignId} entityId={entityId} />}
+          {campaignId && <EntityImages campaignId={campaignId} entityId={entityId} />}
 
-      {campaignId && entity.entity_type === 'location' && (
-        <LocationMapCard campaignId={campaignId} entityId={entityId} />
-      )}
+          {/* Locations are handled by the tabbed branch above; this fallback only
+              renders for non-location, non-npc entity types. */}
+          {campaignId && entity.entity_type === 'encounter' && (
+            <EncounterPanel campaignId={campaignId} entityId={entityId} />
+          )}
 
-      {campaignId && entity.entity_type === 'encounter' && (
-        <EncounterPanel campaignId={campaignId} entityId={entityId} />
-      )}
+          {campaignId && entity.entity_type === 'random_table' && (
+            <RandomTablePanel campaignId={campaignId} entityId={entityId} />
+          )}
 
-      {campaignId && entity.entity_type === 'random_table' && (
-        <RandomTablePanel campaignId={campaignId} entityId={entityId} />
-      )}
+          {campaignId && (
+            <ArticleEditor
+              campaignId={campaignId}
+              entityId={entityId}
+              initial={entity.article_json ?? null}
+              onNavigate={(id) => navigate({ to: '/entities/$entityId', params: { entityId: id } })}
+            />
+          )}
 
-      {campaignId && (
-        <ArticleEditor
-          campaignId={campaignId}
-          entityId={entityId}
-          initial={entity.article_json ?? null}
-          onNavigate={(id) => navigate({ to: '/entities/$entityId', params: { entityId: id } })}
-        />
-      )}
+          {campaignId && (
+            <RelationsEditor
+              campaignId={campaignId}
+              entityId={entityId}
+              outbound={entity.outbound ?? []}
+              onNavigate={(id) => navigate({ to: '/entities/$entityId', params: { entityId: id } })}
+            />
+          )}
 
-      {campaignId && (
-        <RelationsEditor
-          campaignId={campaignId}
-          entityId={entityId}
-          outbound={entity.outbound ?? []}
-          onNavigate={(id) => navigate({ to: '/entities/$entityId', params: { entityId: id } })}
-        />
-      )}
+          <div className="link-panels">
+            <LinkPanel
+              title="Mentions"
+              empty="This article mentions nothing yet."
+              links={(entity.outbound ?? []).filter((l) => l.source === 'mention')}
+              navigate={navigate}
+            />
+            <LinkPanel title="Referenced by" empty="Nothing references this yet." links={entity.backlinks ?? []} navigate={navigate} />
+          </div>
 
-      <div className="link-panels">
-        <LinkPanel
-          title="Mentions"
-          empty="This article mentions nothing yet."
-          links={(entity.outbound ?? []).filter((l) => l.source === 'mention')}
-          navigate={navigate}
-        />
-        <LinkPanel title="Referenced by" empty="Nothing references this yet." links={entity.backlinks ?? []} navigate={navigate} />
-      </div>
-
-      <h3>Tags</h3>
-      <div className="card">
-        <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
-          {(entity.tags ?? []).map((t) => (
-            <span key={t.id} className="tag">
-              #{t.name}
-              <button className="tag-x" onClick={() => untag.mutate(t.id)} aria-label="remove">
-                ×
+          <h3>Tags</h3>
+          <div className="card">
+            <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+              {(entity.tags ?? []).map((t) => (
+                <span key={t.id} className="tag">
+                  #{t.name}
+                  <button className="tag-x" onClick={() => untag.mutate(t.id)} aria-label="remove">
+                    ×
+                  </button>
+                </span>
+              ))}
+              {(entity.tags ?? []).length === 0 && <span className="muted">No tags yet.</span>}
+            </div>
+            <form
+              className="row"
+              onSubmit={(e) => {
+                e.preventDefault()
+                if (!newTag.trim()) return
+                tag.mutate(newTag.trim())
+                setNewTag('')
+              }}
+            >
+              <input
+                placeholder="Add tag…"
+                value={newTag}
+                onChange={(e) => setNewTag(e.target.value)}
+              />
+              <button type="submit" disabled={tag.isPending}>
+                Add
               </button>
-            </span>
-          ))}
-          {(entity.tags ?? []).length === 0 && <span className="muted">No tags yet.</span>}
-        </div>
-        <form
-          className="row"
-          onSubmit={(e) => {
-            e.preventDefault()
-            if (!newTag.trim()) return
-            tag.mutate(newTag.trim())
-            setNewTag('')
-          }}
-        >
-          <input
-            placeholder="Add tag…"
-            value={newTag}
-            onChange={(e) => setNewTag(e.target.value)}
-          />
-          <button type="submit" disabled={tag.isPending}>
-            Add
-          </button>
-        </form>
-      </div>
+            </form>
+          </div>
+        </>
+      )}
     </>
   )
 }
 
 // A gallery of images attached to the entity. Upload/delete are editor actions; the image
 // bytes come from the atlas media store via a per-attachment URL.
-function EntityImages({ campaignId, entityId }: { campaignId: string; entityId: string }) {
+export function EntityImages({ campaignId, entityId }: { campaignId: string; entityId: string }) {
   const { data: images } = useEntityMedia(campaignId, entityId)
   const upload = useUploadEntityMedia(campaignId, entityId)
   const del = useDeleteEntityMedia(campaignId, entityId)
@@ -302,7 +403,7 @@ function EntityImages({ campaignId, entityId }: { campaignId: string; entityId: 
   )
 }
 
-function LinkPanel({
+export function LinkPanel({
   title,
   empty,
   links,

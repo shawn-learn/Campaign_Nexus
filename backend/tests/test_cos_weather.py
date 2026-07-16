@@ -76,3 +76,80 @@ def test_manual_weather_roll(client: TestClient) -> None:
     flags = client.get(f"/api/v1/campaigns/{cid}/flags").json()
     assert flags["weather_mist_thickness"] == res["mist"]
 
+
+def test_cos_full_moon_scheduling_and_firing(client: TestClient) -> None:
+    # 1. Create a campaign with the Barovian calendar preset
+    resp = client.post("/api/v1/campaigns", json={"name": "Moon Test", "calendar_id": "barovian"})
+    assert resp.status_code == 201
+    cid = resp.json()["id"]
+
+    # 2. Check scheduled-events: one should be the first full moon
+    events_resp = client.get(f"/api/v1/campaigns/{cid}/scheduled-events")
+    assert events_resp.status_code == 200
+    events = events_resp.json()
+
+    full_moon_events = [e for e in events if e["action_type"] == "cos_full_moon"]
+    assert len(full_moon_events) == 1
+    fm_event = full_moon_events[0]
+    assert fm_event["title"] == "Full Moon"
+    assert fm_event["recurrence_days"] == 30
+    assert fm_event["status"] == "pending"
+
+    # Expected time is 14 days and 20 hours (1281600 seconds)
+    expected_fire_at = 14 * 24 * 3600 + 20 * 3600  # 1281600
+    assert fm_event["fire_at_game"] == expected_fire_at
+
+    # 3. Verify is_full_moon is not set yet
+    flags = client.get(f"/api/v1/campaigns/{cid}/flags").json()
+    assert "is_full_moon" not in flags
+
+    # 4. Advance time past the full moon rise (e.g. 15 days, wait)
+    # The clock starts at 0. So advancing by 15 days will cross the 14d 20h mark.
+    advance_resp = client.post(
+        f"/api/v1/campaigns/{cid}/clock/advance",
+        json={"days": 15, "reason": "wait"}
+    )
+    assert advance_resp.status_code == 200
+    report = advance_resp.json()
+
+    # 5. Verify the full moon fired
+    fired_fm = [f for f in report["fired"] if f["title"] == "Full Moon"]
+    assert len(fired_fm) == 1
+    assert "The full moon rises" in fired_fm[0]["narrative"]
+
+    # 6. Verify is_full_moon flag is set to True
+    flags = client.get(f"/api/v1/campaigns/{cid}/flags").json()
+    assert flags.get("is_full_moon") is True
+
+    # 7. Check that the dawn clearing event "Full Moon Ends" was scheduled at dawn (14 days, 20 hours + 10 hours = 15 days, 6 hours)
+    events_resp = client.get(f"/api/v1/campaigns/{cid}/scheduled-events?status_filter=pending")
+    events = events_resp.json()
+
+    end_events = [e for e in events if e["title"] == "Full Moon Ends"]
+    assert len(end_events) == 1
+    assert end_events[0]["fire_at_game"] == expected_fire_at + 10 * 3600
+
+    # 8. Advance time past dawn (e.g. advance by 1 day)
+    advance_resp = client.post(
+        f"/api/v1/campaigns/{cid}/clock/advance",
+        json={"days": 1, "reason": "wait"}
+    )
+    assert advance_resp.status_code == 200
+    report = advance_resp.json()
+
+    # 9. Verify the dawn clearing event fired
+    fired_end = [f for f in report["fired"] if f["title"] == "Full Moon Ends"]
+    assert len(fired_end) == 1
+
+    # 10. Verify flag is now False
+    flags = client.get(f"/api/v1/campaigns/{cid}/flags").json()
+    assert flags.get("is_full_moon") is False
+
+    # 11. Verify that the next full moon is scheduled for day 44 (1281600 + 30 days)
+    events_resp = client.get(f"/api/v1/campaigns/{cid}/scheduled-events?status_filter=pending")
+    events = events_resp.json()
+    full_moon_events = [e for e in events if e["action_type"] == "cos_full_moon"]
+    assert len(full_moon_events) == 1
+    assert full_moon_events[0]["fire_at_game"] == expected_fire_at + 30 * 24 * 3600
+
+

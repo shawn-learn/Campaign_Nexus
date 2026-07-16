@@ -671,6 +671,24 @@ ul.feed li:last-child { border-bottom: none; }
 .article-history { margin: 6px 0; padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; }
 .article-history .muted { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 70%; }
 
+/* Tabs (unified NPC view) */
+.tabs { margin-bottom: 15px; }
+.tab-bar { display: flex; gap: 8px; border-bottom: 1px solid var(--border); margin-bottom: 15px; padding-bottom: 0; }
+.tab-btn {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 500;
+  padding: 8px 16px;
+  transition: all 0.2s ease;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab-panel { display: block; }
+
 @media (max-width: 760px) {
   .app { grid-template-columns: 1fr; grid-template-areas: 'topbar' 'nav' 'main'; }
   .topbar { flex-wrap: wrap; padding: 10px 12px; }
