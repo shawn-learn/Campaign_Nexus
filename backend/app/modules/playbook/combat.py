@@ -9,17 +9,25 @@ into domain events and advances the campaign clock by rounds * round length (FR-
 from __future__ import annotations
 
 import json
+import random
 from typing import Any
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
+from app.core import dice
 from app.core.clock import now_real_iso
 from app.core.ids import new_id
 from app.core.pipeline import command_tx
 from app.modules.campaign.models import Campaign
 from app.modules.playbook import combat_reducer
-from app.modules.playbook.models import CombatAction, CombatRun, Encounter, PartyMember
+from app.modules.playbook.models import (
+    CombatAction,
+    CombatRoll,
+    CombatRun,
+    Encounter,
+    PartyMember,
+)
 from app.modules.playbook.schemas import CombatState, CombatSummary
 from app.modules.rules import registry
 from app.modules.rules.models import Monster, StatBlock
@@ -95,9 +103,12 @@ def _seed_actions(
                         "type": "add_combatant", "id": new_id(), "name": label,
                         "side": spec.get("side", "foe"), "max_hp": profile["max_hp"],
                         "initiative": profile["initiative"],
-                        # Carried for the UI's stat-block panel; the reducer ignores it, so
-                        # the folded state and its golden fixtures are unaffected.
+                        "initiative_tiebreak": profile["initiative_mod"],
+                        # Carried for the UI's stat-block panel and the initiative roll; the
+                        # reducer ignores both, so the folded state and its golden fixtures
+                        # are unaffected.
                         "stat_block_id": block.id if block else None,
+                        "initiative_dice": profile["initiative_dice"],
                     })
 
     # Party PCs join as allies with their live HP.
@@ -114,7 +125,10 @@ def _seed_actions(
         seed.append({
             "type": "add_combatant", "id": new_id(), "name": member.name or "PC",
             "side": "ally", "max_hp": profile["max_hp"], "hp": profile["hp"],
-            "initiative": profile["initiative"], "stat_block_id": member.stat_block_id,
+            "initiative": profile["initiative"],
+            "initiative_tiebreak": profile["initiative_mod"],
+            "stat_block_id": member.stat_block_id,
+            "initiative_dice": profile["initiative_dice"],
         })
     return seed
 
@@ -134,6 +148,157 @@ def combatant_blocks(session: Session, run_id: str) -> dict[str, str]:
         if block_id:
             out[payload["id"]] = block_id
     return out
+
+
+def initiative_specs(session: Session, run_id: str) -> dict[str, dict[str, Any]]:
+    """Map each combatant id → ``{"dice", "mod"}``, read from the ``add_combatant`` log.
+
+    Same trick as ``combatant_blocks``: the seed actions are always in the log, so this is
+    cursor-independent and keeps working across undo/redo. ``dice`` is None for a system
+    that doesn't roll for order at all (Nimble) — those combatants are never rolled for.
+    """
+    out: dict[str, dict[str, Any]] = {}
+    for action in _actions(session, run_id):
+        if action.action_type != "add_combatant":
+            continue
+        payload = json.loads(action.payload_json)
+        out[payload["id"]] = {
+            "dice": payload.get("initiative_dice"),
+            "mod": int(payload.get("initiative_tiebreak", 0)),
+        }
+    return out
+
+
+def initiative_die(session: Session, run: CombatRun) -> str | None:
+    """The die this system rolls for turn order, or None if it doesn't roll at all.
+
+    The tracker needs this to know whether to *offer* rolling — Nimble's party simply acts
+    first, so a "Roll initiative" button there would be a lie. Read through ``combat_profile``
+    like everything else the playbook learns about a system (docs/04 §6.8).
+    """
+    campaign = session.get(Campaign, run.campaign_id)
+    if campaign is None:
+        return None
+    profile = registry.get_system(campaign.rule_system_id).combat_profile("pc", {})
+    die = profile.get("initiative_dice")
+    return str(die) if die else None
+
+
+def _roll_detail(result: dice.RollResult) -> dict[str, Any]:
+    """The faces and modifier behind a total, so the log can show "17 (17, 9) + 5"."""
+    return {
+        "dice": [
+            {"sides": d.sides, "value": d.value, "kept": d.kept, "sign": d.sign}
+            for d in result.dice
+        ],
+        "modifier": result.modifier,
+        "critical": result.critical,
+        "fumble": result.fumble,
+    }
+
+
+def _append_one(session: Session, run: CombatRun, action_type: str, payload: dict[str, Any]) -> None:
+    """Append without committing — for callers writing several actions in one transaction."""
+    session.execute(
+        delete(CombatAction).where(
+            CombatAction.combat_run_id == run.id, CombatAction.seq > run.fold_cursor
+        )
+    )
+    run.fold_cursor += 1
+    session.add(CombatAction(
+        combat_run_id=run.id, seq=run.fold_cursor, action_type=action_type,
+        payload_json=json.dumps({"type": action_type, **payload}),
+        recorded_at_real=now_real_iso(),
+    ))
+
+
+def _scope_ids(state: CombatState, scope: str, ids: list[str] | None) -> list[str]:
+    if scope == "ids":
+        return [i for i in (ids or []) if i in state.combatants]
+    if scope == "foes":
+        return [i for i, c in state.combatants.items() if c.side == "foe"]
+    return list(state.combatants)
+
+
+def roll_initiative(
+    session: Session,
+    campaign: Campaign,
+    run_id: str,
+    *,
+    scope: str = "all",
+    ids: list[str] | None = None,
+    values: dict[str, int] | None = None,
+    mode: str = "normal",
+    rng: random.Random | None = None,
+) -> CombatRun:
+    """Roll initiative for a scope, and/or accept totals the GM typed in.
+
+    The roll happens *here*, not in the reducer (ADR-005) — the log only ever receives the
+    literal result, so folding it stays deterministic. ``values`` carries the numbers your
+    players called out (modifier already included), which is why "roll the monsters and take
+    my players' word for theirs" is one request rather than two.
+    """
+    run = _require(session, campaign.id, run_id)
+    if run.status == "completed":
+        raise CombatClosed(run_id)
+
+    state = state_of(session, run)
+    specs = initiative_specs(session, run_id)
+    manual = {k: v for k, v in (values or {}).items() if k in state.combatants}
+    now = now_real_iso()
+
+    for cid in _scope_ids(state, scope, ids):
+        # A typed total wins over a roll, and a system with no initiative die (Nimble: the
+        # party simply acts first) keeps the ranking its plugin already gave us.
+        spec = specs.get(cid) or {}
+        die = spec.get("dice")
+        if cid in manual or not die:
+            continue
+        mod = int(spec.get("mod", 0))
+        expr = f"{die}{mod:+d}" if mod else str(die)
+        result = dice.roll(expr, mode=mode, rng=rng)  # type: ignore[arg-type]
+        roll_id = new_id()
+        session.add(CombatRoll(
+            id=roll_id, combat_run_id=run_id, combatant_id=cid, kind="initiative",
+            label="Initiative", expression=expr, mode=mode,
+            detail_json=json.dumps(_roll_detail(result)), total=result.total,
+            recorded_at_real=now,
+        ))
+        _append_one(session, run, "set_initiative", {
+            "id": cid, "value": result.total, "initiative_tiebreak": mod, "roll_id": roll_id,
+        })
+
+    for cid, value in manual.items():
+        _append_one(session, run, "set_initiative", {
+            "id": cid, "value": int(value),
+            "initiative_tiebreak": int((specs.get(cid) or {}).get("mod", 0)),
+        })
+
+    session.commit()
+    return run
+
+
+def begin_combat(session: Session, campaign_id: str, run_id: str) -> CombatRun:
+    """Leave setup and start round 1. Idempotent; a completed run cannot go back."""
+    run = _require(session, campaign_id, run_id)
+    if run.status == "completed":
+        raise CombatClosed(run_id)
+    run.status = "active"
+    session.commit()
+    return run
+
+
+def rolls_for(session: Session, run_id: str, limit: int = 50) -> list[CombatRoll]:
+    """The run's roll log, newest first. Append-only and outside the fold, so undo never
+    erases a roll — a die that hit the table cannot be un-thrown."""
+    return list(
+        session.scalars(
+            select(CombatRoll)
+            .where(CombatRoll.combat_run_id == run_id)
+            .order_by(CombatRoll.id.desc())
+            .limit(limit)
+        )
+    )
 
 
 def runs_for_encounter(
@@ -175,7 +340,7 @@ def start_combat(session: Session, campaign: Campaign, encounter_id: str | None)
     time_service.settle_realtime(session, campaign)
     run = CombatRun(
         id=new_id(), campaign_id=campaign.id, encounter_id=encounter_id,
-        started_at_game=campaign.clock_time_game, status="active", fold_cursor=0,
+        started_at_game=campaign.clock_time_game, status="setup", fold_cursor=0,
     )
     session.add(run)
     session.flush()
@@ -190,6 +355,11 @@ def start_combat(session: Session, campaign: Campaign, encounter_id: str | None)
     run.fold_cursor = len(seed)
     campaign.realtime_paused = True
     session.commit()
+
+    # The monsters roll the moment you call for initiative — that is what happens at the
+    # table. The PCs' numbers are the GM's to type in, so they keep their seeded ranking
+    # until then, and the run waits in `setup` until Begin.
+    roll_initiative(session, campaign, run.id, scope="foes")
     return run
 
 
@@ -197,22 +367,13 @@ def append_action(
     session: Session, campaign_id: str, run_id: str, action_type: str, payload: dict[str, Any]
 ) -> CombatRun:
     run = _require(session, campaign_id, run_id)
-    if run.status != "active":
+    # Only a finished run is closed to writes: `setup` still takes actions, since that is
+    # where initiative gets rolled and corrected before round 1 begins.
+    if run.status == "completed":
         raise CombatClosed(run_id)
 
     # A new action after an undo truncates the redo tail.
-    session.execute(
-        delete(CombatAction).where(
-            CombatAction.combat_run_id == run_id, CombatAction.seq > run.fold_cursor
-        )
-    )
-    new_seq = run.fold_cursor + 1
-    action = {"type": action_type, **payload}
-    session.add(CombatAction(
-        combat_run_id=run_id, seq=new_seq, action_type=action_type,
-        payload_json=json.dumps(action), recorded_at_real=now_real_iso(),
-    ))
-    run.fold_cursor = new_seq
+    _append_one(session, run, action_type, payload)
     session.commit()
     _sync_clock(session, run)
     return run

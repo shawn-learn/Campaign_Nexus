@@ -150,7 +150,9 @@ def _recent_notes(session: Session, campaign_id: str) -> list[EventBrief]:
 def _active_combat(session: Session, campaign_id: str) -> CombatRunOut | None:
     stmt = (
         select(CombatRun)
-        .where(CombatRun.campaign_id == campaign_id, CombatRun.status == "active")
+        # A run still rolling initiative hasn't begun, but it is very much in play — the
+        # dashboard should surface it rather than let it vanish until someone hits Begin.
+        .where(CombatRun.campaign_id == campaign_id, CombatRun.status.in_(("setup", "active")))
         .order_by(desc(CombatRun.started_at_game))
         .limit(1)
     )
@@ -163,6 +165,7 @@ def _active_combat(session: Session, campaign_id: str) -> CombatRunOut | None:
         cursor=run.fold_cursor, total_actions=total,
         can_undo=run.fold_cursor > 0, can_redo=run.fold_cursor < total,
         state=combat.state_of(session, run),
+        initiative_dice=combat.initiative_die(session, run),
     )
 
 def _live_session(session: Session, campaign: Campaign) -> DashboardSession | None:

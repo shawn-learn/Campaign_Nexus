@@ -4239,6 +4239,187 @@
         }
       }
     },
+    "/api/v1/campaigns/{campaign_id}/combats/{run_id}/initiative": {
+      "post": {
+        "tags": [
+          "combat"
+        ],
+        "summary": "Roll Initiative",
+        "description": "Roll for a scope and/or take the totals the GM typed in \u2014 one round trip for both.",
+        "operationId": "roll_initiative_api_v1_campaigns__campaign_id__combats__run_id__initiative_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RollInitiativeIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CombatRunOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/combats/{run_id}/begin": {
+      "post": {
+        "tags": [
+          "combat"
+        ],
+        "summary": "Begin Combat",
+        "description": "Leave setup and start round 1.",
+        "operationId": "begin_combat_api_v1_campaigns__campaign_id__combats__run_id__begin_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CombatRunOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/combats/{run_id}/rolls": {
+      "get": {
+        "tags": [
+          "combat"
+        ],
+        "summary": "List Rolls",
+        "operationId": "list_rolls_api_v1_campaigns__campaign_id__combats__run_id__rolls_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CombatRollOut"
+                  },
+                  "title": "Response List Rolls Api V1 Campaigns  Campaign Id  Combats  Run Id  Rolls Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/campaigns/{campaign_id}/combats/{run_id}/actions": {
       "post": {
         "tags": [
@@ -10551,6 +10732,89 @@
         ],
         "title": "CombatActionIn"
       },
+      "CombatRollOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "combatant_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Combatant Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "expression": {
+            "type": "string",
+            "title": "Expression"
+          },
+          "mode": {
+            "type": "string",
+            "title": "Mode"
+          },
+          "detail": {
+            "$ref": "#/components/schemas/RollDetail"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome"
+          },
+          "recorded_at_real": {
+            "type": "string",
+            "title": "Recorded At Real"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "combatant_id",
+          "kind",
+          "label",
+          "expression",
+          "mode",
+          "detail",
+          "total",
+          "target",
+          "outcome",
+          "recorded_at_real"
+        ],
+        "title": "CombatRollOut"
+      },
       "CombatRunBrief": {
         "properties": {
           "run_id": {
@@ -10633,6 +10897,17 @@
             "type": "object",
             "title": "Combatant Blocks",
             "default": {}
+          },
+          "initiative_dice": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Initiative Dice"
           }
         },
         "type": "object",
@@ -11056,6 +11331,34 @@
           "depends_on_id"
         ],
         "title": "DependencyIn"
+      },
+      "DieFace": {
+        "properties": {
+          "sides": {
+            "type": "integer",
+            "title": "Sides"
+          },
+          "value": {
+            "type": "integer",
+            "title": "Value"
+          },
+          "kept": {
+            "type": "boolean",
+            "title": "Kept"
+          },
+          "sign": {
+            "type": "integer",
+            "title": "Sign"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sides",
+          "value",
+          "kept",
+          "sign"
+        ],
+        "title": "DieFace"
       },
       "DifficultyOut": {
         "properties": {
@@ -15776,6 +16079,90 @@
           "members"
         ],
         "title": "RestResult"
+      },
+      "RollDetail": {
+        "properties": {
+          "dice": {
+            "items": {
+              "$ref": "#/components/schemas/DieFace"
+            },
+            "type": "array",
+            "title": "Dice",
+            "default": []
+          },
+          "modifier": {
+            "type": "integer",
+            "title": "Modifier",
+            "default": 0
+          },
+          "critical": {
+            "type": "boolean",
+            "title": "Critical",
+            "default": false
+          },
+          "fumble": {
+            "type": "boolean",
+            "title": "Fumble",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "RollDetail"
+      },
+      "RollInitiativeIn": {
+        "properties": {
+          "scope": {
+            "type": "string",
+            "enum": [
+              "all",
+              "foes",
+              "ids"
+            ],
+            "title": "Scope",
+            "default": "all"
+          },
+          "ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ids"
+          },
+          "values": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Values"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "advantage",
+              "disadvantage"
+            ],
+            "title": "Mode",
+            "default": "normal"
+          }
+        },
+        "type": "object",
+        "title": "RollInitiativeIn",
+        "description": "Roll for a scope and/or accept the totals the GM typed in.\n\nBoth halves in one request, because that is the actual moment at the table: the monsters\nroll, the players call their numbers out, and the order settles once."
       },
       "RollOut": {
         "properties": {

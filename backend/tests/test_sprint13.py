@@ -61,13 +61,17 @@ def test_reducer_undo_redo_identity() -> None:
 
 
 # --- event-sourced run -----------------------------------------------------
-def _start_from_two_goblins(client: TestClient, cid: str) -> str:
+def _encounter_of_two_goblins(client: TestClient, cid: str) -> str:
     goblin = _monster(client, cid, "Goblin")
-    enc = client.post(
+    return client.post(
         f"/api/v1/campaigns/{cid}/encounters",
         json={"name": "Ambush", "combatants": [{"monster_id": goblin, "count": 2}]},
-    ).json()
-    run = client.post(f"/api/v1/campaigns/{cid}/combats", json={"encounter_id": enc["id"]}).json()
+    ).json()["id"]
+
+
+def _start_from_two_goblins(client: TestClient, cid: str) -> str:
+    enc = _encounter_of_two_goblins(client, cid)
+    run = client.post(f"/api/v1/campaigns/{cid}/combats", json={"encounter_id": enc}).json()
     return run["run_id"]
 
 
@@ -144,6 +148,130 @@ def test_party_hp_is_written_back_when_combat_ends(client: TestClient) -> None:
     assert member["status"]["current_hit_points"] == 27
 
 
+# --- initiative -------------------------------------------------------------
+def _pc(client: TestClient, cid: str, label: str, dex: int = 14) -> str:
+    sb = client.post(
+        f"/api/v1/campaigns/{cid}/stat-blocks",
+        json={"rule_system_id": "dnd5e", "sheet_type": "pc", "label": label,
+              "doc": {"level": 5, "max_hit_points": 40, "armor_class": 16,
+                      "abilities": {"str": 10, "dex": dex, "con": 12, "int": 10,
+                                    "wis": 10, "cha": 10}}},
+    ).json()["id"]
+    client.post(f"/api/v1/campaigns/{cid}/party/members", json={"stat_block_id": sb})
+    return sb
+
+
+def test_combat_opens_in_setup_with_the_monsters_already_rolled(client: TestClient) -> None:
+    """Starting a combat is the moment you call for initiative: the monsters roll at once.
+
+    The PCs' numbers are the GM's to type in, so they wait — and the run stays in `setup`
+    until Begin, which is what makes the roster screen survive a refresh.
+    """
+    cid = _demo(client)
+    _pc(client, cid, "Serah")
+    run = client.post(
+        f"/api/v1/campaigns/{cid}/combats",
+        json={"encounter_id": _encounter_of_two_goblins(client, cid)},
+    ).json()
+
+    assert run["status"] == "setup"
+    combatants = run["state"]["combatants"].values()
+    goblins = [c for c in combatants if c["side"] == "foe"]
+    serah = next(c for c in combatants if c["name"] == "Serah")
+
+    # Goblins have dex 14 (+2), so a rolled total lands in 3..22 and is almost never the
+    # bare +2 seed. Serah is untouched at her seeded modifier, waiting for a typed total.
+    assert all(3 <= g["initiative"] <= 22 for g in goblins)
+    assert serah["initiative"] == 2  # dex 14 -> +2, the pre-roll seed
+
+    rolls = client.get(f"/api/v1/campaigns/{cid}/combats/{run['run_id']}/rolls").json()
+    assert len(rolls) == 2  # one per goblin
+    assert {r["kind"] for r in rolls} == {"initiative"}
+    assert all(r["expression"] == "1d20+2" for r in rolls)
+
+
+def test_roll_initiative_takes_typed_values_and_rolls_the_rest(client: TestClient) -> None:
+    # The actual moment at the table: the monsters roll, the players call their numbers out.
+    cid = _demo(client)
+    _pc(client, cid, "Serah")
+    run_id = _start_from_two_goblins(client, cid)
+    run = client.get(f"/api/v1/campaigns/{cid}/combats/{run_id}").json()
+    serah = next(c for c in run["state"]["combatants"].values() if c["name"] == "Serah")
+
+    out = client.post(
+        f"/api/v1/campaigns/{cid}/combats/{run_id}/initiative",
+        json={"scope": "foes", "values": {serah["id"]: 18}},
+    ).json()
+
+    after = out["state"]["combatants"][serah["id"]]
+    assert after["initiative"] == 18  # taken verbatim — the modifier is already in it
+    assert after["initiative_tiebreak"] == 2  # dex, for breaking ties
+    # 18 beats any goblin that didn't roll a natural 17+, so Serah is usually first; assert
+    # the invariant instead: the order is sorted by initiative descending.
+    order = [out["state"]["combatants"][i]["initiative"] for i in out["state"]["order"]]
+    assert order == sorted(order, reverse=True)
+
+
+def test_a_typed_value_wins_over_a_roll_for_the_same_combatant(client: TestClient) -> None:
+    cid = _demo(client)
+    _pc(client, cid, "Serah")
+    run_id = _start_from_two_goblins(client, cid)
+    run = client.get(f"/api/v1/campaigns/{cid}/combats/{run_id}").json()
+    serah = next(c for c in run["state"]["combatants"].values() if c["name"] == "Serah")
+
+    # scope=all *includes* Serah, but a typed value for her must not be rolled over.
+    out = client.post(
+        f"/api/v1/campaigns/{cid}/combats/{run_id}/initiative",
+        json={"scope": "all", "values": {serah["id"]: 11}},
+    ).json()
+    assert out["state"]["combatants"][serah["id"]]["initiative"] == 11
+
+
+def test_begin_leaves_setup_and_rejects_a_finished_run(client: TestClient) -> None:
+    cid = _demo(client)
+    run_id = _start_from_two_goblins(client, cid)
+    assert client.get(f"/api/v1/campaigns/{cid}/combats/{run_id}").json()["status"] == "setup"
+
+    begun = client.post(f"/api/v1/campaigns/{cid}/combats/{run_id}/begin")
+    assert begun.status_code == 200
+    assert begun.json()["status"] == "active"
+
+    client.post(f"/api/v1/campaigns/{cid}/combats/{run_id}/end")
+    assert client.post(f"/api/v1/campaigns/{cid}/combats/{run_id}/begin").status_code == 409
+
+
+def test_initiative_is_editable_during_setup(client: TestClient) -> None:
+    # `setup` must still accept actions — it is where initiative gets corrected. Guarding on
+    # status != "active" would have made the whole roster screen read-only.
+    cid = _demo(client)
+    run_id = _start_from_two_goblins(client, cid)
+    run = client.get(f"/api/v1/campaigns/{cid}/combats/{run_id}").json()
+    gid = run["state"]["order"][0]
+
+    resp = client.post(
+        f"/api/v1/campaigns/{cid}/combats/{run_id}/actions",
+        json={"action_type": "set_initiative", "payload": {"id": gid, "value": 20}},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["state"]["combatants"][gid]["initiative"] == 20
+
+
+def test_undo_does_not_erase_a_roll(client: TestClient) -> None:
+    """Rolls live outside the fold, so a cursor move never un-throws a die.
+
+    Folding them would also mean Undo after a roll appeared to do nothing, since a roll has
+    no effect on state.
+    """
+    cid = _demo(client)
+    run_id = _start_from_two_goblins(client, cid)
+    before = client.get(f"/api/v1/campaigns/{cid}/combats/{run_id}/rolls").json()
+    assert len(before) == 2
+
+    client.post(f"/api/v1/campaigns/{cid}/combats/{run_id}/undo")
+    after = client.get(f"/api/v1/campaigns/{cid}/combats/{run_id}/rolls").json()
+    assert len(after) == 2
+
+
 def test_list_combats_by_encounter(client: TestClient) -> None:
     cid = _demo(client)
     goblin = _monster(client, cid, "Goblin")
@@ -158,7 +286,11 @@ def test_list_combats_by_encounter(client: TestClient) -> None:
     ).json()
     listed = client.get(f"/api/v1/campaigns/{cid}/combats?encounter_id={enc['id']}").json()
     assert [r["run_id"] for r in listed] == [run["run_id"]]
-    assert listed[0]["status"] == "active" and listed[0]["round"] == 1
+    # A run opens in `setup` (rolling initiative) and only becomes `active` on Begin.
+    assert listed[0]["status"] == "setup" and listed[0]["round"] == 1
+    client.post(f"/api/v1/campaigns/{cid}/combats/{run['run_id']}/begin")
+    listed = client.get(f"/api/v1/campaigns/{cid}/combats?encounter_id={enc['id']}").json()
+    assert listed[0]["status"] == "active"
     # No filter → empty (the endpoint is scoped to an encounter, not a firehose).
     assert client.get(f"/api/v1/campaigns/{cid}/combats").json() == []
 

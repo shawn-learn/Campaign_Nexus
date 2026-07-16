@@ -458,6 +458,23 @@ ul.relations li:last-child { border-bottom: none; }
 .combat-side { display: flex; flex-direction: column; gap: 12px; }
 .keypad-buffer { font-size: 18px; margin-bottom: 8px; }
 
+/* Initiative setup — the roster you settle before round 1. Two columns, because the roster
+   is the whole screen here rather than a rail beside the tracker. */
+.setup-rail { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+.setup-rail .combatant-card { cursor: default; }
+/* Sized and coloured like the .cc-init it replaces, so a typed number and a rolled one
+   read as the same thing in the same column. */
+.cc-init-input { width: 46px; padding: 2px 4px; font-weight: 700; font-size: 15px;
+  color: var(--accent); background: var(--bg); border: 1px solid var(--border);
+  border-radius: 4px; text-align: center; font-family: inherit; }
+.cc-init-input:focus { outline: none; border-color: var(--accent); }
+/* The spinners steal room from a two-digit number and invite the mouse into a keyboard flow. */
+.cc-init-input::-webkit-outer-spin-button,
+.cc-init-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.cc-init-input { -moz-appearance: textfield; appearance: textfield; }
+.cc-reroll { font-size: 14px; padding: 0 4px; line-height: 1; }
+.cc-setup-meta { display: flex; gap: 8px; font-size: 11px; margin-top: 6px; flex-wrap: wrap; }
+
 /* Encounter difficulty badges */
 .diff-trivial { color: var(--muted); }
 .diff-easy { color: #5aa469; }

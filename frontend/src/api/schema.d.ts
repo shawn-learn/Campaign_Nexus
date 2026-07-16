@@ -1084,6 +1084,63 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/campaigns/{campaign_id}/combats/{run_id}/initiative": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Roll Initiative
+         * @description Roll for a scope and/or take the totals the GM typed in — one round trip for both.
+         */
+        post: operations["roll_initiative_api_v1_campaigns__campaign_id__combats__run_id__initiative_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/combats/{run_id}/begin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Begin Combat
+         * @description Leave setup and start round 1.
+         */
+        post: operations["begin_combat_api_v1_campaigns__campaign_id__combats__run_id__begin_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/combats/{run_id}/rolls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Rolls */
+        get: operations["list_rolls_api_v1_campaigns__campaign_id__combats__run_id__rolls_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/campaigns/{campaign_id}/combats/{run_id}/actions": {
         parameters: {
             query?: never;
@@ -2623,6 +2680,30 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** CombatRollOut */
+        CombatRollOut: {
+            /** Id */
+            id: string;
+            /** Combatant Id */
+            combatant_id: string | null;
+            /** Kind */
+            kind: string;
+            /** Label */
+            label: string;
+            /** Expression */
+            expression: string;
+            /** Mode */
+            mode: string;
+            detail: components["schemas"]["RollDetail"];
+            /** Total */
+            total: number;
+            /** Target */
+            target: number | null;
+            /** Outcome */
+            outcome: string | null;
+            /** Recorded At Real */
+            recorded_at_real: string;
+        };
         /** CombatRunBrief */
         CombatRunBrief: {
             /** Run Id */
@@ -2658,6 +2739,8 @@ export interface components {
             combatant_blocks?: {
                 [key: string]: string;
             };
+            /** Initiative Dice */
+            initiative_dice?: string | null;
         };
         /** CombatState */
         CombatState: {
@@ -2829,6 +2912,17 @@ export interface components {
         DependencyIn: {
             /** Depends On Id */
             depends_on_id: string;
+        };
+        /** DieFace */
+        DieFace: {
+            /** Sides */
+            sides: number;
+            /** Value */
+            value: number;
+            /** Kept */
+            kept: boolean;
+            /** Sign */
+            sign: number;
         };
         /** DifficultyOut */
         DifficultyOut: {
@@ -4255,6 +4349,56 @@ export interface components {
             to_time: number;
             /** Members */
             members: components["schemas"]["PartyMemberOut"][];
+        };
+        /** RollDetail */
+        RollDetail: {
+            /**
+             * Dice
+             * @default []
+             */
+            dice?: components["schemas"]["DieFace"][];
+            /**
+             * Modifier
+             * @default 0
+             */
+            modifier?: number;
+            /**
+             * Critical
+             * @default false
+             */
+            critical?: boolean;
+            /**
+             * Fumble
+             * @default false
+             */
+            fumble?: boolean;
+        };
+        /**
+         * RollInitiativeIn
+         * @description Roll for a scope and/or accept the totals the GM typed in.
+         *
+         *     Both halves in one request, because that is the actual moment at the table: the monsters
+         *     roll, the players call their numbers out, and the order settles once.
+         */
+        RollInitiativeIn: {
+            /**
+             * Scope
+             * @default all
+             * @enum {string}
+             */
+            scope?: "all" | "foes" | "ids";
+            /** Ids */
+            ids?: string[] | null;
+            /** Values */
+            values?: {
+                [key: string]: number;
+            } | null;
+            /**
+             * Mode
+             * @default normal
+             * @enum {string}
+             */
+            mode?: "normal" | "advantage" | "disadvantage";
         };
         /** RollOut */
         RollOut: {
@@ -7710,6 +7854,108 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CombatRunOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    roll_initiative_api_v1_campaigns__campaign_id__combats__run_id__initiative_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RollInitiativeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CombatRunOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    begin_combat_api_v1_campaigns__campaign_id__combats__run_id__begin_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CombatRunOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_rolls_api_v1_campaigns__campaign_id__combats__run_id__rolls_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                run_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CombatRollOut"][];
                 };
             };
             /** @description Validation Error */

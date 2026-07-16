@@ -15,6 +15,7 @@ import {
 import type { CombatState } from '../../lib/combatReducer'
 import { useActiveCampaign } from '../../shell/useActiveCampaign'
 import { StatBlockView } from '../rules/StatBlockView'
+import { CombatSetup } from './CombatSetup'
 
 function errorText(err: unknown): string {
   return err instanceof Error ? err.message : 'Something went wrong'
@@ -155,6 +156,18 @@ export function CombatPage() {
           </p>
         )}
       </>
+    )
+  }
+
+  // Roll for initiative before round 1. This lives on the run, not in local state, so a
+  // refresh mid-setup comes back to the roster rather than dropping you into the fight.
+  if (status === 'setup' && run.data) {
+    return (
+      <CombatSetup
+        campaignId={campaignId!}
+        run={run.data}
+        onBegun={() => setSelected(state.order[0] ?? null)}
+      />
     )
   }
 

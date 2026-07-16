@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
@@ -20,6 +22,7 @@ from app.modules.playbook.models import CombatRun
 from app.modules.playbook.schemas import (
     AddMember,
     CombatActionIn,
+    CombatRollOut,
     CombatRunBrief,
     CombatRunOut,
     CombatSummary,
@@ -44,6 +47,8 @@ from app.modules.playbook.schemas import (
     RecordCheckIn,
     RestRequest,
     RestResult,
+    RollDetail,
+    RollInitiativeIn,
     RollOut,
     SetLocation,
     SetPin,
@@ -473,6 +478,7 @@ def _run_out(session: Session, run: CombatRun) -> CombatRunOut:
         can_undo=run.fold_cursor > 0, can_redo=run.fold_cursor < total,
         state=combat.state_of(session, run),
         combatant_blocks=combat.combatant_blocks(session, run.id),
+        initiative_dice=combat.initiative_die(session, run),
     )
 
 
@@ -518,6 +524,62 @@ def get_combat(
     ctx: CampaignContext = Viewer,
 ) -> CombatRunOut:
     return _run_out(session, _load_run(session, ctx.campaign_id, run_id))
+
+
+@combat_router.post("/{run_id}/initiative", response_model=CombatRunOut)
+def roll_initiative(
+    run_id: str,
+    body: RollInitiativeIn,
+    session: Session = Depends(get_session),
+    ctx: CampaignContext = Editor,
+) -> CombatRunOut:
+    """Roll for a scope and/or take the totals the GM typed in — one round trip for both."""
+    try:
+        run = combat.roll_initiative(
+            session, _campaign(session, ctx.campaign_id), run_id,
+            scope=body.scope, ids=body.ids, values=body.values, mode=body.mode,
+        )
+    except combat.CombatNotFound as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "combat not found") from exc
+    except combat.CombatClosed as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, "combat already ended") from exc
+    return _run_out(session, run)
+
+
+@combat_router.post("/{run_id}/begin", response_model=CombatRunOut)
+def begin_combat(
+    run_id: str,
+    session: Session = Depends(get_session),
+    ctx: CampaignContext = Editor,
+) -> CombatRunOut:
+    """Leave setup and start round 1."""
+    try:
+        run = combat.begin_combat(session, ctx.campaign_id, run_id)
+    except combat.CombatNotFound as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "combat not found") from exc
+    except combat.CombatClosed as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, "combat already ended") from exc
+    return _run_out(session, run)
+
+
+@combat_router.get("/{run_id}/rolls", response_model=list[CombatRollOut])
+def list_rolls(
+    run_id: str,
+    limit: int = Query(default=50, ge=1, le=200),
+    session: Session = Depends(get_session),
+    ctx: CampaignContext = Viewer,
+) -> list[CombatRollOut]:
+    _load_run(session, ctx.campaign_id, run_id)
+    return [
+        CombatRollOut(
+            id=r.id, combatant_id=r.combatant_id, kind=r.kind, label=r.label,
+            expression=r.expression, mode=r.mode,
+            detail=RollDetail.model_validate(json.loads(r.detail_json)),
+            total=r.total, target=r.target, outcome=r.outcome,
+            recorded_at_real=r.recorded_at_real,
+        )
+        for r in combat.rolls_for(session, run_id, limit)
+    ]
 
 
 @combat_router.post("/{run_id}/actions", response_model=CombatRunOut)

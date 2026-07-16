@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -402,6 +402,9 @@ class CombatRunOut(BaseModel):
     state: CombatState
     #: combatant id → stat-block id, so the UI can show a combatant's full stat block.
     combatant_blocks: dict[str, str] = {}
+    #: The die this system rolls for order ("1d20"), or None if it doesn't roll at all —
+    #: the tracker uses it to decide whether offering a roll would even be honest.
+    initiative_dice: str | None = None
 
 
 class CombatRunBrief(BaseModel):
@@ -421,6 +424,51 @@ class CombatActionIn(BaseModel):
     #: then silently ignored — a no-op action the GM would have to press Undo to clear.
     action_type: ActionType
     payload: dict[str, Any] = {}
+
+
+class RollInitiativeIn(BaseModel):
+    """Roll for a scope and/or accept the totals the GM typed in.
+
+    Both halves in one request, because that is the actual moment at the table: the monsters
+    roll, the players call their numbers out, and the order settles once.
+    """
+
+    #: all = everyone (absent players included); foes = monsters only; ids = an explicit list.
+    scope: Literal["all", "foes", "ids"] = "all"
+    ids: list[str] | None = None
+    #: combatant id → the total the player called out, modifier already included. A typed
+    #: value always wins over a roll for that combatant.
+    values: dict[str, int] | None = None
+    mode: Literal["normal", "advantage", "disadvantage"] = "normal"
+
+
+class DieFace(BaseModel):
+    sides: int
+    value: int
+    #: False for the die advantage/disadvantage discarded — kept so the log can show both.
+    kept: bool
+    sign: int
+
+
+class RollDetail(BaseModel):
+    dice: list[DieFace] = []
+    modifier: int = 0
+    critical: bool = False
+    fumble: bool = False
+
+
+class CombatRollOut(BaseModel):
+    id: str
+    combatant_id: str | None
+    kind: str
+    label: str
+    expression: str
+    mode: str
+    detail: RollDetail
+    total: int
+    target: int | None
+    outcome: str | None
+    recorded_at_real: str
 
 
 class CombatSummary(BaseModel):

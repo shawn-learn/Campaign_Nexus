@@ -652,6 +652,8 @@ export type CombatStateOut = components['schemas']['CombatState']
 export type CombatantOut = components['schemas']['Combatant']
 export type CombatSummary = components['schemas']['CombatSummary']
 export type ConditionDef = components['schemas']['ConditionOut']
+export type CombatRoll = components['schemas']['CombatRollOut']
+export type RollInitiativeIn = components['schemas']['RollInitiativeIn']
 
 // The reducer's action vocabulary, pinned to a Literal by the backend. A typo is a compile
 // error here rather than a 422 mid-combat.
@@ -725,6 +727,58 @@ export function useCombatAction(campaignId: string, runId: string | null) {
       qc.setQueryData(key, run)
       invalidateCombat(qc, campaignId)
     },
+  })
+}
+
+/** Roll initiative for a scope and/or submit the totals the GM typed in — one round trip. */
+export function useRollInitiative(campaignId: string, runId: string | null) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: RollInitiativeIn) =>
+      unwrap(
+        await api.POST('/api/v1/campaigns/{campaign_id}/combats/{run_id}/initiative', {
+          params: { path: { campaign_id: campaignId, run_id: runId! } },
+          body,
+        }),
+        'roll initiative',
+      ),
+    onSuccess: (run) => {
+      qc.setQueryData(combatKey(campaignId, runId), run)
+      void qc.invalidateQueries({ queryKey: ['combat-rolls', campaignId, runId] })
+    },
+  })
+}
+
+/** Leave setup and start round 1. */
+export function useBeginCombat(campaignId: string, runId: string | null) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async () =>
+      unwrap(
+        await api.POST('/api/v1/campaigns/{campaign_id}/combats/{run_id}/begin', {
+          params: { path: { campaign_id: campaignId, run_id: runId! } },
+        }),
+        'begin combat',
+      ),
+    onSuccess: (run) => {
+      qc.setQueryData(combatKey(campaignId, runId), run)
+      invalidateCombat(qc, campaignId)
+    },
+  })
+}
+
+/** The run's roll log. Append-only and outside the fold, so undo never erases it. */
+export function useCombatRolls(campaignId: string | null, runId: string | null) {
+  return useQuery({
+    enabled: !!campaignId && !!runId,
+    queryKey: ['combat-rolls', campaignId, runId],
+    queryFn: async () =>
+      unwrap(
+        await api.GET('/api/v1/campaigns/{campaign_id}/combats/{run_id}/rolls', {
+          params: { path: { campaign_id: campaignId!, run_id: runId! } },
+        }),
+        'load rolls',
+      ),
   })
 }
 
