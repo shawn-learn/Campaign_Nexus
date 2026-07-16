@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import pytest
 from app.modules.playbook import tables
 from fastapi.testclient import TestClient
 
@@ -12,18 +13,21 @@ def _demo(client: TestClient) -> str:
 
 
 # --- pure selection logic (no randomness) ----------------------------------
-def test_parse_dice() -> None:
-    assert tables.parse_dice("1d20") == (1, 20)
-    assert tables.parse_dice("d100") == (1, 100)
-    assert tables.parse_dice("2d6") == (2, 6)
-    assert tables.parse_dice("") is None  # weighted mode
+def test_dice_spec_passes_notation_through_and_flags_weighted() -> None:
+    # Notation itself is app.core.dice's job (see test_dice.py); this is the table-specific
+    # part — the "" sentinel that selects weighted mode instead of a range roll.
+    assert tables.dice_spec("1d20") == "1d20"
+    assert tables.dice_spec("d12+d8") == "d12+d8"
+    assert tables.dice_spec("2d6 + 1d4") == "2d6 + 1d4"
+    assert tables.dice_spec("") is None  # weighted mode
+    assert tables.dice_spec("   ") is None
 
 
-def test_parse_dice_terms_additive() -> None:
-    assert tables.parse_dice_terms("d12+d8") == [(1, 12), (1, 8)]
-    assert tables.parse_dice_terms("1d20") == [(1, 20)]
-    assert tables.parse_dice_terms("2d6 + 1d4") == [(2, 6), (1, 4)]
-    assert tables.parse_dice_terms("") is None
+def test_dice_spec_reraises_bad_notation_as_bad_dice() -> None:
+    # The router maps BadDice to a 422; a leaked BadExpression would 500 instead.
+    for bad in ["2x6", "1d", "abc", "1d20++5"]:
+        with pytest.raises(tables.BadDice):
+            tables.dice_spec(bad)
 
 
 def test_d12_plus_d8_table_rolls_in_2_to_20(client: TestClient) -> None:
@@ -37,6 +41,34 @@ def test_d12_plus_d8_table_rolls_in_2_to_20(client: TestClient) -> None:
         r = client.post(f"/api/v1/campaigns/{cid}/random-tables/{table['id']}/roll").json()
         assert 2 <= r["roll"] <= 20  # d12+d8 spans 2..20
         assert r["index"] is not None
+
+
+def test_table_with_a_flat_modifier_rolls_in_range(client: TestClient) -> None:
+    # Modifiers used to 400: the old NdM-only parser rejected the "+3" term. Now that dice
+    # notation comes from app.core.dice, "2d6+3" spans 5..15 and validates against it.
+    cid = _demo(client)
+    rows = [{"min": n, "max": n, "text": f"result {n}"} for n in range(5, 16)]
+    resp = client.post(
+        f"/api/v1/campaigns/{cid}/random-tables",
+        json={"name": "Shifted", "dice": "2d6+3", "rows": rows},
+    )
+    assert resp.status_code == 201, resp.text
+    table = resp.json()
+    for _ in range(40):
+        r = client.post(f"/api/v1/campaigns/{cid}/random-tables/{table['id']}/roll").json()
+        assert 5 <= r["roll"] <= 15
+        assert r["index"] is not None
+
+
+def test_table_rows_must_cover_the_modified_range(client: TestClient) -> None:
+    # The bounds shift with the modifier, so 2..12 no longer covers a 2d6+3 table.
+    cid = _demo(client)
+    rows = [{"min": n, "max": n, "text": f"result {n}"} for n in range(2, 13)]
+    resp = client.post(
+        f"/api/v1/campaigns/{cid}/random-tables",
+        json={"name": "Mismatched", "dice": "2d6+3", "rows": rows},
+    )
+    assert resp.status_code == 422
 
 
 def test_select_range_and_weighted() -> None:
