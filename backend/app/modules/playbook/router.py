@@ -31,6 +31,8 @@ from app.modules.playbook.schemas import (
     CombatRunOut,
     CombatSummary,
     DashboardOut,
+    DeathSaveIn,
+    DeathSaveRulesOut,
     DependencyIn,
     EncounterCreate,
     EncounterOut,
@@ -483,6 +485,7 @@ def _run_out(session: Session, run: CombatRun) -> CombatRunOut:
         state=combat.state_of(session, run),
         combatant_blocks=combat.combatant_blocks(session, run.id),
         initiative_dice=combat.initiative_die(session, run),
+        death_saves=DeathSaveRulesOut.model_validate(combat.death_save_rules(session, run)),
     )
 
 
@@ -568,6 +571,29 @@ def add_combatant(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "combat not found") from exc
     except combat.CombatantNotFound as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "monster not found") from exc
+    except combat.BadCombatant as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
+    except combat.CombatClosed as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, "combat already ended") from exc
+    return _run_out(session, run)
+
+
+@combat_router.post("/{run_id}/death-save", response_model=CombatRunOut)
+def roll_death_save(
+    run_id: str,
+    body: DeathSaveIn,
+    session: Session = Depends(get_session),
+    ctx: CampaignContext = Editor,
+) -> CombatRunOut:
+    """Roll one death save. The rule system decides what the die means; this records it."""
+    try:
+        run = combat.roll_death_save(
+            session, _campaign(session, ctx.campaign_id), run_id, body.combatant_id,
+        )
+    except combat.CombatNotFound as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "combat not found") from exc
+    except combat.CombatantNotFound as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "combatant not found") from exc
     except combat.BadCombatant as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
     except combat.CombatClosed as exc:

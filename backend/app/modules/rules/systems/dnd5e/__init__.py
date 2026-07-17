@@ -14,6 +14,7 @@ from app.modules.rules.interface import (
     CombatProfile,
     ConditionDef,
     ContentPack,
+    DeathSaveRules,
     Document,
     FacetDef,
     FacetValues,
@@ -398,6 +399,11 @@ class Dnd5eSystem(BaseRuleSystem):
                 "crit_rule": "double_dice",
             })
         return out
+
+    def death_save_rules(self) -> DeathSaveRules:
+        # A flat d20 — no ability modifier, no proficiency (PHB p.197). Three of either
+        # settles it; the count itself is the tracker's to keep.
+        return {"supported": True, "dice": "1d20", "dc": 10, "successes": 3, "failures": 3}
 
     def rest_types(self) -> list[str]:
         return ["short", "long"]

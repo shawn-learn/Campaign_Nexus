@@ -623,5 +623,342 @@
         }
       }
     }
+  },
+  {
+    "name": "death_saves_accumulate",
+    "actions": [
+      {
+        "type": "add_combatant",
+        "id": "p",
+        "name": "Serah",
+        "side": "ally",
+        "max_hp": 30,
+        "initiative": 12
+      },
+      {
+        "type": "damage",
+        "id": "p",
+        "amount": 30
+      },
+      {
+        "type": "death_save",
+        "id": "p",
+        "result": "failure"
+      },
+      {
+        "type": "death_save",
+        "id": "p",
+        "result": "success"
+      },
+      {
+        "type": "death_save",
+        "id": "p",
+        "result": "failure"
+      }
+    ],
+    "expected": {
+      "round": 1,
+      "turn_index": 0,
+      "order": [
+        "p"
+      ],
+      "combatants": {
+        "p": {
+          "id": "p",
+          "name": "Serah",
+          "side": "ally",
+          "kind": "creature",
+          "max_hp": 30,
+          "hp": 0,
+          "temp_hp": 0,
+          "initiative": 12,
+          "initiative_tiebreak": 0,
+          "conditions": [],
+          "concentrating": false,
+          "defeated": true,
+          "death_saves": {
+            "successes": 1,
+            "failures": 2
+          },
+          "legendary": {
+            "max": 0,
+            "remaining": 0
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "death_save_crit_fail_costs_two",
+    "actions": [
+      {
+        "type": "add_combatant",
+        "id": "p",
+        "name": "Serah",
+        "side": "ally",
+        "max_hp": 30,
+        "initiative": 12
+      },
+      {
+        "type": "damage",
+        "id": "p",
+        "amount": 30
+      },
+      {
+        "type": "death_save",
+        "id": "p",
+        "result": "crit_fail"
+      }
+    ],
+    "expected": {
+      "round": 1,
+      "turn_index": 0,
+      "order": [
+        "p"
+      ],
+      "combatants": {
+        "p": {
+          "id": "p",
+          "name": "Serah",
+          "side": "ally",
+          "kind": "creature",
+          "max_hp": 30,
+          "hp": 0,
+          "temp_hp": 0,
+          "initiative": 12,
+          "initiative_tiebreak": 0,
+          "conditions": [],
+          "concentrating": false,
+          "defeated": true,
+          "death_saves": {
+            "successes": 0,
+            "failures": 2
+          },
+          "legendary": {
+            "max": 0,
+            "remaining": 0
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "death_save_crit_success_revives_at_one",
+    "actions": [
+      {
+        "type": "add_combatant",
+        "id": "p",
+        "name": "Serah",
+        "side": "ally",
+        "max_hp": 30,
+        "initiative": 12
+      },
+      {
+        "type": "damage",
+        "id": "p",
+        "amount": 30
+      },
+      {
+        "type": "death_save",
+        "id": "p",
+        "result": "failure"
+      },
+      {
+        "type": "death_save",
+        "id": "p",
+        "result": "failure"
+      },
+      {
+        "type": "death_save",
+        "id": "p",
+        "result": "crit_success"
+      }
+    ],
+    "expected": {
+      "round": 1,
+      "turn_index": 0,
+      "order": [
+        "p"
+      ],
+      "combatants": {
+        "p": {
+          "id": "p",
+          "name": "Serah",
+          "side": "ally",
+          "kind": "creature",
+          "max_hp": 30,
+          "hp": 1,
+          "temp_hp": 0,
+          "initiative": 12,
+          "initiative_tiebreak": 0,
+          "conditions": [],
+          "concentrating": false,
+          "defeated": false,
+          "death_saves": {
+            "successes": 0,
+            "failures": 0
+          },
+          "legendary": {
+            "max": 0,
+            "remaining": 0
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "damage_while_down_is_an_automatic_failure",
+    "actions": [
+      {
+        "type": "add_combatant",
+        "id": "p",
+        "name": "Serah",
+        "side": "ally",
+        "max_hp": 30,
+        "initiative": 12
+      },
+      {
+        "type": "add_combatant",
+        "id": "L",
+        "name": "The Castle",
+        "side": "foe",
+        "max_hp": 0,
+        "initiative": 20,
+        "kind": "lair"
+      },
+      {
+        "type": "damage",
+        "id": "p",
+        "amount": 30
+      },
+      {
+        "type": "damage",
+        "id": "p",
+        "amount": 4
+      },
+      {
+        "type": "damage",
+        "id": "L",
+        "amount": 9
+      }
+    ],
+    "expected": {
+      "round": 1,
+      "turn_index": 0,
+      "order": [
+        "L",
+        "p"
+      ],
+      "combatants": {
+        "p": {
+          "id": "p",
+          "name": "Serah",
+          "side": "ally",
+          "kind": "creature",
+          "max_hp": 30,
+          "hp": 0,
+          "temp_hp": 0,
+          "initiative": 12,
+          "initiative_tiebreak": 0,
+          "conditions": [],
+          "concentrating": false,
+          "defeated": true,
+          "death_saves": {
+            "successes": 0,
+            "failures": 1
+          },
+          "legendary": {
+            "max": 0,
+            "remaining": 0
+          }
+        },
+        "L": {
+          "id": "L",
+          "name": "The Castle",
+          "side": "foe",
+          "kind": "lair",
+          "max_hp": 0,
+          "hp": 0,
+          "temp_hp": 0,
+          "initiative": 20,
+          "initiative_tiebreak": 0,
+          "conditions": [],
+          "concentrating": false,
+          "defeated": false,
+          "death_saves": {
+            "successes": 0,
+            "failures": 0
+          },
+          "legendary": {
+            "max": 0,
+            "remaining": 0
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "healing_above_zero_clears_death_saves",
+    "actions": [
+      {
+        "type": "add_combatant",
+        "id": "p",
+        "name": "Serah",
+        "side": "ally",
+        "max_hp": 30,
+        "initiative": 12
+      },
+      {
+        "type": "damage",
+        "id": "p",
+        "amount": 30
+      },
+      {
+        "type": "death_save",
+        "id": "p",
+        "result": "failure"
+      },
+      {
+        "type": "death_save",
+        "id": "p",
+        "result": "failure"
+      },
+      {
+        "type": "heal",
+        "id": "p",
+        "amount": 7
+      }
+    ],
+    "expected": {
+      "round": 1,
+      "turn_index": 0,
+      "order": [
+        "p"
+      ],
+      "combatants": {
+        "p": {
+          "id": "p",
+          "name": "Serah",
+          "side": "ally",
+          "kind": "creature",
+          "max_hp": 30,
+          "hp": 7,
+          "temp_hp": 0,
+          "initiative": 12,
+          "initiative_tiebreak": 0,
+          "conditions": [],
+          "concentrating": false,
+          "defeated": false,
+          "death_saves": {
+            "successes": 0,
+            "failures": 0
+          },
+          "legendary": {
+            "max": 0,
+            "remaining": 0
+          }
+        }
+      }
+    }
   }
 ]

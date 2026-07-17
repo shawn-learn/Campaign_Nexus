@@ -35,6 +35,7 @@ ActionType = Literal[
     "add_condition",
     "remove_condition",
     "set_concentration",
+    "death_save",
     "next_turn",
 ]
 ACTION_TYPES: tuple[str, ...] = get_args(ActionType)
@@ -102,6 +103,7 @@ def apply_action(state: State, action: Action) -> State:
     elif kind == "damage":
         m = combatants.get(action["id"])
         if m:
+            already_down = m["hp"] == 0 and m["kind"] != "lair"
             amount = int(action["amount"])
             absorbed = min(m["temp_hp"], amount)
             m["temp_hp"] -= absorbed
@@ -110,12 +112,35 @@ def apply_action(state: State, action: Action) -> State:
             m["defeated"] = _defeated(m)
             if m["hp"] == 0:
                 m["concentrating"] = False
+            # Hitting someone who is already down is an automatic failed death save — the
+            # single most-forgotten rule at a table, and free to get right here.
+            if already_down and amount > 0:
+                m["death_saves"]["failures"] += 1
     elif kind == "heal":
         m = combatants.get(action["id"])
         if m:
             m["hp"] = min(m["max_hp"], m["hp"] + int(action["amount"]))
             if m["hp"] > 0:
                 m["defeated"] = False
+                # Back above 0: nobody is dying any more, so the clock resets.
+                m["death_saves"] = {"successes": 0, "failures": 0}
+    elif kind == "death_save":
+        m = combatants.get(action["id"])
+        if m:
+            # The *outcome* was decided server-side (a natural 20 is the plugin's rule, not
+            # this module's); all that happens here is bookkeeping on a literal result.
+            result = action["result"]
+            saves = m["death_saves"]
+            if result == "crit_success":
+                m["hp"] = min(m["max_hp"], 1)
+                m["defeated"] = _defeated(m)
+                m["death_saves"] = {"successes": 0, "failures": 0}
+            elif result == "crit_fail":
+                saves["failures"] += 2
+            elif result == "success":
+                saves["successes"] += 1
+            elif result == "failure":
+                saves["failures"] += 1
     elif kind == "set_temp_hp":
         m = combatants.get(action["id"])
         if m:

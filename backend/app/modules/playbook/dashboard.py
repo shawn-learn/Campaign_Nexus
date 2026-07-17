@@ -26,6 +26,7 @@ from app.modules.playbook import service as party_service
 from app.modules.playbook.models import CombatRun
 from app.modules.playbook.schemas import (
     CombatRunOut,
+    DeathSaveRulesOut,
     DashboardOut,
     DashboardSession,
     EntityBrief,
@@ -166,6 +167,7 @@ def _active_combat(session: Session, campaign_id: str) -> CombatRunOut | None:
         can_undo=run.fold_cursor > 0, can_redo=run.fold_cursor < total,
         state=combat.state_of(session, run),
         initiative_dice=combat.initiative_die(session, run),
+        death_saves=DeathSaveRulesOut.model_validate(combat.death_save_rules(session, run)),
     )
 
 def _live_session(session: Session, campaign: Campaign) -> DashboardSession | None:

@@ -4363,6 +4363,68 @@
         }
       }
     },
+    "/api/v1/campaigns/{campaign_id}/combats/{run_id}/death-save": {
+      "post": {
+        "tags": [
+          "combat"
+        ],
+        "summary": "Roll Death Save",
+        "description": "Roll one death save. The rule system decides what the die means; this records it.",
+        "operationId": "roll_death_save_api_v1_campaigns__campaign_id__combats__run_id__death_save_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeathSaveIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CombatRunOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/campaigns/{campaign_id}/combats/{run_id}/begin": {
       "post": {
         "tags": [
@@ -11239,6 +11301,7 @@
               "add_condition",
               "remove_condition",
               "set_concentration",
+              "death_save",
               "next_turn"
             ],
             "title": "Action Type"
@@ -11432,6 +11495,12 @@
               }
             ],
             "title": "Initiative Dice"
+          },
+          "death_saves": {
+            "$ref": "#/components/schemas/DeathSaveRulesOut",
+            "default": {
+              "supported": false
+            }
           }
         },
         "type": "object",
@@ -11826,6 +11895,75 @@
           "status"
         ],
         "title": "DashboardSession"
+      },
+      "DeathSaveIn": {
+        "properties": {
+          "combatant_id": {
+            "type": "string",
+            "title": "Combatant Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "combatant_id"
+        ],
+        "title": "DeathSaveIn"
+      },
+      "DeathSaveRulesOut": {
+        "properties": {
+          "supported": {
+            "type": "boolean",
+            "title": "Supported",
+            "default": false
+          },
+          "dice": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dice"
+          },
+          "dc": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dc"
+          },
+          "successes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Successes"
+          },
+          "failures": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failures"
+          }
+        },
+        "type": "object",
+        "title": "DeathSaveRulesOut",
+        "description": "What a creature at 0 hp faces here, as the rule system prices it.\n\n``supported: False`` (the default) means the system has no such mechanic and the tracker\nshows no row \u2014 the reducer counts saves, but what a count *means* is priced right here."
       },
       "DeathSaves": {
         "properties": {

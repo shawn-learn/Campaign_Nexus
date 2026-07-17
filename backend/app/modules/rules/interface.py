@@ -58,6 +58,13 @@ FIELD_ROLES = (
 #    "description", "crit_rule": "double_dice"|None}
 AttackAction = dict[str, Any]
 
+# How a system handles a creature at 0 hit points, or ``{"supported": False}`` if it has no
+# such mechanic — the tracker then shows no death-save row at all rather than invent one.
+#   {"supported": True, "dice": "1d20", "dc": 10, "successes": 3, "failures": 3}
+# The reducer only counts; what a count *means* (stable, dead) is priced here, so 5e's
+# three-and-three never gets hard-coded into a system-agnostic module.
+DeathSaveRules = dict[str, Any]
+
 # The four generic facet columns on the monster table (docs/08, §10.4).
 FACET_KEYS = ("facet1_num", "facet2_num", "facet1_text", "facet2_text")
 
@@ -91,6 +98,7 @@ class RuleSystem(Protocol):
         self, status: Document, doc: Document, hit_points: int
     ) -> Document: ...
     def attack_actions(self, sheet_type: str, doc: Document) -> list[AttackAction]: ...
+    def death_save_rules(self) -> DeathSaveRules: ...
 
     # -- rests (docs/08, §10.2) --------------------------------------------
     def rest_types(self) -> list[str]: ...
@@ -187,6 +195,10 @@ class BaseRuleSystem:
         # A system with no attack model offers nothing to click; the tracker just doesn't
         # show an attack panel. Same shape as every other optional hook: empty, not an error.
         return []
+
+    def death_save_rules(self) -> DeathSaveRules:
+        # No death saves here — the tracker shows no row rather than guessing at one.
+        return {"supported": False}
 
     def rest_types(self) -> list[str]:
         return []

@@ -1124,6 +1124,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/campaigns/{campaign_id}/combats/{run_id}/death-save": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Roll Death Save
+         * @description Roll one death save. The rule system decides what the die means; this records it.
+         */
+        post: operations["roll_death_save_api_v1_campaigns__campaign_id__combats__run_id__death_save_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/campaigns/{campaign_id}/combats/{run_id}/begin": {
         parameters: {
             query?: never;
@@ -2852,7 +2872,7 @@ export interface components {
              * Action Type
              * @enum {string}
              */
-            action_type: "add_combatant" | "remove_combatant" | "set_initiative" | "damage" | "heal" | "set_temp_hp" | "add_condition" | "remove_condition" | "set_concentration" | "next_turn";
+            action_type: "add_combatant" | "remove_combatant" | "set_initiative" | "damage" | "heal" | "set_temp_hp" | "add_condition" | "remove_condition" | "set_concentration" | "death_save" | "next_turn";
             /**
              * Payload
              * @default {}
@@ -2922,6 +2942,12 @@ export interface components {
             };
             /** Initiative Dice */
             initiative_dice?: string | null;
+            /**
+             * @default {
+             *       "supported": false
+             *     }
+             */
+            death_saves?: components["schemas"]["DeathSaveRulesOut"];
         };
         /** CombatState */
         CombatState: {
@@ -3075,6 +3101,33 @@ export interface components {
             session_number: number;
             /** Status */
             status: string;
+        };
+        /** DeathSaveIn */
+        DeathSaveIn: {
+            /** Combatant Id */
+            combatant_id: string;
+        };
+        /**
+         * DeathSaveRulesOut
+         * @description What a creature at 0 hp faces here, as the rule system prices it.
+         *
+         *     ``supported: False`` (the default) means the system has no such mechanic and the tracker
+         *     shows no row — the reducer counts saves, but what a count *means* is priced right here.
+         */
+        DeathSaveRulesOut: {
+            /**
+             * Supported
+             * @default false
+             */
+            supported?: boolean;
+            /** Dice */
+            dice?: string | null;
+            /** Dc */
+            dc?: number | null;
+            /** Successes */
+            successes?: number | null;
+            /** Failures */
+            failures?: number | null;
         };
         /** DeathSaves */
         DeathSaves: {
@@ -8099,6 +8152,42 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["AddCombatantIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CombatRunOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    roll_death_save_api_v1_campaigns__campaign_id__combats__run_id__death_save_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeathSaveIn"];
             };
         };
         responses: {

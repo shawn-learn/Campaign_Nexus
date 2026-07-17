@@ -198,6 +198,14 @@ def initiative_die(session: Session, run: CombatRun) -> str | None:
     return str(die) if die else None
 
 
+def death_save_rules(session: Session, run: CombatRun) -> dict[str, Any]:
+    """How this system handles a creature at 0 hp, or ``{"supported": False}``."""
+    campaign = session.get(Campaign, run.campaign_id)
+    if campaign is None:
+        return {"supported": False}
+    return registry.get_system(campaign.rule_system_id).death_save_rules()
+
+
 def _roll_detail(result: dice.RollResult) -> dict[str, Any]:
     """The faces and modifier behind a total, so the log can show "17 (17, 9) + 5"."""
     return {
@@ -507,6 +515,54 @@ def attack(
         "save": action.get("save"),
         "description": action.get("description"),
     }
+
+
+def roll_death_save(
+    session: Session,
+    campaign: Campaign,
+    run_id: str,
+    combatant_id: str,
+    *,
+    rng: random.Random | None = None,
+) -> CombatRun:
+    """Roll one death save and record the outcome.
+
+    The *rules* are the plugin's — which die, against what, and that a natural 20 is worth
+    more than a success. This decides the outcome from those and hands the reducer a literal
+    word, so folding the log stays deterministic (ADR-005).
+    """
+    run = _require(session, campaign.id, run_id)
+    if run.status == "completed":
+        raise CombatClosed(run_id)
+    state = state_of(session, run)
+    if combatant_id not in state.combatants:
+        raise CombatantNotFound(combatant_id)
+
+    rules = registry.get_system(campaign.rule_system_id).death_save_rules()
+    if not rules.get("supported"):
+        raise BadCombatant("this rule system has no death saves")
+
+    dc = int(rules["dc"])
+    result = dice.roll(str(rules["dice"]), rng=rng)
+    if result.critical:
+        outcome = "crit_success"
+    elif result.fumble:
+        outcome = "crit_fail"
+    else:
+        outcome = "success" if result.total >= dc else "failure"
+
+    roll_id = new_id()
+    session.add(CombatRoll(
+        id=roll_id, combat_run_id=run_id, combatant_id=combatant_id, kind="death_save",
+        label="Death save", expression=str(rules["dice"]), mode="normal",
+        detail_json=json.dumps(_roll_detail(result)), total=result.total,
+        target=dc, outcome=outcome, recorded_at_real=now_real_iso(),
+    ))
+    _append_one(session, run, "death_save", {
+        "id": combatant_id, "result": outcome, "roll_id": roll_id,
+    })
+    session.commit()
+    return run
 
 
 def begin_combat(session: Session, campaign_id: str, run_id: str) -> CombatRun:

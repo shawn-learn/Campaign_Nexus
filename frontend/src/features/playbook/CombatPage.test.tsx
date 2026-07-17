@@ -60,10 +60,12 @@ function stateWith(round: number, turnIndex: number): CombatState {
   }
 }
 
+const DEATH_RULES = { supported: true, dice: '1d20', dc: 10, successes: 3, failures: 3 }
+
 function run(state: CombatState, over: Record<string, unknown> = {}) {
   return {
     run_id: 'run1', status: 'active', can_undo: false, can_redo: false, state,
-    initiative_dice: '1d20', ...over,
+    initiative_dice: '1d20', death_saves: DEATH_RULES, ...over,
   }
 }
 
@@ -114,7 +116,10 @@ function wrapper({ children }: { children: ReactNode }) {
 }
 
 beforeEach(() => {
-  vi.clearAllMocks()
+  // resetAllMocks, not clearAllMocks: clear leaves the mockReturnValueOnce queue intact, so
+  // a test that queues a never-resolving promise and never consumes it hands that promise to
+  // the *next* test's start call — which then hangs with no roster and a baffling error.
+  vi.resetAllMocks()
   localStorage.clear()
   qc = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -368,6 +373,107 @@ describe('CombatPage', () => {
     attacks = []
     const ui = await startedCombat()
     expect(ui.queryByRole('heading', { name: /^attacks$/i })).not.toBeInTheDocument()
+  })
+
+  it('shows no death-save row while everyone is standing', async () => {
+    const ui = await startedCombat()
+    expect(ui.queryByText(/dying/i)).not.toBeInTheDocument()
+  })
+
+  it('tracks death saves for a downed creature', async () => {
+    const down = stateWith(1, 0)
+    down.combatants.g1.hp = 0
+    down.combatants.g1.death_saves = { successes: 1, failures: 2 }
+    const ui = await startedCombat(run(down))
+
+    expect(ui.getByText(/dying/i)).toBeInTheDocument()
+    expect(ui.getByLabelText('1 of 3')).toBeInTheDocument() // successes
+    expect(ui.getByLabelText('2 of 3')).toBeInTheDocument() // failures
+    expect(ui.getByRole('button', { name: /roll 1d20 vs DC 10/i })).toBeInTheDocument()
+  })
+
+  it('stops offering the roll once the saves have settled it', async () => {
+    const down = stateWith(1, 0)
+    down.combatants.g1.hp = 0
+    down.combatants.g1.death_saves = { successes: 0, failures: 3 }
+    const ui = await startedCombat(run(down))
+
+    expect(ui.getByText('Dead')).toBeInTheDocument()
+    expect(ui.queryByRole('button', { name: /roll 1d20/i })).not.toBeInTheDocument()
+  })
+
+  it('shows no death-save row in a system that has none', async () => {
+    // Nimble has no death saves; inventing a d20 for it would be a lie.
+    const down = stateWith(1, 0)
+    down.combatants.g1.hp = 0
+    const ui = await startedCombat(run(down, { death_saves: { supported: false } }))
+    expect(ui.queryByText(/dying/i)).not.toBeInTheDocument()
+  })
+
+  it('asks about concentration when damage lands on a caster', async () => {
+    const s = stateWith(1, 0)
+    s.combatants.s1.concentrating = true
+    const ui = await startedCombat(run(s))
+
+    // 9 damage to Serah (30 hp): still up, so the question is live. DC = max(10, 4) = 10.
+    fireEvent.keyDown(window, { key: 'ArrowDown' }) // select Serah
+    POST.mockReturnValueOnce(new Promise(() => {}))
+    fireEvent.keyDown(window, { key: '9' })
+    fireEvent.keyDown(window, { key: 'Enter' })
+
+    expect(await ui.findByText(/Serah is concentrating/i)).toBeInTheDocument()
+    expect(ui.getByText(/DC 10/)).toBeInTheDocument()
+  })
+
+  it('uses half the damage as the DC when that is higher', async () => {
+    const s = stateWith(1, 0)
+    s.combatants.s1.concentrating = true
+    const ui = await startedCombat(run(s))
+
+    fireEvent.keyDown(window, { key: 'ArrowDown' })
+    POST.mockReturnValueOnce(new Promise(() => {}))
+    fireEvent.keyDown(window, { key: '2' })
+    fireEvent.keyDown(window, { key: '6' }) // 26 damage -> DC 13
+    fireEvent.keyDown(window, { key: 'Enter' })
+
+    expect(await ui.findByText(/DC 13/)).toBeInTheDocument()
+  })
+
+  it('breaks concentration only when told to', async () => {
+    const s = stateWith(1, 0)
+    s.combatants.s1.concentrating = true
+    const ui = await startedCombat(run(s))
+    fireEvent.keyDown(window, { key: 'ArrowDown' })
+    POST.mockReturnValueOnce(ok(run(s)))
+    fireEvent.keyDown(window, { key: '9' })
+    fireEvent.keyDown(window, { key: 'Enter' })
+    await ui.findByText(/Serah is concentrating/i)
+
+    // Held: the prompt goes away and nothing is dispatched.
+    fireEvent.click(ui.getByRole('button', { name: /^held$/i }))
+    expect(ui.queryByText(/is concentrating/i)).not.toBeInTheDocument()
+    expect(POST).not.toHaveBeenCalledWith(
+      '/api/v1/campaigns/{campaign_id}/combats/{run_id}/actions',
+      expect.objectContaining({
+        body: expect.objectContaining({ action_type: 'set_concentration' }),
+      }),
+    )
+  })
+
+  it('does not ask about concentration when the hit drops them', async () => {
+    // Falling to 0 breaks concentration outright — the reducer does it, so asking would
+    // be theatre.
+    const s = stateWith(1, 0)
+    s.combatants.s1.concentrating = true
+    const ui = await startedCombat(run(s))
+    fireEvent.keyDown(window, { key: 'ArrowDown' })
+    POST.mockReturnValueOnce(new Promise(() => {}))
+    fireEvent.keyDown(window, { key: '4' })
+    fireEvent.keyDown(window, { key: '0' }) // 40 vs 30 hp
+    fireEvent.keyDown(window, { key: 'Enter' })
+
+    await waitFor(() => expect(ui.getByText('0/30')).toBeInTheDocument())
+    expect(ui.queryByText(/is concentrating/i)).not.toBeInTheDocument()
   })
 
   it('sets temp HP from the keyboard', async () => {

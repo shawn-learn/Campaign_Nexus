@@ -7,12 +7,14 @@ import {
   useConditions,
   useEncounters,
   useEndCombat,
+  useRollDeathSave,
   useStartCombat,
   useStatBlock,
   type CombatActionType,
   type CombatSummary,
+  type DeathSaveRules,
 } from '../../api/hooks'
-import type { CombatState } from '../../lib/combatReducer'
+import type { Combatant, CombatState } from '../../lib/combatReducer'
 import { useActiveCampaign } from '../../shell/useActiveCampaign'
 import { StatBlockView } from '../rules/StatBlockView'
 import { AddCombatantDialog } from './AddCombatantDialog'
@@ -44,6 +46,10 @@ export function CombatPage() {
   const [buffer, setBuffer] = useState('')
   const [summary, setSummary] = useState<CombatSummary | null>(null)
   const [addOpen, setAddOpen] = useState(false)
+  //: The concentration question raised by the last damage, waiting on the GM's answer.
+  const [concentration, setConcentration] = useState<
+    { id: string; name: string; dc: number } | null
+  >(null)
 
   const storageKey = campaignId ? `nexus.combat.${campaignId}` : null
 
@@ -75,6 +81,9 @@ export function CombatPage() {
   const canUndo = run.data?.can_undo ?? false
   const canRedo = run.data?.can_redo ?? false
   const blocks = run.data?.combatant_blocks ?? {}
+  // Whether this system has death saves at all, and what settles one. Nimble says no, and
+  // the row simply never appears.
+  const deathRules = run.data?.death_saves ?? { supported: false }
 
   const begin = () => {
     if (!campaignId || !pick) return
@@ -96,10 +105,23 @@ export function CombatPage() {
 
   const push = useCallback(
     (type: CombatActionType, payload: Record<string, unknown>) => {
-      if (!campaignId || !runId) return
+      if (!campaignId || !runId || !state) return
       action.mutate({ type, payload })
+
+      // Damage on a concentrating caster raises a question the GM would otherwise have to
+      // remember to ask. Intercepting here catches every route to it — the keypad, the
+      // button, and an applied attack roll — rather than each call site separately.
+      if (type !== 'damage') return
+      const c = state.combatants[String(payload.id)]
+      const amount = Number(payload.amount) || 0
+      if (!c?.concentrating || amount <= 0) return
+      const absorbed = Math.min(c.temp_hp, amount)
+      // Dropping to 0 breaks concentration outright (the reducer does it), so don't ask.
+      if (c.hp - (amount - absorbed) <= 0) return
+      // 5e: DC 10, or half the damage taken, whichever is higher (PHB p.203).
+      setConcentration({ id: c.id, name: c.name, dc: Math.max(10, Math.floor(amount / 2)) })
     },
-    [campaignId, runId, action],
+    [campaignId, runId, state, action],
   )
 
   const doUndo = useCallback(() => undo.mutate(), [undo])
@@ -271,6 +293,29 @@ export function CombatPage() {
             </div>
           </div>
 
+          {/* The concentration question, raised the moment damage lands. The player rolls
+              their own save, so what the GM needs is the DC and somewhere to put the answer. */}
+          {concentration && (
+            <div className="card roll-card">
+              <b>{concentration.name} is concentrating</b>
+              <div>
+                CON save <span className="roll-total">DC {concentration.dc}</span>
+              </div>
+              <div className="row" style={{ gap: 6, marginTop: 8 }}>
+                <button onClick={() => setConcentration(null)}>Held</button>
+                <button
+                  className="danger-btn"
+                  onClick={() => {
+                    push('set_concentration', { id: concentration.id, on: false })
+                    setConcentration(null)
+                  }}
+                >
+                  Broken
+                </button>
+              </div>
+            </div>
+          )}
+
           {sel && (
             <div className="card">
               <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
@@ -279,6 +324,15 @@ export function CombatPage() {
                   Remove
                 </button>
               </div>
+
+              {deathRules.supported && sel.hp === 0 && sel.kind !== 'lair' && campaignId && runId && (
+                <DeathSaveRow
+                  campaignId={campaignId}
+                  runId={runId}
+                  combatant={sel}
+                  rules={deathRules}
+                />
+              )}
               <button
                 style={{ marginTop: 8 }}
                 onClick={() => push('set_concentration', { id: sel.id, on: !sel.concentrating })}
@@ -336,6 +390,65 @@ export function CombatPage() {
         />
       )}
     </>
+  )
+}
+
+// ── Death saves ──────────────────────────────────────────────────────────────
+// Shown only while a creature is at 0 hp, and only where the rule system has the mechanic.
+// The pips are the point: at a table this is tracked on a scrap of paper and forgotten.
+function DeathSaveRow({
+  campaignId,
+  runId,
+  combatant,
+  rules,
+}: {
+  campaignId: string
+  runId: string
+  combatant: Combatant
+  rules: DeathSaveRules
+}) {
+  const roll = useRollDeathSave(campaignId, runId)
+  const needSuccess = rules.successes ?? 3
+  const needFail = rules.failures ?? 3
+  const { successes, failures } = combatant.death_saves
+  const stable = successes >= needSuccess
+  const dead = failures >= needFail
+
+  return (
+    <div className="death-saves">
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <b>Dying</b>
+        {stable && <span className="ds-stable">Stable</span>}
+        {dead && <span className="ds-dead">Dead</span>}
+      </div>
+      <div className="ds-row">
+        <span className="muted">Successes</span>
+        <Pips filled={successes} of={needSuccess} kind="ok" />
+      </div>
+      <div className="ds-row">
+        <span className="muted">Failures</span>
+        <Pips filled={failures} of={needFail} kind="bad" />
+      </div>
+      {!stable && !dead && (
+        <button
+          style={{ marginTop: 6 }}
+          disabled={roll.isPending}
+          onClick={() => roll.mutate(combatant.id)}
+        >
+          {roll.isPending ? 'Rolling…' : `Roll ${rules.dice} vs DC ${rules.dc}`}
+        </button>
+      )}
+    </div>
+  )
+}
+
+function Pips({ filled, of, kind }: { filled: number; of: number; kind: 'ok' | 'bad' }) {
+  return (
+    <span className="ds-pips" aria-label={`${filled} of ${of}`}>
+      {Array.from({ length: of }, (_, i) => (
+        <span key={i} className={`ds-pip ${i < filled ? `on ${kind}` : ''}`} />
+      ))}
+    </span>
   )
 }
 

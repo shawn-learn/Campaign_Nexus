@@ -152,6 +152,117 @@ def test_party_hp_is_written_back_when_combat_ends(client: TestClient) -> None:
     assert member["status"]["current_hit_points"] == 27
 
 
+# --- death saves ------------------------------------------------------------
+def _downed_pc(client: TestClient, cid: str) -> tuple[str, str]:
+    """A run with a PC at 0 hp. Returns (run_id, combatant_id)."""
+    _pc(client, cid, "Serah")
+    run_id = _start_from_two_goblins(client, cid)
+    run = client.get(f"/api/v1/campaigns/{cid}/combats/{run_id}").json()
+    serah = next(c for c in run["state"]["combatants"].values() if c["name"] == "Serah")
+    client.post(
+        f"/api/v1/campaigns/{cid}/combats/{run_id}/actions",
+        json={"action_type": "damage", "payload": {"id": serah["id"], "amount": 40}},
+    )
+    return run_id, serah["id"]
+
+
+def test_the_run_reports_its_systems_death_save_rules(client: TestClient) -> None:
+    # The tracker shows a death-save row only where the rules have one — so it asks.
+    cid = _demo(client)
+    run_id = _start_from_two_goblins(client, cid)
+    rules = client.get(f"/api/v1/campaigns/{cid}/combats/{run_id}").json()["death_saves"]
+    assert rules == {"supported": True, "dice": "1d20", "dc": 10, "successes": 3, "failures": 3}
+
+
+def test_rolling_a_death_save_records_an_outcome(client: TestClient) -> None:
+    cid = _demo(client)
+    run_id, serah = _downed_pc(client, cid)
+
+    out = client.post(
+        f"/api/v1/campaigns/{cid}/combats/{run_id}/death-save",
+        json={"combatant_id": serah},
+    )
+    assert out.status_code == 200, out.text
+    saves = out.json()["state"]["combatants"][serah]["death_saves"]
+    assert saves["successes"] + saves["failures"] >= 1  # a nat 20 revives instead
+
+    rolls = client.get(f"/api/v1/campaigns/{cid}/combats/{run_id}/rolls").json()
+    roll = next(r for r in rolls if r["kind"] == "death_save")
+    assert roll["expression"] == "1d20" and roll["target"] == 10
+    assert roll["outcome"] in {"success", "failure", "crit_success", "crit_fail"}
+
+
+def test_death_save_outcomes_follow_the_die(client: TestClient, db: Session) -> None:
+    """DC 10 on a flat d20 — and the faces override the arithmetic at both ends."""
+    cid = _demo(client)
+    run_id, serah = _downed_pc(client, cid)
+    campaign = db.get(Campaign, cid)
+
+    def roll(face: int) -> str:
+        db.expire_all()
+        combat.roll_death_save(db, campaign, run_id, serah, rng=ScriptedRandom([face]))
+        rolls = client.get(f"/api/v1/campaigns/{cid}/combats/{run_id}/rolls").json()
+        return next(r for r in rolls if r["kind"] == "death_save")["outcome"]
+
+    assert roll(12) == "success"   # 12 >= 10
+    assert roll(9) == "failure"    # 9 < 10
+    assert roll(20) == "crit_success"
+    assert roll(1) == "crit_fail"
+
+
+def test_a_natural_twenty_puts_a_dying_pc_back_on_their_feet(
+    client: TestClient, db: Session
+) -> None:
+    cid = _demo(client)
+    run_id, serah = _downed_pc(client, cid)
+    campaign = db.get(Campaign, cid)
+
+    db.expire_all()
+    combat.roll_death_save(db, campaign, run_id, serah, rng=ScriptedRandom([9]))  # a failure
+    db.expire_all()
+    combat.roll_death_save(db, campaign, run_id, serah, rng=ScriptedRandom([20]))
+
+    state = client.get(f"/api/v1/campaigns/{cid}/combats/{run_id}").json()["state"]
+    c = state["combatants"][serah]
+    assert c["hp"] == 1 and c["defeated"] is False
+    assert c["death_saves"] == {"successes": 0, "failures": 0}  # slate wiped
+
+
+def test_hitting_someone_already_down_is_an_automatic_failure(client: TestClient) -> None:
+    # The most-forgotten rule at a table, and free to get right.
+    cid = _demo(client)
+    run_id, serah = _downed_pc(client, cid)
+    out = client.post(
+        f"/api/v1/campaigns/{cid}/combats/{run_id}/actions",
+        json={"action_type": "damage", "payload": {"id": serah, "amount": 3}},
+    ).json()
+    assert out["state"]["combatants"][serah]["death_saves"]["failures"] == 1
+
+
+def test_a_system_without_death_saves_refuses_to_roll_one(client: TestClient) -> None:
+    """Nimble has no death saves, so the tracker must not invent a d20 for it."""
+    cid = client.post(
+        "/api/v1/campaigns", json={"name": "nimble game", "rule_system_id": "nimble"}
+    ).json()["id"]
+    client.post(f"/api/v1/campaigns/{cid}/monsters/import-json", json={
+        "monsters": [{"name": "Goblin", "doc": {"level": 1, "role": "standard",
+                                                "max_hp": 8, "armor": "light"}}],
+    })
+    monster = client.get(f"/api/v1/campaigns/{cid}/monsters").json()[0]
+    enc = client.post(f"/api/v1/campaigns/{cid}/encounters", json={
+        "name": "Ambush", "combatants": [{"monster_id": monster["id"], "count": 1}],
+    }).json()
+    run = client.post(f"/api/v1/campaigns/{cid}/combats",
+                      json={"encounter_id": enc["id"]}).json()
+
+    assert run["death_saves"] == {"supported": False, "dice": None, "dc": None,
+                                  "successes": None, "failures": None}
+    gid = run["state"]["order"][0]
+    resp = client.post(f"/api/v1/campaigns/{cid}/combats/{run['run_id']}/death-save",
+                       json={"combatant_id": gid})
+    assert resp.status_code == 422
+
+
 # --- attacks ----------------------------------------------------------------
 class ScriptedRandom(random.Random):
     """Hands back pre-set faces, so a test can state the exact dice it means."""

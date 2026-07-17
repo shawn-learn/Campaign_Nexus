@@ -348,6 +348,21 @@ class RollOut(BaseModel):
 
 
 # --- combat ---------------------------------------------------------------- #
+class DeathSaveRulesOut(BaseModel):
+    """What a creature at 0 hp faces here, as the rule system prices it.
+
+    ``supported: False`` (the default) means the system has no such mechanic and the tracker
+    shows no row — the reducer counts saves, but what a count *means* is priced right here.
+    """
+
+    supported: bool = False
+    dice: str | None = None
+    dc: int | None = None
+    #: How many of each settles it — 5e says three and three; another system may not.
+    successes: int | None = None
+    failures: int | None = None
+
+
 class DeathSaves(BaseModel):
     successes: int = 0
     failures: int = 0
@@ -405,6 +420,9 @@ class CombatRunOut(BaseModel):
     #: The die this system rolls for order ("1d20"), or None if it doesn't roll at all —
     #: the tracker uses it to decide whether offering a roll would even be honest.
     initiative_dice: str | None = None
+    #: How this system handles a creature at 0 hp, or unsupported — same idea: the tracker
+    #: shows a death-save row only where the rules actually have one.
+    death_saves: DeathSaveRulesOut = DeathSaveRulesOut()
 
 
 class CombatRunBrief(BaseModel):
@@ -440,6 +458,10 @@ class RollInitiativeIn(BaseModel):
     #: value always wins over a roll for that combatant.
     values: dict[str, int] | None = None
     mode: Literal["normal", "advantage", "disadvantage"] = "normal"
+
+
+class DeathSaveIn(BaseModel):
+    combatant_id: str
 
 
 class AddCombatantIn(BaseModel):

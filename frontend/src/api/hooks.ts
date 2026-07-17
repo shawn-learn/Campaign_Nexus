@@ -655,6 +655,7 @@ export type ConditionDef = components['schemas']['ConditionOut']
 export type CombatRoll = components['schemas']['CombatRollOut']
 export type RollInitiativeIn = components['schemas']['RollInitiativeIn']
 export type AddCombatantIn = components['schemas']['AddCombatantIn']
+export type DeathSaveRules = components['schemas']['DeathSaveRulesOut']
 export type Attack = components['schemas']['AttackOut']
 export type AttackIn = components['schemas']['AttackIn']
 export type AttackResult = components['schemas']['AttackResultOut']
@@ -764,6 +765,25 @@ export function useAddCombatant(campaignId: string, runId: string | null) {
           body,
         }),
         'add combatant',
+      ),
+    onSuccess: (run) => {
+      qc.setQueryData(combatKey(campaignId, runId), run)
+      void qc.invalidateQueries({ queryKey: ['combat-rolls', campaignId, runId] })
+    },
+  })
+}
+
+/** Roll one death save. Which die, against what, and what a 20 means are the plugin's. */
+export function useRollDeathSave(campaignId: string, runId: string | null) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (combatantId: string) =>
+      unwrap(
+        await api.POST('/api/v1/campaigns/{campaign_id}/combats/{run_id}/death-save', {
+          params: { path: { campaign_id: campaignId, run_id: runId! } },
+          body: { combatant_id: combatantId },
+        }),
+        'roll death save',
       ),
     onSuccess: (run) => {
       qc.setQueryData(combatKey(campaignId, runId), run)

@@ -97,6 +97,7 @@ export function applyAction(state: CombatState, action: Action): CombatState {
   } else if (kind === 'damage') {
     const m = c[id]
     if (m) {
+      const alreadyDown = m.hp === 0 && m.kind !== 'lair'
       let amount = toInt(action.amount)
       const absorbed = Math.min(m.temp_hp, amount)
       m.temp_hp -= absorbed
@@ -104,12 +105,37 @@ export function applyAction(state: CombatState, action: Action): CombatState {
       m.hp = Math.max(0, m.hp - amount)
       m.defeated = isDefeated(m)
       if (m.hp === 0) m.concentrating = false
+      // Hitting someone who is already down is an automatic failed death save — the single
+      // most-forgotten rule at a table, and free to get right here.
+      if (alreadyDown && amount > 0) m.death_saves.failures += 1
     }
   } else if (kind === 'heal') {
     const m = c[id]
     if (m) {
       m.hp = Math.min(m.max_hp, m.hp + toInt(action.amount))
-      if (m.hp > 0) m.defeated = false
+      if (m.hp > 0) {
+        m.defeated = false
+        // Back above 0: nobody is dying any more, so the clock resets.
+        m.death_saves = { successes: 0, failures: 0 }
+      }
+    }
+  } else if (kind === 'death_save') {
+    const m = c[id]
+    if (m) {
+      // The *outcome* was decided server-side (a natural 20 is the plugin's rule, not this
+      // module's); all that happens here is bookkeeping on a literal result.
+      const result = action.result as string
+      if (result === 'crit_success') {
+        m.hp = Math.min(m.max_hp, 1)
+        m.defeated = isDefeated(m)
+        m.death_saves = { successes: 0, failures: 0 }
+      } else if (result === 'crit_fail') {
+        m.death_saves.failures += 2
+      } else if (result === 'success') {
+        m.death_saves.successes += 1
+      } else if (result === 'failure') {
+        m.death_saves.failures += 1
+      }
     }
   } else if (kind === 'set_temp_hp') {
     if (c[id]) c[id].temp_hp = Math.max(0, toInt(action.amount))
