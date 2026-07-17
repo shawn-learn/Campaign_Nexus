@@ -4301,6 +4301,68 @@
         }
       }
     },
+    "/api/v1/campaigns/{campaign_id}/combats/{run_id}/combatants": {
+      "post": {
+        "tags": [
+          "combat"
+        ],
+        "summary": "Add Combatant",
+        "description": "Add a straggler mid-fight, seeded from the bestiary or entered by hand.",
+        "operationId": "add_combatant_api_v1_campaigns__campaign_id__combats__run_id__combatants_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddCombatantIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CombatRunOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/campaigns/{campaign_id}/combats/{run_id}/begin": {
       "post": {
         "tags": [
@@ -10150,6 +10212,74 @@
   },
   "components": {
     "schemas": {
+      "AddCombatantIn": {
+        "properties": {
+          "monster_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monster Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "max_hp": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Hp"
+          },
+          "count": {
+            "type": "integer",
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Count",
+            "default": 1
+          },
+          "side": {
+            "type": "string",
+            "enum": [
+              "foe",
+              "ally"
+            ],
+            "title": "Side",
+            "default": "foe"
+          },
+          "initiative": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Initiative"
+          }
+        },
+        "type": "object",
+        "title": "AddCombatantIn",
+        "description": "A straggler joining mid-fight: either a bestiary monster or an ad-hoc name + HP."
+      },
       "AddMember": {
         "properties": {
           "stat_block_id": {

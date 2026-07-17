@@ -148,6 +148,114 @@ def test_party_hp_is_written_back_when_combat_ends(client: TestClient) -> None:
     assert member["status"]["current_hit_points"] == 27
 
 
+# --- roster control ---------------------------------------------------------
+def test_add_a_monster_mid_fight_continues_the_numbering(client: TestClient) -> None:
+    """A Goblin joining Goblin 1-2 becomes Goblin 3, not a second Goblin 1.
+
+    Two combatants with the same name on the rail is the moment a GM stops trusting the
+    tracker to know which one is bloodied.
+    """
+    cid = _demo(client)
+    run_id = _start_from_two_goblins(client, cid)
+
+    out = client.post(
+        f"/api/v1/campaigns/{cid}/combats/{run_id}/combatants",
+        json={"monster_id": _monster(client, cid, "Goblin"), "count": 2},
+    )
+    assert out.status_code == 200, out.text
+    names = sorted(c["name"] for c in out.json()["state"]["combatants"].values())
+    assert names == ["Goblin 1", "Goblin 2", "Goblin 3", "Goblin 4"]
+
+
+def test_added_monster_is_seeded_from_its_stat_block_and_rolls_in(client: TestClient) -> None:
+    cid = _demo(client)
+    run_id = _start_from_two_goblins(client, cid)
+
+    out = client.post(
+        f"/api/v1/campaigns/{cid}/combats/{run_id}/combatants",
+        json={"monster_id": _monster(client, cid, "Ogre"), "side": "foe"},
+    ).json()
+
+    ogre = next(c for c in out["state"]["combatants"].values() if c["name"] == "Ogre")
+    assert ogre["max_hp"] == 59 and ogre["hp"] == 59  # from the SRD stat block, not the client
+    assert ogre["initiative_tiebreak"] == -1  # dex 8
+    assert -1 + 1 <= ogre["initiative"] <= 20 - 1  # rolled 1d20-1 on the way in
+
+    rolls = client.get(f"/api/v1/campaigns/{cid}/combats/{run_id}/rolls").json()
+    assert any(r["combatant_id"] == ogre["id"] and r["expression"] == "1d20-1" for r in rolls)
+
+
+def test_add_an_ad_hoc_combatant_with_an_explicit_initiative(client: TestClient) -> None:
+    # A player's summon acts on their turn, so its number is given rather than rolled.
+    cid = _demo(client)
+    run_id = _start_from_two_goblins(client, cid)
+
+    out = client.post(
+        f"/api/v1/campaigns/{cid}/combats/{run_id}/combatants",
+        json={"name": "Spectral Wolf", "max_hp": 12, "side": "ally", "initiative": 14},
+    ).json()
+
+    wolf = next(c for c in out["state"]["combatants"].values() if c["name"] == "Spectral Wolf")
+    assert (wolf["max_hp"], wolf["hp"], wolf["side"]) == (12, 12, "ally")
+    assert wolf["initiative"] == 14  # taken as given, not rolled over
+    rolls = client.get(f"/api/v1/campaigns/{cid}/combats/{run_id}/rolls").json()
+    assert not any(r["combatant_id"] == wolf["id"] for r in rolls)
+
+
+def test_ad_hoc_combatant_needs_a_name_and_hp(client: TestClient) -> None:
+    cid = _demo(client)
+    run_id = _start_from_two_goblins(client, cid)
+    resp = client.post(
+        f"/api/v1/campaigns/{cid}/combats/{run_id}/combatants", json={"name": "Nameless"},
+    )
+    assert resp.status_code == 422
+
+
+def test_adding_an_unknown_monster_404s(client: TestClient) -> None:
+    cid = _demo(client)
+    run_id = _start_from_two_goblins(client, cid)
+    resp = client.post(
+        f"/api/v1/campaigns/{cid}/combats/{run_id}/combatants", json={"monster_id": "nope"},
+    )
+    assert resp.status_code == 404
+
+
+def test_remove_a_combatant(client: TestClient) -> None:
+    cid = _demo(client)
+    run_id = _start_from_two_goblins(client, cid)
+    run = client.get(f"/api/v1/campaigns/{cid}/combats/{run_id}").json()
+    gid = run["state"]["order"][0]
+
+    out = client.post(
+        f"/api/v1/campaigns/{cid}/combats/{run_id}/actions",
+        json={"action_type": "remove_combatant", "payload": {"id": gid}},
+    ).json()
+    assert gid not in out["state"]["combatants"]
+    assert gid not in out["state"]["order"]
+
+
+def test_temp_hp_absorbs_damage_before_hit_points(client: TestClient) -> None:
+    # set_temp_hp rendered as "(+N)" from day one but nothing could ever set it.
+    cid = _demo(client)
+    run_id = _start_from_two_goblins(client, cid)
+    run = client.get(f"/api/v1/campaigns/{cid}/combats/{run_id}").json()
+    gid = run["state"]["order"][0]
+
+    def act(atype, **payload):
+        return client.post(
+            f"/api/v1/campaigns/{cid}/combats/{run_id}/actions",
+            json={"action_type": atype, "payload": payload},
+        ).json()["state"]["combatants"][gid]
+
+    assert act("set_temp_hp", id=gid, amount=5)["temp_hp"] == 5
+    # 3 comes off the 5 temp; real hit points are untouched.
+    after = act("damage", id=gid, amount=3)
+    assert (after["temp_hp"], after["hp"]) == (2, 7)
+    # 4 more: the last 2 temp absorb, then 2 land on hp.
+    after = act("damage", id=gid, amount=4)
+    assert (after["temp_hp"], after["hp"]) == (0, 5)
+
+
 # --- initiative -------------------------------------------------------------
 def _pc(client: TestClient, cid: str, label: str, dex: int = 14) -> str:
     sb = client.post(

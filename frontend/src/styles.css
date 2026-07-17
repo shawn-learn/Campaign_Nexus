@@ -450,6 +450,10 @@ ul.relations li:last-child { border-bottom: none; }
 .cc-init { font-weight: 700; color: var(--accent); min-width: 22px; }
 .cc-name { flex: 1; font-weight: 600; }
 .cc-conc { color: var(--accent); }
+/* Bloodied (at or below half). The hp bar already shades toward red as it empties, so the
+   glyph carries the signal — the border alone was too easy to miss on a full rail. */
+.cc-bloodied { color: var(--danger); }
+.hp-bar.bloodied { border-color: var(--danger); }
 .hp-bar { position: relative; height: 18px; background: var(--bg); border-radius: 4px;
   overflow: hidden; margin-top: 6px; border: 1px solid var(--border); }
 .hp-fill { height: 100%; background: linear-gradient(90deg, var(--danger), #6a9a4f); transition: width 0.15s; }

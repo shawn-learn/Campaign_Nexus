@@ -20,6 +20,7 @@ from app.modules.playbook import (
 )
 from app.modules.playbook.models import CombatRun
 from app.modules.playbook.schemas import (
+    AddCombatantIn,
     AddMember,
     CombatActionIn,
     CombatRollOut,
@@ -541,6 +542,31 @@ def roll_initiative(
         )
     except combat.CombatNotFound as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "combat not found") from exc
+    except combat.CombatClosed as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, "combat already ended") from exc
+    return _run_out(session, run)
+
+
+@combat_router.post("/{run_id}/combatants", response_model=CombatRunOut)
+def add_combatant(
+    run_id: str,
+    body: AddCombatantIn,
+    session: Session = Depends(get_session),
+    ctx: CampaignContext = Editor,
+) -> CombatRunOut:
+    """Add a straggler mid-fight, seeded from the bestiary or entered by hand."""
+    try:
+        run = combat.add_combatant(
+            session, _campaign(session, ctx.campaign_id), run_id,
+            monster_id=body.monster_id, name=body.name, max_hp=body.max_hp,
+            count=body.count, side=body.side, initiative=body.initiative,
+        )
+    except combat.CombatNotFound as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "combat not found") from exc
+    except combat.CombatantNotFound as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "monster not found") from exc
+    except combat.BadCombatant as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
     except combat.CombatClosed as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, "combat already ended") from exc
     return _run_out(session, run)

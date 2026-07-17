@@ -442,6 +442,19 @@ class RollInitiativeIn(BaseModel):
     mode: Literal["normal", "advantage", "disadvantage"] = "normal"
 
 
+class AddCombatantIn(BaseModel):
+    """A straggler joining mid-fight: either a bestiary monster or an ad-hoc name + HP."""
+
+    monster_id: str | None = None
+    #: Ad-hoc: a name and hit points, for something that isn't in the bestiary.
+    name: str | None = None
+    max_hp: int | None = Field(default=None, ge=0)
+    count: int = Field(default=1, ge=1, le=20)
+    side: Literal["foe", "ally"] = "foe"
+    #: Use this exact initiative rather than rolling — a player's summon acts on their turn.
+    initiative: int | None = None
+
+
 class DieFace(BaseModel):
     sides: int
     value: int

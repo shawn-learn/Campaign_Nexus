@@ -100,6 +100,7 @@ beforeEach(() => {
       return ok([{ id: 'prone', name: 'Prone', description: 'Disadvantage on attacks.' }])
     }
     if (path.includes('/rolls')) return ok(rolls)
+    if (path.includes('/monsters')) return ok([{ id: 'm-ogre', name: 'Ogre' }])
     if (path.includes('/combats/')) return served ? ok(served) : fail('combat not found')
     return ok(null)
   })
@@ -257,6 +258,75 @@ describe('CombatPage', () => {
     expect(ui.queryByRole('button', { name: /roll all/i })).not.toBeInTheDocument()
     expect(ui.queryByLabelText('Serah initiative')).not.toBeInTheDocument()
     expect(ui.getByRole('button', { name: /begin/i })).toBeEnabled()
+  })
+
+  it('sets temp HP from the keyboard', async () => {
+    // set_temp_hp rendered as "(+N)" from day one but nothing could ever set it.
+    const ui = await startedCombat()
+    POST.mockReturnValueOnce(new Promise(() => {})) // optimistic only
+
+    fireEvent.keyDown(window, { key: '5' })
+    fireEvent.keyDown(window, { key: 't' })
+
+    expect(await ui.findByText('7/7 (+5)')).toBeInTheDocument()
+  })
+
+  it('marks a combatant bloodied at half HP', async () => {
+    const wounded = stateWith(1, 0)
+    wounded.combatants.g1.hp = 3 // 3 of 7 — at or below half
+    const ui = await startedCombat(run(wounded))
+
+    expect(ui.getByTitle('bloodied')).toBeInTheDocument()
+  })
+
+  it('confirms before removing a combatant', async () => {
+    const ui = await startedCombat()
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    POST.mockReturnValueOnce(ok(run(stateWith(1, 0))))
+
+    fireEvent.click(ui.getByRole('button', { name: /^remove$/i }))
+
+    // Declining must not fire the action — this is the one destructive control here.
+    expect(confirmSpy).toHaveBeenCalled()
+    expect(POST).not.toHaveBeenCalledWith(
+      '/api/v1/campaigns/{campaign_id}/combats/{run_id}/actions',
+      expect.objectContaining({ body: expect.objectContaining({ action_type: 'remove_combatant' }) }),
+    )
+
+    confirmSpy.mockReturnValue(true)
+    fireEvent.click(ui.getByRole('button', { name: /^remove$/i }))
+    await waitFor(() =>
+      expect(POST).toHaveBeenCalledWith(
+        '/api/v1/campaigns/{campaign_id}/combats/{run_id}/actions',
+        expect.objectContaining({
+          body: { action_type: 'remove_combatant', payload: { id: 'g1' } },
+        }),
+      ),
+    )
+    confirmSpy.mockRestore()
+  })
+
+  it('adds a monster from the bestiary by id, letting the server seed it', async () => {
+    const ui = await startedCombat()
+    fireEvent.keyDown(window, { key: 'a' })
+
+    const dialog = within(await ui.findByRole('dialog'))
+    // Wait for the option, not the select — the same trap as the encounter picker: setting a
+    // value that has no option yet silently leaves the select empty.
+    await dialog.findByRole('option', { name: 'Ogre' })
+    fireEvent.change(dialog.getByLabelText(/monster/i), { target: { value: 'm-ogre' } })
+    POST.mockReturnValueOnce(ok(run(stateWith(1, 0))))
+    fireEvent.click(dialog.getByRole('button', { name: /^add$/i }))
+
+    // Only the id goes up: HP and the initiative die come from the plugin, server-side.
+    await waitFor(() =>
+      expect(POST).toHaveBeenCalledWith(
+        '/api/v1/campaigns/{campaign_id}/combats/{run_id}/combatants',
+        expect.objectContaining({
+          body: expect.objectContaining({ monster_id: 'm-ogre', count: 1, side: 'foe' }),
+        }),
+      ),
+    )
   })
 
   it("offers the rule system's conditions rather than a hard-coded list", async () => {

@@ -654,6 +654,7 @@ export type CombatSummary = components['schemas']['CombatSummary']
 export type ConditionDef = components['schemas']['ConditionOut']
 export type CombatRoll = components['schemas']['CombatRollOut']
 export type RollInitiativeIn = components['schemas']['RollInitiativeIn']
+export type AddCombatantIn = components['schemas']['AddCombatantIn']
 
 // The reducer's action vocabulary, pinned to a Literal by the backend. A typo is a compile
 // error here rather than a 422 mid-combat.
@@ -741,6 +742,25 @@ export function useRollInitiative(campaignId: string, runId: string | null) {
           body,
         }),
         'roll initiative',
+      ),
+    onSuccess: (run) => {
+      qc.setQueryData(combatKey(campaignId, runId), run)
+      void qc.invalidateQueries({ queryKey: ['combat-rolls', campaignId, runId] })
+    },
+  })
+}
+
+/** Add a straggler mid-fight. The server seeds it from the plugin and rolls it in. */
+export function useAddCombatant(campaignId: string, runId: string | null) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: AddCombatantIn) =>
+      unwrap(
+        await api.POST('/api/v1/campaigns/{campaign_id}/combats/{run_id}/combatants', {
+          params: { path: { campaign_id: campaignId, run_id: runId! } },
+          body,
+        }),
+        'add combatant',
       ),
     onSuccess: (run) => {
       qc.setQueryData(combatKey(campaignId, runId), run)

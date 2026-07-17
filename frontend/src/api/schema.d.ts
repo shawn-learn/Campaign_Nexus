@@ -1104,6 +1104,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/campaigns/{campaign_id}/combats/{run_id}/combatants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add Combatant
+         * @description Add a straggler mid-fight, seeded from the bestiary or entered by hand.
+         */
+        post: operations["add_combatant_api_v1_campaigns__campaign_id__combats__run_id__combatants_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/campaigns/{campaign_id}/combats/{run_id}/begin": {
         parameters: {
             query?: never;
@@ -2443,6 +2463,31 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AddCombatantIn
+         * @description A straggler joining mid-fight: either a bestiary monster or an ad-hoc name + HP.
+         */
+        AddCombatantIn: {
+            /** Monster Id */
+            monster_id?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Max Hp */
+            max_hp?: number | null;
+            /**
+             * Count
+             * @default 1
+             */
+            count?: number;
+            /**
+             * Side
+             * @default foe
+             * @enum {string}
+             */
+            side?: "foe" | "ally";
+            /** Initiative */
+            initiative?: number | null;
+        };
         /** AddMember */
         AddMember: {
             /** Stat Block Id */
@@ -7880,6 +7925,42 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["RollInitiativeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CombatRunOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_combatant_api_v1_campaigns__campaign_id__combats__run_id__combatants_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddCombatantIn"];
             };
         };
         responses: {

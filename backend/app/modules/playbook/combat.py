@@ -42,6 +42,14 @@ class CombatClosed(ValueError):
     pass
 
 
+class CombatantNotFound(LookupError):
+    pass
+
+
+class BadCombatant(ValueError):
+    pass
+
+
 def _actions(session: Session, run_id: str, upto: int | None = None) -> list[CombatAction]:
     stmt = select(CombatAction).where(CombatAction.combat_run_id == run_id)
     if upto is not None:
@@ -275,6 +283,95 @@ def roll_initiative(
         })
 
     session.commit()
+    return run
+
+
+def _next_labels(state: CombatState, base: str, count: int) -> list[str]:
+    """Continue the numbering already in play: a Goblin joining Goblin 1-3 becomes Goblin 4.
+
+    Restarting at 1 would put two "Goblin 1"s on the rail, which is exactly the moment a GM
+    stops trusting the tracker to know which one is bloodied.
+    """
+    names = [c.name for c in state.combatants.values()]
+    highest = 0
+    for name in names:
+        if name == base:
+            highest = max(highest, 1)
+        elif name.startswith(f"{base} ") and name[len(base) + 1:].isdigit():
+            highest = max(highest, int(name[len(base) + 1:]))
+    if highest == 0 and count == 1:
+        return [base]  # the first one of its kind needs no number
+    return [f"{base} {highest + i + 1}" for i in range(count)]
+
+
+def add_combatant(
+    session: Session,
+    campaign: Campaign,
+    run_id: str,
+    *,
+    monster_id: str | None = None,
+    name: str | None = None,
+    max_hp: int | None = None,
+    count: int = 1,
+    side: str = "foe",
+    initiative: int | None = None,
+    rng: random.Random | None = None,
+) -> CombatRun:
+    """Add a straggler mid-fight: a bestiary monster, or an ad-hoc name and hit points.
+
+    The seeding has to happen here rather than in the browser: max HP, the initiative
+    modifier and the die all come from the rule system's ``combat_profile``, and the playbook
+    never lets anything else read inside a stat block (docs/04 §6.8).
+    """
+    run = _require(session, campaign.id, run_id)
+    if run.status == "completed":
+        raise CombatClosed(run_id)
+    system = registry.get_system(campaign.rule_system_id)
+    state = state_of(session, run)
+
+    if monster_id:
+        monster = session.get(Monster, monster_id)
+        if monster is None or monster.campaign_id != campaign.id:
+            raise CombatantNotFound(monster_id)
+        block = session.get(StatBlock, monster.stat_block_id)
+        doc = json.loads(block.doc_json) if block else {}
+        profile = system.combat_profile(block.sheet_type if block else "monster", doc)
+        base, block_id = monster.name, (block.id if block else None)
+    else:
+        if not name or max_hp is None:
+            raise BadCombatant("an ad-hoc combatant needs a name and max_hp")
+        # No stat block to read, so the system's own die stands in and the modifier is 0 —
+        # the GM can correct the number from the rail either way.
+        profile = {
+            "max_hp": int(max_hp), "hp": int(max_hp), "initiative": 0,
+            "initiative_mod": 0, "initiative_dice": initiative_die(session, run),
+        }
+        base, block_id = name, None
+
+    added: list[str] = []
+    for label in _next_labels(state, base, count):
+        cid = new_id()
+        added.append(cid)
+        _append_one(session, run, "add_combatant", {
+            "id": cid, "name": label, "side": side,
+            "max_hp": profile["max_hp"], "hp": profile["hp"],
+            "initiative": profile["initiative"],
+            "initiative_tiebreak": profile["initiative_mod"],
+            "stat_block_id": block_id,
+            "initiative_dice": profile["initiative_dice"],
+        })
+    session.commit()
+
+    if initiative is not None:
+        # An explicit number (a player's summon, say) is taken as given, never rolled over.
+        for cid in added:
+            _append_one(session, run, "set_initiative", {
+                "id": cid, "value": int(initiative),
+                "initiative_tiebreak": profile["initiative_mod"],
+            })
+        session.commit()
+    else:
+        roll_initiative(session, campaign, run_id, scope="ids", ids=added, rng=rng)
     return run
 
 
