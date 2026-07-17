@@ -149,6 +149,12 @@ export function applyAction(state: CombatState, action: Action): CombatState {
     if (m) m.conditions = m.conditions.filter((x) => x !== cond)
   } else if (kind === 'set_concentration') {
     if (c[id]) c[id].concentrating = Boolean(action.on)
+  } else if (kind === 'legendary_use') {
+    const m = c[id]
+    if (m) {
+      const cost = action.cost === undefined ? 1 : toInt(action.cost)
+      m.legendary.remaining = Math.max(0, m.legendary.remaining - cost)
+    }
   } else if (kind === 'next_turn') {
     if (state.order.length) {
       state.turn_index += 1
@@ -156,6 +162,11 @@ export function applyAction(state: CombatState, action: Action): CombatState {
         state.turn_index = 0
         state.round += 1
       }
+      // A creature regains its spent legendary actions at the *start of its turn* (5e),
+      // which is exactly now — so the reset rides the turn rather than needing anyone to
+      // remember it.
+      const current = c[state.order[state.turn_index]]
+      if (current && current.legendary.max > 0) current.legendary.remaining = current.legendary.max
     }
   } else if (kind === 'remove_combatant') {
     if (c[id]) { delete c[id]; reorder(state) }

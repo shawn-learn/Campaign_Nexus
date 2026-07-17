@@ -10453,6 +10453,15 @@
             "title": "Side",
             "default": "foe"
           },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "creature",
+              "lair"
+            ],
+            "title": "Kind",
+            "default": "creature"
+          },
           "initiative": {
             "anyOf": [
               {
@@ -10811,6 +10820,17 @@
               }
             ],
             "title": "Description"
+          },
+          "legendary_cost": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Legendary Cost"
           }
         },
         "type": "object",
@@ -11302,6 +11322,7 @@
               "remove_condition",
               "set_concentration",
               "death_save",
+              "legendary_use",
               "next_turn"
             ],
             "title": "Action Type"

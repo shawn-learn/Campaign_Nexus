@@ -2545,6 +2545,12 @@ export interface components {
              * @enum {string}
              */
             side?: "foe" | "ally";
+            /**
+             * Kind
+             * @default creature
+             * @enum {string}
+             */
+            kind?: "creature" | "lair";
             /** Initiative */
             initiative?: number | null;
         };
@@ -2699,6 +2705,8 @@ export interface components {
             save?: components["schemas"]["AttackSaveOut"] | null;
             /** Description */
             description?: string | null;
+            /** Legendary Cost */
+            legendary_cost?: number | null;
         };
         /**
          * AttackResultOut
@@ -2872,7 +2880,7 @@ export interface components {
              * Action Type
              * @enum {string}
              */
-            action_type: "add_combatant" | "remove_combatant" | "set_initiative" | "damage" | "heal" | "set_temp_hp" | "add_condition" | "remove_condition" | "set_concentration" | "death_save" | "next_turn";
+            action_type: "add_combatant" | "remove_combatant" | "set_initiative" | "damage" | "heal" | "set_temp_hp" | "add_condition" | "remove_condition" | "set_concentration" | "death_save" | "legendary_use" | "next_turn";
             /**
              * Payload
              * @default {}

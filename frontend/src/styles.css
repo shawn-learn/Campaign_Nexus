@@ -552,6 +552,18 @@ ul.relations li:last-child { border-bottom: none; }
 .attack-row .field { margin-bottom: 6px; }
 .attack-row .field span { font-size: 11px; }
 
+/* Legendary actions — orbs, so a boss's remaining pool reads at a glance rather than as a
+   number to subtract from mid-turn. */
+.legendary-orbs { display: inline-flex; gap: 3px; align-items: center; }
+.orb { width: 8px; height: 8px; border-radius: 50%; border: 1px solid var(--accent);
+  opacity: 0.35; }
+.orb.on { background: var(--accent); opacity: 1; }
+.legendary-cost { color: var(--accent); font-size: 11px; }
+
+/* A lair has no hit points to lose, so the bar would only ever read 0/0. */
+.combatant-card.kind-lair .hp-bar { display: none; }
+.combatant-card.kind-lair { border-left-style: dashed; }
+
 /* Death saves — pips, because at a table this lives on a scrap of paper and gets lost. */
 .death-saves { border: 1px solid var(--danger); border-radius: 6px; padding: 8px;
   margin-bottom: 8px; background: var(--bg); }

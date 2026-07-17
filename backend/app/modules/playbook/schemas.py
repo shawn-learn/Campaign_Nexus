@@ -473,7 +473,11 @@ class AddCombatantIn(BaseModel):
     max_hp: int | None = Field(default=None, ge=0)
     count: int = Field(default=1, ge=1, le=20)
     side: Literal["foe", "ally"] = "foe"
-    #: Use this exact initiative rather than rolling — a player's summon acts on their turn.
+    #: A lair rides the initiative order as an ordinary entry (5e: count 20) and is never
+    #: "defeated" — it has no hit points to lose.
+    kind: Literal["creature", "lair"] = "creature"
+    #: Use this exact initiative rather than rolling — a player's summon acts on their turn,
+    #: and a lair acts on 20.
     initiative: int | None = None
 
 
@@ -530,6 +534,8 @@ class AttackOut(BaseModel):
     damage: list[AttackDamageOut] = []
     save: AttackSaveOut | None = None
     description: str | None = None
+    #: What this costs from the legendary pool, or None for an ordinary action.
+    legendary_cost: int | None = None
 
 
 class AttackIn(BaseModel):

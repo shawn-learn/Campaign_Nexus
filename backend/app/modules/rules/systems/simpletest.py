@@ -133,6 +133,7 @@ class SimpleTestSystem(BaseRuleSystem):
             "ac": None,
             "initiative_dice": None,
             "initiative_mod": 0,
+            "legendary": 0,
         }
 
     def with_hit_points(self, status: Document, doc: Document, hit_points: int) -> Document:

@@ -87,6 +87,28 @@ _ATTACK_SCHEMA: JsonSchema = {
     "required": ["name"],
 }
 
+#: A legendary option is an ordinary attack that also costs something from the per-round
+#: pool. Built from the attack schema rather than beside it, so the two can't drift.
+_LEGENDARY_OPTION_SCHEMA: JsonSchema = {
+    **_ATTACK_SCHEMA,
+    "properties": {
+        **_ATTACK_SCHEMA["properties"],
+        "cost": {"type": "integer", "minimum": 1, "maximum": 3},
+    },
+}
+
+_LEGENDARY_SCHEMA: JsonSchema = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        #: How many the creature gets back at the start of each of its turns (usually 3).
+        "count": {"type": "integer", "minimum": 1, "maximum": 5},
+        "options": {"type": "array", "items": _LEGENDARY_OPTION_SCHEMA},
+        "description": {"type": "string"},
+    },
+    "required": ["count"],
+}
+
 _CHARACTER_SCHEMA: JsonSchema = {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -127,6 +149,7 @@ _MONSTER_SCHEMA: JsonSchema = {
             },
         },
         "actions": {"type": "array", "items": _ATTACK_SCHEMA},
+        "legendary_actions": _LEGENDARY_SCHEMA,
     },
     "required": ["size", "type", "armor_class", "hit_points", "challenge_rating", "abilities"],
 }
@@ -343,6 +366,7 @@ class Dnd5eSystem(BaseRuleSystem):
             "ac": int(doc["armor_class"]) if "armor_class" in doc else None,
             "initiative_dice": "1d20",
             "initiative_mod": dex_mod,
+            "legendary": int((doc.get("legendary_actions") or {}).get("count", 0)),
         }
 
     def with_hit_points(self, status: Document, doc: Document, hit_points: int) -> Document:
@@ -363,8 +387,19 @@ class Dnd5eSystem(BaseRuleSystem):
         mods: dict[str, int] = derived.get("ability_modifiers") or {}
         proficiency = int(derived.get("proficiency_bonus", 0))
 
+        # Legendary options resolve exactly like any other attack — they just cost something
+        # from the per-round pool. Carrying `cost` through means one code path, not two.
+        # The default is 1 (5e), and it is injected here so the merged list is unambiguous:
+        # only the schema for legendary options permits `cost` at all, so its presence below
+        # is what marks an action as legendary.
+        legendary = [
+            {**option, "cost": int(option.get("cost", 1))}
+            for option in (doc.get("legendary_actions") or {}).get("options") or []
+        ]
+        authored = [*(doc.get("actions") or []), *legendary]
+
         out: list[AttackAction] = []
-        for action in doc.get("actions") or []:
+        for action in authored:
             ability = action.get("ability")
             ability_mod = int(mods.get(ability, 0)) if ability else 0
             bonus = int(action.get("bonus", 0))
@@ -397,6 +432,9 @@ class Dnd5eSystem(BaseRuleSystem):
                 # 5e doubles the dice on a crit, not the modifier. The playbook applies the
                 # rule by name; it does not know what a critical hit is.
                 "crit_rule": "double_dice",
+                # What this costs from the legendary pool, or None for an ordinary action.
+                # The tracker spends it; only this line knows which options are legendary.
+                "legendary_cost": int(action["cost"]) if "cost" in action else None,
             })
         return out
 

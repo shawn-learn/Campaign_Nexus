@@ -215,6 +215,7 @@ class NimbleSystem(BaseRuleSystem):
             "ac": None,
             "initiative_dice": None,
             "initiative_mod": 0,
+            "legendary": 0,  # a solo's power is in its stat line here, not an action pool
         }
 
     def with_hit_points(self, status: Document, doc: Document, hit_points: int) -> Document:

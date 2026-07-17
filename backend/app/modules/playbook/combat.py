@@ -118,6 +118,7 @@ def _seed_actions(
                         "stat_block_id": block.id if block else None,
                         "initiative_dice": profile["initiative_dice"],
                         "ac": profile["ac"],
+                        "legendary_max": profile["legendary"],
                     })
 
     # Party PCs join as allies with their live HP.
@@ -139,6 +140,7 @@ def _seed_actions(
             "stat_block_id": member.stat_block_id,
             "initiative_dice": profile["initiative_dice"],
             "ac": profile["ac"],
+            "legendary_max": profile["legendary"],
         })
     return seed
 
@@ -328,10 +330,11 @@ def add_combatant(
     max_hp: int | None = None,
     count: int = 1,
     side: str = "foe",
+    kind: str = "creature",
     initiative: int | None = None,
     rng: random.Random | None = None,
 ) -> CombatRun:
-    """Add a straggler mid-fight: a bestiary monster, or an ad-hoc name and hit points.
+    """Add a straggler mid-fight: a bestiary monster, a lair, or an ad-hoc name and hit points.
 
     The seeding has to happen here rather than in the browser: max HP, the initiative
     modifier and the die all come from the rule system's ``combat_profile``, and the playbook
@@ -362,21 +365,27 @@ def add_combatant(
             # Nobody typed an AC for a thing invented thirty seconds ago; an attack against
             # it reports the roll and lets the GM call it.
             "ac": None,
+            "legendary": 0,
         }
         base, block_id = name, None
+
+    # A lair has no die to roll — it acts on a fixed count, so nothing is left to chance.
+    if kind == "lair":
+        profile = {**profile, "initiative_dice": None}
 
     added: list[str] = []
     for label in _next_labels(state, base, count):
         cid = new_id()
         added.append(cid)
         _append_one(session, run, "add_combatant", {
-            "id": cid, "name": label, "side": side,
+            "id": cid, "name": label, "side": side, "kind": kind,
             "max_hp": profile["max_hp"], "hp": profile["hp"],
             "initiative": profile["initiative"],
             "initiative_tiebreak": profile["initiative_mod"],
             "stat_block_id": block_id,
             "initiative_dice": profile["initiative_dice"],
             "ac": profile["ac"],
+            "legendary_max": profile["legendary"],
         })
     session.commit()
 

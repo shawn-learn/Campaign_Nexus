@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   useCombatantAttacks,
   useRollAttack,
+  type Attack,
   type AttackResult,
   type CombatActionType,
   type CombatRoll,
@@ -29,6 +30,28 @@ function faces(roll: CombatRoll): string {
 
 const VERDICT: Record<string, string> = {
   hit: 'HIT', miss: 'MISS', crit: 'CRITICAL HIT', fumble: 'FUMBLE',
+}
+
+/** "+9 to hit · 1d8+4 bludgeoning" — the line, at a glance, before you click it. */
+function summarize(a: Attack): string {
+  const parts: string[] = []
+  if (a.to_hit !== null && a.to_hit !== undefined) {
+    parts.push(`${a.to_hit >= 0 ? '+' : ''}${a.to_hit} to hit`)
+  }
+  const dmg = (a.damage ?? []).map((d) => `${d.dice} ${d.type}`.trim()).join(' + ')
+  if (dmg) parts.push(dmg)
+  return parts.length ? ` ${parts.join(' · ')}` : ''
+}
+
+/** Spent/unspent orbs — the pool at a glance, rather than a number to subtract from. */
+function Orbs({ left, of }: { left: number; of: number }) {
+  return (
+    <span className="legendary-orbs" aria-label={`${left} of ${of} legendary actions`}>
+      {Array.from({ length: of }, (_, i) => (
+        <span key={i} className={'orb' + (i < left ? ' on' : '')} />
+      ))}
+    </span>
+  )
 }
 
 export function AttackPanel({
@@ -69,11 +92,18 @@ export function AttackPanel({
 
   if (!attacks?.length) return null
 
-  const fire = (index: number) => {
+  const ordinary = attacks.filter((a) => a.legendary_cost === null || a.legendary_cost === undefined)
+  const legendary = attacks.filter((a) => a.legendary_cost !== null && a.legendary_cost !== undefined)
+  const pool = attacker?.legendary ?? { max: 0, remaining: 0 }
+
+  const fire = (index: number, cost?: number | null) => {
     roll.mutate(
       { attacker_id: attackerId, action_index: index, target_id: targetId || null, mode },
       { onSuccess: setResult },
     )
+    // Spending is a state change and the roll deliberately isn't, so the pool moves through
+    // an ordinary action — which also means Undo puts it back.
+    if (cost) onApply('legendary_use', { id: attackerId, cost })
   }
 
   const damage = result?.damage ?? []
@@ -116,7 +146,7 @@ export function AttackPanel({
       </label>
 
       <div className="attack-list">
-        {attacks.map((a) => (
+        {ordinary.map((a) => (
           <button
             key={a.index}
             className="ghost attack-btn"
@@ -124,17 +154,42 @@ export function AttackPanel({
             onClick={() => fire(a.index)}
           >
             <b>{a.name}</b>
-            <span className="attack-meta">
-              {a.to_hit !== null && a.to_hit !== undefined
-                ? ` ${a.to_hit >= 0 ? '+' : ''}${a.to_hit} to hit`
-                : ''}
-              {(a.damage ?? []).length
-                ? ` · ${(a.damage ?? []).map((d) => `${d.dice} ${d.type}`.trim()).join(' + ')}`
-                : ''}
-            </span>
+            <span className="attack-meta">{summarize(a)}</span>
           </button>
         ))}
       </div>
+
+      {legendary.length > 0 && (
+        <>
+          <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline',
+                                        marginTop: 10 }}>
+            <b>Legendary</b>
+            <Orbs left={pool.remaining} of={pool.max} />
+          </div>
+          <div className="attack-list">
+            {legendary.map((a) => {
+              const cost = a.legendary_cost ?? 1
+              const affordable = pool.remaining >= cost
+              return (
+                <button
+                  key={a.index}
+                  className="ghost attack-btn"
+                  disabled={roll.isPending || !affordable}
+                  title={affordable ? undefined : `Costs ${cost}; ${pool.remaining} left`}
+                  onClick={() => fire(a.index, cost)}
+                >
+                  <b>{a.name}</b> <span className="legendary-cost">({cost})</span>
+                  <span className="attack-meta">{summarize(a)}</span>
+                </button>
+              )
+            })}
+          </div>
+          <p className="muted" style={{ fontSize: 11, marginBottom: 0 }}>
+            Spent between turns; back to {pool.max} at the start of {attacker?.name ?? 'its'}
+            {attacker?.name?.endsWith('s') ? "'" : "'s"} turn.
+          </p>
+        </>
+      )}
 
       {roll.isError && (
         <p className="muted" style={{ color: 'var(--danger)' }}>

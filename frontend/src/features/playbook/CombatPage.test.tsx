@@ -476,6 +476,58 @@ describe('CombatPage', () => {
     expect(ui.queryByText(/is concentrating/i)).not.toBeInTheDocument()
   })
 
+  it('shows a legendary pool on the rail and spends it when an option is used', async () => {
+    const boss = stateWith(1, 0)
+    boss.combatants.g1.name = 'Strahd'
+    boss.combatants.g1.legendary = { max: 3, remaining: 3 }
+    attacks = [
+      SCIMITAR,
+      { ...SCIMITAR, index: 1, name: 'Bite', legendary_cost: 2 },
+    ]
+    const ui = await startedCombat(run(boss))
+
+    // The pool on the rail, readable without selecting the boss.
+    expect(ui.getByTitle('3 of 3 legendary actions')).toBeInTheDocument()
+    // The attacks are a separate query from the run, so wait for the panel rather than
+    // assume it landed with the roster.
+    expect(await ui.findByText('Legendary')).toBeInTheDocument()
+
+    POST.mockReturnValueOnce(ok(HIT_RESULT)) // the roll
+      .mockReturnValueOnce(new Promise(() => {})) // the legendary_use action
+    fireEvent.click(await ui.findByRole('button', { name: /bite/i }))
+
+    // Two calls: the roll (no state change) and the spend (an ordinary action, so Undo
+    // puts the pool back).
+    await waitFor(() =>
+      expect(POST).toHaveBeenCalledWith(
+        '/api/v1/campaigns/{campaign_id}/combats/{run_id}/actions',
+        expect.objectContaining({
+          body: { action_type: 'legendary_use', payload: { id: 'g1', cost: 2 } },
+        }),
+      ),
+    )
+    // Optimistically down to 1 of 3 — the reducer twin applied the spend on the spot.
+    expect(await ui.findByTitle('1 of 3 legendary actions')).toBeInTheDocument()
+  })
+
+  it('refuses a legendary option the pool cannot afford', async () => {
+    const boss = stateWith(1, 0)
+    boss.combatants.g1.legendary = { max: 3, remaining: 1 }
+    attacks = [{ ...SCIMITAR, index: 0, name: 'Bite', legendary_cost: 2 }]
+    const ui = await startedCombat(run(boss))
+
+    const bite = await ui.findByRole('button', { name: /bite/i })
+    expect(bite).toBeDisabled()
+    expect(bite).toHaveAttribute('title', 'Costs 2; 1 left')
+  })
+
+  it('shows no legendary section for an ordinary creature', async () => {
+    attacks = [SCIMITAR]
+    const ui = await startedCombat()
+    await ui.findByRole('button', { name: /scimitar/i })
+    expect(ui.queryByText('Legendary')).not.toBeInTheDocument()
+  })
+
   it('sets temp HP from the keyboard', async () => {
     // set_temp_hp rendered as "(+N)" from day one but nothing could ever set it.
     const ui = await startedCombat()

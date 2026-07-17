@@ -152,6 +152,114 @@ def test_party_hp_is_written_back_when_combat_ends(client: TestClient) -> None:
     assert member["status"]["current_hit_points"] == 27
 
 
+# --- legendary + lair -------------------------------------------------------
+_STRAHD = {
+    "size": "Medium", "type": "undead", "armor_class": 16, "hit_points": 144,
+    "challenge_rating": 15, "xp": 13000,
+    "abilities": {"str": 18, "dex": 18, "con": 18, "int": 20, "wis": 15, "cha": 18},
+    "actions": [{"name": "Unarmed Strike", "to_hit": 9,
+                 "damage": [{"dice": "1d8+4", "type": "bludgeoning"}]}],
+    "legendary_actions": {
+        "count": 3,
+        "options": [
+            {"name": "Move", "description": "Strahd moves without provoking."},
+            {"name": "Unarmed Strike", "to_hit": 9,
+             "damage": [{"dice": "1d8+4", "type": "bludgeoning"}]},
+            {"name": "Bite", "cost": 2, "to_hit": 9,
+             "damage": [{"dice": "1d6+4", "type": "piercing"},
+                        {"dice": "3d6", "type": "necrotic"}]},
+        ],
+    },
+}
+
+
+def _boss_run(client: TestClient, cid: str) -> tuple[str, str]:
+    """A run containing a legendary boss. Returns (run_id, combatant_id)."""
+    client.post(f"/api/v1/campaigns/{cid}/monsters/import-json", json={
+        "monsters": [{"name": "Strahd", "doc": _STRAHD}],
+    })
+    boss = next(m for m in client.get(f"/api/v1/campaigns/{cid}/monsters").json()
+                if m["name"] == "Strahd")
+    enc = client.post(f"/api/v1/campaigns/{cid}/encounters", json={
+        "name": "The Count", "combatants": [{"monster_id": boss["id"], "count": 1}],
+    }).json()
+    run = client.post(f"/api/v1/campaigns/{cid}/combats",
+                      json={"encounter_id": enc["id"]}).json()
+    strahd = next(c for c in run["state"]["combatants"].values() if c["name"] == "Strahd")
+    return run["run_id"], strahd["id"]
+
+
+def test_a_legendary_creature_is_seeded_with_its_action_pool(client: TestClient) -> None:
+    # The count reaches the tracker through combat_profile, like everything else it knows.
+    cid = _demo(client)
+    run_id, boss = _boss_run(client, cid)
+    state = client.get(f"/api/v1/campaigns/{cid}/combats/{run_id}").json()["state"]
+    assert state["combatants"][boss]["legendary"] == {"max": 3, "remaining": 3}
+
+
+def test_legendary_options_are_offered_alongside_ordinary_attacks(client: TestClient) -> None:
+    """One list, one code path — a legendary option is an attack that also costs something."""
+    cid = _demo(client)
+    run_id, boss = _boss_run(client, cid)
+    attacks = client.get(
+        f"/api/v1/campaigns/{cid}/combats/{run_id}/combatants/{boss}/attacks"
+    ).json()
+
+    ordinary = [a for a in attacks if a["legendary_cost"] is None]
+    legendary = {a["name"]: a for a in attacks if a["legendary_cost"] is not None}
+    assert [a["name"] for a in ordinary] == ["Unarmed Strike"]
+    assert legendary["Move"]["legendary_cost"] == 1        # defaulted
+    assert legendary["Bite"]["legendary_cost"] == 2        # as authored
+    assert legendary["Bite"]["damage"] == [
+        {"dice": "1d6+4", "type": "piercing"}, {"dice": "3d6", "type": "necrotic"},
+    ]
+
+
+def test_spending_legendary_actions_and_regaining_them_on_its_turn(client: TestClient) -> None:
+    cid = _demo(client)
+    run_id, boss = _boss_run(client, cid)
+
+    def act(atype, **payload):
+        return client.post(
+            f"/api/v1/campaigns/{cid}/combats/{run_id}/actions",
+            json={"action_type": atype, "payload": payload},
+        ).json()["state"]["combatants"][boss]["legendary"]
+
+    assert act("legendary_use", id=boss, cost=2) == {"max": 3, "remaining": 1}
+    assert act("legendary_use", id=boss, cost=1) == {"max": 3, "remaining": 0}
+    # Strahd is the only combatant, so the next turn is his — and the pool comes back.
+    assert act("next_turn") == {"max": 3, "remaining": 3}
+
+
+def test_a_lair_joins_the_order_and_cannot_be_killed(client: TestClient) -> None:
+    """A lair is an ordinary entry at a fixed count — no special case anywhere in the fold."""
+    cid = _demo(client)
+    run_id, _ = _boss_run(client, cid)
+
+    out = client.post(
+        f"/api/v1/campaigns/{cid}/combats/{run_id}/combatants",
+        json={"name": "Castle Ravenloft", "max_hp": 0, "kind": "lair",
+              "side": "foe", "initiative": 20},
+    )
+    assert out.status_code == 200, out.text
+    lair = next(c for c in out.json()["state"]["combatants"].values()
+                if c["name"] == "Castle Ravenloft")
+    assert lair["kind"] == "lair"
+    assert lair["initiative"] == 20
+    assert lair["defeated"] is False  # at 0 hp, and still not a corpse
+
+    # Nothing rolled for it: a lair acts on a fixed count, so nothing is left to chance.
+    rolls = client.get(f"/api/v1/campaigns/{cid}/combats/{run_id}/rolls").json()
+    assert not any(r["combatant_id"] == lair["id"] for r in rolls)
+
+    # And hitting it changes nothing about its standing.
+    after = client.post(
+        f"/api/v1/campaigns/{cid}/combats/{run_id}/actions",
+        json={"action_type": "damage", "payload": {"id": lair["id"], "amount": 50}},
+    ).json()
+    assert after["state"]["combatants"][lair["id"]]["defeated"] is False
+
+
 # --- death saves ------------------------------------------------------------
 def _downed_pc(client: TestClient, cid: str) -> tuple[str, str]:
     """A run with a PC at 0 hp. Returns (run_id, combatant_id)."""
@@ -394,19 +502,28 @@ def test_a_natural_one_misses_whatever_the_total_says(
 
 
 def test_attacking_without_a_target_reports_the_roll_and_judges_nothing(
-    client: TestClient
+    client: TestClient, db: Session
 ) -> None:
     # No AC to beat means no verdict to give — but the damage is still rolled, because the
     # GM asked for the attack and will decide what it hit.
     cid = _demo(client)
     run_id, attacker, _ = _two_goblins(client, cid)
-    result = client.post(
-        f"/api/v1/campaigns/{cid}/combats/{run_id}/attack",
-        json={"attacker_id": attacker, "action_index": 0},
-    ).json()
+    result = _scripted_attack(db, cid, run_id, attacker, None, [11, 4])
     assert result["target_ac"] is None
     assert result["outcome"] is None
-    assert result["total_damage"] > 0
+    assert result["total_damage"] == 6  # 1d6+2 on a face of 4
+
+
+def test_the_faces_still_speak_without_a_target(client: TestClient, db: Session) -> None:
+    """A natural 1 is a fumble whether or not we know what it was swung at.
+
+    (This is why the no-target test above scripts its die: on a real d20 it would report a
+    verdict one roll in ten and fail for a reason that has nothing to do with targets.)
+    """
+    cid = _demo(client)
+    run_id, attacker, _ = _two_goblins(client, cid)
+    assert _scripted_attack(db, cid, run_id, attacker, None, [1])["outcome"] == "fumble"
+    assert _scripted_attack(db, cid, run_id, attacker, None, [20, 3, 5])["outcome"] == "crit"
 
 
 def test_an_attack_is_traceable_from_the_damage_it_caused(client: TestClient) -> None:

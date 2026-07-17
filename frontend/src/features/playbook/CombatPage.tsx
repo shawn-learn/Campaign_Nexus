@@ -258,7 +258,7 @@ export function CombatPage() {
                 className={
                   'combatant-card' + (id === current ? ' current' : '') +
                   (id === selected ? ' selected' : '') + (c.defeated ? ' defeated' : '') +
-                  ` side-${c.side}`
+                  ` side-${c.side} kind-${c.kind}`
                 }
                 onClick={() => setSelected(id)}
               >
@@ -267,6 +267,18 @@ export function CombatPage() {
                   <span className="cc-name">{c.name}</span>
                   {bloodied && <span className="cc-bloodied" title="bloodied">◆</span>}
                   {c.concentrating && <span className="cc-conc" title="concentrating">◎</span>}
+                  {/* The pool on the rail, so you can see what a boss has left without
+                      selecting it. */}
+                  {c.legendary.max > 0 && (
+                    <span
+                      className="legendary-orbs"
+                      title={`${c.legendary.remaining} of ${c.legendary.max} legendary actions`}
+                    >
+                      {Array.from({ length: c.legendary.max }, (_, i) => (
+                        <span key={i} className={'orb' + (i < c.legendary.remaining ? ' on' : '')} />
+                      ))}
+                    </span>
+                  )}
                 </div>
                 <div className={'hp-bar' + (bloodied ? ' bloodied' : '')}>
                   <div className="hp-fill" style={{ width: `${pct}%` }} />

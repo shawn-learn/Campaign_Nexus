@@ -32,6 +32,7 @@ TravelPaceTable = dict[str, Any]
 #                     not roll for it at all — in which case ``initiative`` above already
 #                     *is* the order and the tracker must not offer to roll.
 #   initiative_mod  — what's added to that die, and the tiebreak between equal initiatives.
+#   legendary       — legendary actions per round, or 0 for a creature that has none.
 CombatProfile = dict[str, Any]
 # Ordered {tier: dc} — how a system prices skill-challenge difficulty tiers as concrete
 # target numbers. The skill-challenge feature is system-agnostic; this is its one hook into
@@ -183,6 +184,7 @@ class BaseRuleSystem:
         return {
             "max_hp": 0, "hp": 0, "initiative": 0,
             "ac": None, "initiative_dice": None, "initiative_mod": 0,
+            "legendary": 0,
         }
 
     def with_hit_points(self, status: Document, doc: Document, hit_points: int) -> Document:

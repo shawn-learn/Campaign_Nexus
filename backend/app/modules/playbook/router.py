@@ -565,7 +565,7 @@ def add_combatant(
         run = combat.add_combatant(
             session, _campaign(session, ctx.campaign_id), run_id,
             monster_id=body.monster_id, name=body.name, max_hp=body.max_hp,
-            count=body.count, side=body.side, initiative=body.initiative,
+            count=body.count, side=body.side, kind=body.kind, initiative=body.initiative,
         )
     except combat.CombatNotFound as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "combat not found") from exc

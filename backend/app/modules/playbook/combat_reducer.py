@@ -36,6 +36,7 @@ ActionType = Literal[
     "remove_condition",
     "set_concentration",
     "death_save",
+    "legendary_use",
     "next_turn",
 ]
 ACTION_TYPES: tuple[str, ...] = get_args(ActionType)
@@ -157,12 +158,23 @@ def apply_action(state: State, action: Action) -> State:
         m = combatants.get(action["id"])
         if m:
             m["concentrating"] = bool(action["on"])
+    elif kind == "legendary_use":
+        m = combatants.get(action["id"])
+        if m:
+            cost = int(action.get("cost", 1))
+            m["legendary"]["remaining"] = max(0, m["legendary"]["remaining"] - cost)
     elif kind == "next_turn":
         if state["order"]:
             state["turn_index"] += 1
             if state["turn_index"] >= len(state["order"]):
                 state["turn_index"] = 0
                 state["round"] += 1
+            # A creature regains its spent legendary actions at the *start of its turn*
+            # (5e), which is exactly now — so the reset rides the turn rather than needing
+            # anyone to remember it.
+            current = combatants.get(state["order"][state["turn_index"]])
+            if current and current["legendary"]["max"] > 0:
+                current["legendary"]["remaining"] = current["legendary"]["max"]
     elif kind == "remove_combatant":
         cid = action["id"]
         if cid in combatants:

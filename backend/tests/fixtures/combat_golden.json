@@ -960,5 +960,266 @@
         }
       }
     }
+  },
+  {
+    "name": "legendary_actions_spend_down",
+    "actions": [
+      {
+        "type": "add_combatant",
+        "id": "b",
+        "name": "Strahd",
+        "side": "foe",
+        "max_hp": 144,
+        "initiative": 10,
+        "legendary_max": 3
+      },
+      {
+        "type": "add_combatant",
+        "id": "p",
+        "name": "Ireena",
+        "side": "ally",
+        "max_hp": 34,
+        "initiative": 18
+      },
+      {
+        "type": "legendary_use",
+        "id": "b"
+      },
+      {
+        "type": "legendary_use",
+        "id": "b",
+        "cost": 2
+      },
+      {
+        "type": "legendary_use",
+        "id": "b",
+        "cost": 1
+      }
+    ],
+    "expected": {
+      "round": 1,
+      "turn_index": 0,
+      "order": [
+        "p",
+        "b"
+      ],
+      "combatants": {
+        "p": {
+          "id": "p",
+          "name": "Ireena",
+          "side": "ally",
+          "kind": "creature",
+          "max_hp": 34,
+          "hp": 34,
+          "temp_hp": 0,
+          "initiative": 18,
+          "initiative_tiebreak": 0,
+          "conditions": [],
+          "concentrating": false,
+          "defeated": false,
+          "death_saves": {
+            "successes": 0,
+            "failures": 0
+          },
+          "legendary": {
+            "max": 0,
+            "remaining": 0
+          }
+        },
+        "b": {
+          "id": "b",
+          "name": "Strahd",
+          "side": "foe",
+          "kind": "creature",
+          "max_hp": 144,
+          "hp": 144,
+          "temp_hp": 0,
+          "initiative": 10,
+          "initiative_tiebreak": 0,
+          "conditions": [],
+          "concentrating": false,
+          "defeated": false,
+          "death_saves": {
+            "successes": 0,
+            "failures": 0
+          },
+          "legendary": {
+            "max": 3,
+            "remaining": 0
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "legendary_actions_refill_on_their_turn",
+    "actions": [
+      {
+        "type": "add_combatant",
+        "id": "b",
+        "name": "Strahd",
+        "side": "foe",
+        "max_hp": 144,
+        "initiative": 10,
+        "legendary_max": 3
+      },
+      {
+        "type": "add_combatant",
+        "id": "p",
+        "name": "Ireena",
+        "side": "ally",
+        "max_hp": 34,
+        "initiative": 18
+      },
+      {
+        "type": "legendary_use",
+        "id": "b",
+        "cost": 3
+      },
+      {
+        "type": "next_turn"
+      }
+    ],
+    "expected": {
+      "round": 1,
+      "turn_index": 1,
+      "order": [
+        "p",
+        "b"
+      ],
+      "combatants": {
+        "p": {
+          "id": "p",
+          "name": "Ireena",
+          "side": "ally",
+          "kind": "creature",
+          "max_hp": 34,
+          "hp": 34,
+          "temp_hp": 0,
+          "initiative": 18,
+          "initiative_tiebreak": 0,
+          "conditions": [],
+          "concentrating": false,
+          "defeated": false,
+          "death_saves": {
+            "successes": 0,
+            "failures": 0
+          },
+          "legendary": {
+            "max": 0,
+            "remaining": 0
+          }
+        },
+        "b": {
+          "id": "b",
+          "name": "Strahd",
+          "side": "foe",
+          "kind": "creature",
+          "max_hp": 144,
+          "hp": 144,
+          "temp_hp": 0,
+          "initiative": 10,
+          "initiative_tiebreak": 0,
+          "conditions": [],
+          "concentrating": false,
+          "defeated": false,
+          "death_saves": {
+            "successes": 0,
+            "failures": 0
+          },
+          "legendary": {
+            "max": 3,
+            "remaining": 3
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "legendary_actions_do_not_refill_on_another_turn",
+    "actions": [
+      {
+        "type": "add_combatant",
+        "id": "b",
+        "name": "Strahd",
+        "side": "foe",
+        "max_hp": 144,
+        "initiative": 10,
+        "legendary_max": 3
+      },
+      {
+        "type": "add_combatant",
+        "id": "p",
+        "name": "Ireena",
+        "side": "ally",
+        "max_hp": 34,
+        "initiative": 18
+      },
+      {
+        "type": "next_turn"
+      },
+      {
+        "type": "legendary_use",
+        "id": "b",
+        "cost": 2
+      },
+      {
+        "type": "next_turn"
+      }
+    ],
+    "expected": {
+      "round": 2,
+      "turn_index": 0,
+      "order": [
+        "p",
+        "b"
+      ],
+      "combatants": {
+        "p": {
+          "id": "p",
+          "name": "Ireena",
+          "side": "ally",
+          "kind": "creature",
+          "max_hp": 34,
+          "hp": 34,
+          "temp_hp": 0,
+          "initiative": 18,
+          "initiative_tiebreak": 0,
+          "conditions": [],
+          "concentrating": false,
+          "defeated": false,
+          "death_saves": {
+            "successes": 0,
+            "failures": 0
+          },
+          "legendary": {
+            "max": 0,
+            "remaining": 0
+          }
+        },
+        "b": {
+          "id": "b",
+          "name": "Strahd",
+          "side": "foe",
+          "kind": "creature",
+          "max_hp": 144,
+          "hp": 144,
+          "temp_hp": 0,
+          "initiative": 10,
+          "initiative_tiebreak": 0,
+          "conditions": [],
+          "concentrating": false,
+          "defeated": false,
+          "death_saves": {
+            "successes": 0,
+            "failures": 0
+          },
+          "legendary": {
+            "max": 3,
+            "remaining": 1
+          }
+        }
+      }
+    }
   }
 ]
