@@ -1,6 +1,8 @@
 // Generic, system-agnostic sheet form driven by a plugin's LayoutSpec (docs/08, §10.5).
 // Any rule system gets a working editor with zero frontend work; bespoke per-system
 // components (e.g. the 5e stat block in Sprint 10) can override this later.
+import { AttackListField } from './AttackListField'
+import type { Attack } from './AttackListField'
 
 export interface LayoutField {
   key: string
@@ -98,6 +100,17 @@ function Field({ field, doc, set }: { field: LayoutField; doc: Doc; set: (k: str
           ))}
         </div>
       </div>
+    )
+  }
+  if (field.role === 'attack-list') {
+    return (
+      <AttackListField
+        label={field.label}
+        attacks={(value as Attack[]) ?? []}
+        // The plugin names its own abilities, same bargain as `ability-array` above.
+        abilityKeys={field.keys ?? []}
+        onChange={(next) => set(field.key, next.length ? next : undefined)}
+      />
     )
   }
   // default: text

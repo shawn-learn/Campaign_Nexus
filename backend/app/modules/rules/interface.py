@@ -43,7 +43,20 @@ SkillCheckDcs = dict[str, int]
 DIFFICULTY_TIERS = ("trivial", "easy", "normal", "hard", "very_hard", "nearly_impossible")
 
 # Display roles the generic renderer understands.
-FIELD_ROLES = ("text", "paragraph", "number", "boolean", "ability-array", "dice", "trait-list")
+FIELD_ROLES = (
+    "text", "paragraph", "number", "boolean", "ability-array", "dice", "trait-list",
+    "attack-list",
+)
+
+# What a creature can do on its turn, *resolved*: every number already summed, every damage
+# expression already a rollable string. A system may author attacks however it likes — 5e
+# lets a PC name an ability and a proficiency and derives the rest — but ``attack_actions``
+# hands back only finished numbers, so the playbook rolls dice without knowing any rules.
+#   {"name", "kind": "melee"|"ranged"|"save", "to_hit": int|None,
+#    "reach", "target", "damage": [{"dice", "type"}],
+#    "save": {"ability", "dc", "half_on_success"} | None,
+#    "description", "crit_rule": "double_dice"|None}
+AttackAction = dict[str, Any]
 
 # The four generic facet columns on the monster table (docs/08, §10.4).
 FACET_KEYS = ("facet1_num", "facet2_num", "facet1_text", "facet2_text")
@@ -77,6 +90,7 @@ class RuleSystem(Protocol):
     def with_hit_points(
         self, status: Document, doc: Document, hit_points: int
     ) -> Document: ...
+    def attack_actions(self, sheet_type: str, doc: Document) -> list[AttackAction]: ...
 
     # -- rests (docs/08, §10.2) --------------------------------------------
     def rest_types(self) -> list[str]: ...
@@ -168,6 +182,11 @@ class BaseRuleSystem:
         # status; this one puts it back after combat, without disturbing anything else in
         # there (conditions, exhaustion). A system with no HP model writes nothing.
         return dict(status)
+
+    def attack_actions(self, sheet_type: str, doc: Document) -> list[AttackAction]:
+        # A system with no attack model offers nothing to click; the tracker just doesn't
+        # show an attack panel. Same shape as every other optional hook: empty, not an error.
+        return []
 
     def rest_types(self) -> list[str]:
         return []

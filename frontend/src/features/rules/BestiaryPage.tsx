@@ -8,11 +8,13 @@ import {
   useMakeVariant,
   useMonsters,
   useSheetLayout,
+  useStatBlock,
 } from '../../api/hooks'
 import { downloadJson, exportFilename, pickJsonFile } from '../../lib/jsonFile'
 import { useActiveCampaign } from '../../shell/useActiveCampaign'
 import { GenericSheetRenderer } from './GenericSheetRenderer'
 import type { LayoutSpec } from './GenericSheetRenderer'
+import { SheetEditorPanel } from './SheetEditorPanel'
 import { StatBlock5e } from './StatBlock5e'
 import type { Monster } from '../../api/client'
 
@@ -37,8 +39,9 @@ export function BestiaryPage() {
   const [crMin, setCrMin] = useState<string>('')
   const [crMax, setCrMax] = useState<string>('')
   const [type, setType] = useState('')
+  const [editing, setEditing] = useState(false)
 
-  const { data: monsters } = useMonsters(campaignId, {
+  const { data: monsters, refetch: refetchMonsters } = useMonsters(campaignId, {
     ...(q ? { q } : {}),
     ...(crMin ? { facet1_num_gte: Number(crMin) } : {}),
     ...(crMax ? { facet1_num_lte: Number(crMax) } : {}),
@@ -55,6 +58,9 @@ export function BestiaryPage() {
 
   const makeVariant = useMakeVariant(campaignId ?? '')
   const [selected, setSelected] = useState<Monster | null>(null)
+  const fromPack = !!selected?.source.startsWith('content_pack:')
+  // The stat block behind the selected monster — what an edit actually writes to.
+  const { data: block } = useStatBlock(campaignId, editing ? selected?.stat_block_id ?? null : null)
   const qc = useQueryClient()
   const [ioMsg, setIoMsg] = useState<string | null>(null)
 
@@ -128,27 +134,59 @@ export function BestiaryPage() {
 
         {selected && (
           <div>
-            {/* A bespoke renderer where one exists; otherwise the plugin's own layout —
-                never a raw JSON dump (docs/08 §10.5). */}
-            {is5e ? (
-              <StatBlock5e monster={selected} />
-            ) : monsterLayout ? (
-              <div className="card">
-                <h3 style={{ marginTop: 0 }}>{selected.name}</h3>
-                <GenericSheetRenderer
-                  layout={monsterLayout as unknown as LayoutSpec}
-                  doc={selected.doc as Record<string, unknown>}
-                  onChange={() => {}}
-                />
-              </div>
-            ) : null}
-            <button
-              style={{ marginTop: 10 }}
-              disabled={makeVariant.isPending}
-              onClick={() => makeVariant.mutate(selected.id, { onSuccess: (v) => setSelected(v) })}
-            >
-              Make variant
-            </button>
+            {editing && block && systemId && campaignId ? (
+              <SheetEditorPanel
+                campaignId={campaignId}
+                systemId={systemId}
+                sheetType="monster"
+                existing={block}
+                onSaved={() => { setEditing(false); void refetchMonsters() }}
+              />
+            ) : (
+              <>
+                {/* A bespoke renderer where one exists; otherwise the plugin's own layout —
+                    never a raw JSON dump (docs/08 §10.5). */}
+                {is5e ? (
+                  <StatBlock5e monster={selected} />
+                ) : monsterLayout ? (
+                  <div className="card">
+                    <h3 style={{ marginTop: 0 }}>{selected.name}</h3>
+                    <GenericSheetRenderer
+                      layout={monsterLayout as unknown as LayoutSpec}
+                      doc={selected.doc as Record<string, unknown>}
+                      onChange={() => {}}
+                    />
+                  </div>
+                ) : null}
+              </>
+            )}
+
+            <div className="row" style={{ gap: 6, marginTop: 10 }}>
+              {editing ? (
+                <button className="ghost" onClick={() => setEditing(false)}>Done</button>
+              ) : fromPack ? (
+                // A pack monster is the pack's, not yours: the next content update rewrites
+                // it (see bestiary.import_content_packs). Copy-on-write is the way to make
+                // it yours — which is what `Make variant` has always been for (FR-11.4).
+                <button
+                  disabled={makeVariant.isPending}
+                  onClick={() =>
+                    makeVariant.mutate(selected.id, {
+                      onSuccess: (v) => { setSelected(v); setEditing(true) },
+                    })
+                  }
+                >
+                  {makeVariant.isPending ? 'Copying…' : 'Make variant to edit'}
+                </button>
+              ) : (
+                <button onClick={() => setEditing(true)}>Edit</button>
+              )}
+            </div>
+            {fromPack && !editing && (
+              <p className="muted" style={{ fontSize: 11 }}>
+                From the SRD pack — a variant is yours to change, and survives pack updates.
+              </p>
+            )}
           </div>
         )}
       </div>

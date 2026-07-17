@@ -3859,6 +3859,8 @@ export interface components {
             rule_system_id: string;
             /** Sheet Type */
             sheet_type: string;
+            /** Stat Block Id */
+            stat_block_id: string;
             /** Doc */
             doc: {
                 [key: string]: unknown;

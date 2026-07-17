@@ -102,6 +102,95 @@ def test_with_hit_points_touches_only_hp(system) -> None:
     assert original == snapshot
 
 
+def test_attack_actions_uses_a_monsters_printed_numbers() -> None:
+    # Monsters don't level, so the SRD's printed numbers are the numbers. Nothing to derive.
+    system = registry.get_system("dnd5e")
+    doc = {
+        "size": "Large", "type": "giant", "armor_class": 11, "hit_points": 59,
+        "challenge_rating": 2, "abilities": {"str": 19, "dex": 8, "con": 16, "int": 5,
+                                             "wis": 7, "cha": 7},
+        "actions": [{"name": "Greatclub", "kind": "melee", "to_hit": 6,
+                     "damage": [{"dice": "2d8+4", "type": "bludgeoning"}]}],
+    }
+    attack = system.attack_actions("monster", doc)[0]
+    assert attack["to_hit"] == 6
+    assert attack["damage"] == [{"dice": "2d8+4", "type": "bludgeoning"}]
+    assert attack["crit_rule"] == "double_dice"
+
+
+def test_attack_actions_derives_a_pcs_numbers_from_the_sheet() -> None:
+    """A PC's attack can store ingredients instead of a total, so levelling keeps it honest.
+
+    Hand-editing every attack's bonus on level-up is the kind of edit that's easy to forget
+    and hard to notice — the sheet already knows the level and the ability score.
+    """
+    system = registry.get_system("dnd5e")
+    doc = {
+        "level": 5, "max_hit_points": 44, "armor_class": 16,
+        "abilities": {"str": 18, "dex": 12, "con": 14, "int": 10, "wis": 12, "cha": 8},
+        "actions": [{"name": "Longsword", "kind": "melee", "ability": "str",
+                     "proficient": True,
+                     "damage": [{"dice": "1d8", "type": "slashing", "add_ability": True}]}],
+    }
+    attack = system.attack_actions("pc", doc)[0]
+    # str 18 = +4, level 5 = proficiency +3.
+    assert attack["to_hit"] == 7
+    assert attack["damage"] == [{"dice": "1d8+4", "type": "slashing"}]
+
+    # Level 9 moves proficiency to +4, and the attack follows without being touched.
+    attack = system.attack_actions("pc", {**doc, "level": 9})[0]
+    assert attack["to_hit"] == 8
+    assert attack["damage"] == [{"dice": "1d8+4", "type": "slashing"}]  # damage has no prof
+
+
+def test_a_magic_weapons_bonus_reaches_both_the_attack_and_its_damage() -> None:
+    system = registry.get_system("dnd5e")
+    doc = {
+        "level": 5, "max_hit_points": 44, "armor_class": 16,
+        "abilities": {"str": 18, "dex": 12, "con": 14, "int": 10, "wis": 12, "cha": 8},
+        "actions": [{"name": "Longsword +1", "ability": "str", "proficient": True,
+                     "bonus": 1,
+                     "damage": [{"dice": "1d8", "type": "slashing", "add_ability": True}]}],
+    }
+    attack = system.attack_actions("pc", doc)[0]
+    assert attack["to_hit"] == 8              # +4 str, +3 proficiency, +1 magic
+    assert attack["damage"][0]["dice"] == "1d8+5"  # +4 str, +1 magic
+
+
+def test_a_literal_to_hit_wins_over_derivation() -> None:
+    # Both forms given: the number someone wrote down is the number they meant.
+    system = registry.get_system("dnd5e")
+    doc = {
+        "level": 5, "max_hit_points": 44, "armor_class": 16,
+        "abilities": {"str": 18, "dex": 12, "con": 14, "int": 10, "wis": 12, "cha": 8},
+        "actions": [{"name": "Odd Blade", "to_hit": 2, "ability": "str", "proficient": True,
+                     "damage": [{"dice": "1d8", "type": "slashing"}]}],
+    }
+    assert system.attack_actions("pc", doc)[0]["to_hit"] == 2
+
+
+def test_damage_without_add_ability_is_left_exactly_as_authored() -> None:
+    system = registry.get_system("dnd5e")
+    doc = {
+        "level": 5, "max_hit_points": 44, "armor_class": 16,
+        "abilities": {"str": 18, "dex": 12, "con": 14, "int": 10, "wis": 12, "cha": 8},
+        # Sneak attack dice and elemental riders don't take the ability modifier.
+        "actions": [{"name": "Dagger", "ability": "dex", "proficient": True, "damage": [
+            {"dice": "1d4", "type": "piercing", "add_ability": True},
+            {"dice": "3d6", "type": "fire"},
+        ]}],
+    }
+    attack = system.attack_actions("pc", doc)[0]
+    assert attack["damage"] == [
+        {"dice": "1d4+1", "type": "piercing"},  # dex 12 = +1
+        {"dice": "3d6", "type": "fire"},        # untouched
+    ]
+
+
+def test_a_system_with_no_attack_model_offers_none() -> None:
+    assert registry.get_system("nimble").attack_actions("monster", {"level": 1}) == []
+
+
 def test_combat_profile_has_no_ac_or_initiative_die_for_nimble() -> None:
     # Nimble's armour reduces damage instead of being a target number, and it rolls no
     # initiative at all. Both must surface as None rather than a 5e-shaped guess.

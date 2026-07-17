@@ -14457,6 +14457,10 @@
             "type": "string",
             "title": "Sheet Type"
           },
+          "stat_block_id": {
+            "type": "string",
+            "title": "Stat Block Id"
+          },
           "doc": {
             "additionalProperties": true,
             "type": "object",
@@ -14479,6 +14483,7 @@
           "variant_of",
           "rule_system_id",
           "sheet_type",
+          "stat_block_id",
           "doc",
           "derived",
           "facets"

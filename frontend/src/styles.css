@@ -529,6 +529,9 @@ ul.relations li:last-child { border-bottom: none; }
 .sb-ability-name { font-weight: 700; color: var(--danger); font-size: 12px; }
 .sb-ability-score { font-size: 13px; }
 .sb-trait { margin-top: 6px; }
+/* "Actions" — the classic stat block's small-caps heading above the attack lines. */
+.sb-heading { font-size: 17px; font-variant: small-caps; color: var(--danger);
+  border-bottom: 1px solid var(--danger); margin: 4px 0 2px; }
 
 /* Character sheets */
 .sheet-layout { display: grid; grid-template-columns: 200px 1fr; gap: 16px; }
@@ -541,6 +544,31 @@ ul.relations li:last-child { border-bottom: none; }
 .ability-name { font-size: 11px; color: var(--muted); }
 .ability input { width: 100%; text-align: center; padding: 6px 2px; }
 .derived { font-size: 13px; }
+
+/* Attack authoring (the `attack-list` field role) */
+.attack-row { border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;
+  margin-bottom: 10px; background: var(--panel-2); }
+.attack-row legend { font-size: 11px; padding: 0 4px; }
+.attack-row .field { margin-bottom: 6px; }
+.attack-row .field span { font-size: 11px; }
+
+/* Attack rolls in the tracker */
+.attack-list { display: flex; flex-direction: column; gap: 4px; }
+.attack-btn { text-align: left; width: 100%; }
+.attack-meta { font-size: 11px; color: var(--muted); }
+/* The roll result: an outcome you can read at a glance, then apply or ignore. */
+.roll-card { border: 1px solid var(--border); border-left: 3px solid var(--accent);
+  border-radius: 6px; padding: 8px; margin-top: 8px; background: var(--bg); }
+.roll-card.hit { border-left-color: #6a9a4f; }
+.roll-card.miss { border-left-color: var(--muted); }
+.roll-card.crit { border-left-color: var(--accent); }
+.roll-total { font-size: 20px; font-weight: 700; color: var(--accent); }
+.roll-outcome { font-weight: 600; }
+.roll-faces { font-size: 11px; color: var(--muted); }
+.roll-log { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column;
+  gap: 3px; max-height: 220px; overflow-y: auto; font-size: 12px; }
+.roll-log li { display: flex; gap: 6px; justify-content: space-between;
+  border-bottom: 1px solid var(--border); padding-bottom: 2px; }
 
 /* Timeline */
 ul.timeline { list-style: none; padding: 0; margin: 0; }
