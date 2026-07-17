@@ -484,6 +484,57 @@ class CombatRollOut(BaseModel):
     recorded_at_real: str
 
 
+class AttackDamageOut(BaseModel):
+    #: Already rollable — the plugin resolved any ability modifier into the expression.
+    dice: str
+    type: str = ""
+
+
+class AttackSaveOut(BaseModel):
+    ability: str
+    dc: int
+    half_on_success: bool = False
+
+
+class AttackOut(BaseModel):
+    """One thing a combatant can do, with every number already worked out by its system."""
+
+    index: int
+    name: str
+    kind: str = "melee"
+    to_hit: int | None = None
+    reach: str | None = None
+    target: str | None = None
+    damage: list[AttackDamageOut] = []
+    save: AttackSaveOut | None = None
+    description: str | None = None
+
+
+class AttackIn(BaseModel):
+    attacker_id: str
+    #: Which of the attacker's attacks, by position in ``GET .../attacks``.
+    action_index: int = Field(ge=0)
+    #: Omit to roll without a target — the roll is reported and the GM calls it.
+    target_id: str | None = None
+    mode: Literal["normal", "advantage", "disadvantage"] = "normal"
+
+
+class AttackResultOut(BaseModel):
+    """What the dice said. Nothing has been applied — that is the GM's call."""
+
+    action_name: str
+    attacker_id: str
+    target_id: str | None
+    target_ac: int | None
+    #: hit | miss | crit | fumble, or None when there was no AC to beat.
+    outcome: str | None
+    to_hit: CombatRollOut | None
+    damage: list[CombatRollOut] = []
+    total_damage: int = 0
+    save: AttackSaveOut | None = None
+    description: str | None = None
+
+
 class CombatSummary(BaseModel):
     rounds: int
     duration_seconds: int

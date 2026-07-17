@@ -1144,6 +1144,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/campaigns/{campaign_id}/combats/{run_id}/combatants/{combatant_id}/attacks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Attacks
+         * @description What this combatant can do, resolved by its rule system into plain numbers.
+         */
+        get: operations["list_attacks_api_v1_campaigns__campaign_id__combats__run_id__combatants__combatant_id__attacks_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/combats/{run_id}/attack": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Roll Attack
+         * @description Roll an attack and report the result. Applies nothing — that stays the GM's call.
+         */
+        post: operations["roll_attack_api_v1_campaigns__campaign_id__combats__run_id__attack_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/campaigns/{campaign_id}/combats/{run_id}/rolls": {
         parameters: {
             query?: never;
@@ -2585,6 +2625,102 @@ export interface components {
             caption: string | null;
             /** Sort Order */
             sort_order: number;
+        };
+        /** AttackDamageOut */
+        AttackDamageOut: {
+            /** Dice */
+            dice: string;
+            /**
+             * Type
+             * @default
+             */
+            type?: string;
+        };
+        /** AttackIn */
+        AttackIn: {
+            /** Attacker Id */
+            attacker_id: string;
+            /** Action Index */
+            action_index: number;
+            /** Target Id */
+            target_id?: string | null;
+            /**
+             * Mode
+             * @default normal
+             * @enum {string}
+             */
+            mode?: "normal" | "advantage" | "disadvantage";
+        };
+        /**
+         * AttackOut
+         * @description One thing a combatant can do, with every number already worked out by its system.
+         */
+        AttackOut: {
+            /** Index */
+            index: number;
+            /** Name */
+            name: string;
+            /**
+             * Kind
+             * @default melee
+             */
+            kind?: string;
+            /** To Hit */
+            to_hit?: number | null;
+            /** Reach */
+            reach?: string | null;
+            /** Target */
+            target?: string | null;
+            /**
+             * Damage
+             * @default []
+             */
+            damage?: components["schemas"]["AttackDamageOut"][];
+            save?: components["schemas"]["AttackSaveOut"] | null;
+            /** Description */
+            description?: string | null;
+        };
+        /**
+         * AttackResultOut
+         * @description What the dice said. Nothing has been applied — that is the GM's call.
+         */
+        AttackResultOut: {
+            /** Action Name */
+            action_name: string;
+            /** Attacker Id */
+            attacker_id: string;
+            /** Target Id */
+            target_id: string | null;
+            /** Target Ac */
+            target_ac: number | null;
+            /** Outcome */
+            outcome: string | null;
+            to_hit: components["schemas"]["CombatRollOut"] | null;
+            /**
+             * Damage
+             * @default []
+             */
+            damage?: components["schemas"]["CombatRollOut"][];
+            /**
+             * Total Damage
+             * @default 0
+             */
+            total_damage?: number;
+            save?: components["schemas"]["AttackSaveOut"] | null;
+            /** Description */
+            description?: string | null;
+        };
+        /** AttackSaveOut */
+        AttackSaveOut: {
+            /** Ability */
+            ability: string;
+            /** Dc */
+            dc: number;
+            /**
+             * Half On Success
+             * @default false
+             */
+            half_on_success?: boolean;
         };
         /** BackupOut */
         BackupOut: {
@@ -8005,6 +8141,75 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CombatRunOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_attacks_api_v1_campaigns__campaign_id__combats__run_id__combatants__combatant_id__attacks_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+                combatant_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttackOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    roll_attack_api_v1_campaigns__campaign_id__combats__run_id__attack_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AttackIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttackResultOut"];
                 };
             };
             /** @description Validation Error */

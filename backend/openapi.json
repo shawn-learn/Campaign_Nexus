@@ -4415,6 +4415,133 @@
         }
       }
     },
+    "/api/v1/campaigns/{campaign_id}/combats/{run_id}/combatants/{combatant_id}/attacks": {
+      "get": {
+        "tags": [
+          "combat"
+        ],
+        "summary": "List Attacks",
+        "description": "What this combatant can do, resolved by its rule system into plain numbers.",
+        "operationId": "list_attacks_api_v1_campaigns__campaign_id__combats__run_id__combatants__combatant_id__attacks_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "combatant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Combatant Id"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AttackOut"
+                  },
+                  "title": "Response List Attacks Api V1 Campaigns  Campaign Id  Combats  Run Id  Combatants  Combatant Id  Attacks Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/combats/{run_id}/attack": {
+      "post": {
+        "tags": [
+          "combat"
+        ],
+        "summary": "Roll Attack",
+        "description": "Roll an attack and report the result. Applies nothing \u2014 that stays the GM's call.",
+        "operationId": "roll_attack_api_v1_campaigns__campaign_id__combats__run_id__attack_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttackIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttackResultOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/campaigns/{campaign_id}/combats/{run_id}/rolls": {
       "get": {
         "tags": [
@@ -10487,6 +10614,273 @@
           "sort_order"
         ],
         "title": "AttachmentOut"
+      },
+      "AttackDamageOut": {
+        "properties": {
+          "dice": {
+            "type": "string",
+            "title": "Dice"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "dice"
+        ],
+        "title": "AttackDamageOut"
+      },
+      "AttackIn": {
+        "properties": {
+          "attacker_id": {
+            "type": "string",
+            "title": "Attacker Id"
+          },
+          "action_index": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Action Index"
+          },
+          "target_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Id"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "advantage",
+              "disadvantage"
+            ],
+            "title": "Mode",
+            "default": "normal"
+          }
+        },
+        "type": "object",
+        "required": [
+          "attacker_id",
+          "action_index"
+        ],
+        "title": "AttackIn"
+      },
+      "AttackOut": {
+        "properties": {
+          "index": {
+            "type": "integer",
+            "title": "Index"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "default": "melee"
+          },
+          "to_hit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Hit"
+          },
+          "reach": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reach"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target"
+          },
+          "damage": {
+            "items": {
+              "$ref": "#/components/schemas/AttackDamageOut"
+            },
+            "type": "array",
+            "title": "Damage",
+            "default": []
+          },
+          "save": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AttackSaveOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "index",
+          "name"
+        ],
+        "title": "AttackOut",
+        "description": "One thing a combatant can do, with every number already worked out by its system."
+      },
+      "AttackResultOut": {
+        "properties": {
+          "action_name": {
+            "type": "string",
+            "title": "Action Name"
+          },
+          "attacker_id": {
+            "type": "string",
+            "title": "Attacker Id"
+          },
+          "target_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Id"
+          },
+          "target_ac": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Ac"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome"
+          },
+          "to_hit": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CombatRollOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "damage": {
+            "items": {
+              "$ref": "#/components/schemas/CombatRollOut"
+            },
+            "type": "array",
+            "title": "Damage",
+            "default": []
+          },
+          "total_damage": {
+            "type": "integer",
+            "title": "Total Damage",
+            "default": 0
+          },
+          "save": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AttackSaveOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action_name",
+          "attacker_id",
+          "target_id",
+          "target_ac",
+          "outcome",
+          "to_hit"
+        ],
+        "title": "AttackResultOut",
+        "description": "What the dice said. Nothing has been applied \u2014 that is the GM's call."
+      },
+      "AttackSaveOut": {
+        "properties": {
+          "ability": {
+            "type": "string",
+            "title": "Ability"
+          },
+          "dc": {
+            "type": "integer",
+            "title": "Dc"
+          },
+          "half_on_success": {
+            "type": "boolean",
+            "title": "Half On Success",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "ability",
+          "dc"
+        ],
+        "title": "AttackSaveOut"
       },
       "BackupOut": {
         "properties": {

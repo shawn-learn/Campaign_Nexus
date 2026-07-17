@@ -655,6 +655,9 @@ export type ConditionDef = components['schemas']['ConditionOut']
 export type CombatRoll = components['schemas']['CombatRollOut']
 export type RollInitiativeIn = components['schemas']['RollInitiativeIn']
 export type AddCombatantIn = components['schemas']['AddCombatantIn']
+export type Attack = components['schemas']['AttackOut']
+export type AttackIn = components['schemas']['AttackIn']
+export type AttackResult = components['schemas']['AttackResultOut']
 
 // The reducer's action vocabulary, pinned to a Literal by the backend. A typo is a compile
 // error here rather than a 422 mid-combat.
@@ -784,6 +787,52 @@ export function useBeginCombat(campaignId: string, runId: string | null) {
       qc.setQueryData(combatKey(campaignId, runId), run)
       invalidateCombat(qc, campaignId)
     },
+  })
+}
+
+/** What this combatant can do, resolved by its rule system into plain numbers. */
+export function useCombatantAttacks(
+  campaignId: string | null,
+  runId: string | null,
+  combatantId: string | null,
+) {
+  return useQuery({
+    enabled: !!campaignId && !!runId && !!combatantId,
+    queryKey: ['combat-attacks', campaignId, runId, combatantId],
+    queryFn: async () =>
+      unwrap(
+        await api.GET(
+          '/api/v1/campaigns/{campaign_id}/combats/{run_id}/combatants/{combatant_id}/attacks',
+          {
+            params: {
+              path: { campaign_id: campaignId!, run_id: runId!, combatant_id: combatantId! },
+            },
+          },
+        ),
+        'load attacks',
+      ),
+    // An attack only changes when someone edits the sheet behind it.
+    staleTime: 5 * 60_000,
+  })
+}
+
+/**
+ * Roll an attack. Deliberately does not touch combat state — the result is a report, and
+ * applying it is a separate `damage` action the GM chooses to fire.
+ */
+export function useRollAttack(campaignId: string, runId: string | null) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: AttackIn) =>
+      unwrap(
+        await api.POST('/api/v1/campaigns/{campaign_id}/combats/{run_id}/attack', {
+          params: { path: { campaign_id: campaignId, run_id: runId! } },
+          body,
+        }),
+        'roll attack',
+      ),
+    // Only the roll log moved; the fold is untouched, so the combat query stays as it was.
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['combat-rolls', campaignId, runId] }),
   })
 }
 

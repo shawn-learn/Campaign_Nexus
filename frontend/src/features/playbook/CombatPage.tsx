@@ -16,7 +16,9 @@ import type { CombatState } from '../../lib/combatReducer'
 import { useActiveCampaign } from '../../shell/useActiveCampaign'
 import { StatBlockView } from '../rules/StatBlockView'
 import { AddCombatantDialog } from './AddCombatantDialog'
+import { AttackPanel } from './AttackPanel'
 import { CombatSetup } from './CombatSetup'
+import { RollLog } from './RollLog'
 
 function errorText(err: unknown): string {
   return err instanceof Error ? err.message : 'Something went wrong'
@@ -302,6 +304,18 @@ export function CombatPage() {
               </div>
             </div>
           )}
+
+          {sel && campaignId && runId && (
+            <AttackPanel
+              campaignId={campaignId}
+              runId={runId}
+              attackerId={sel.id}
+              state={state}
+              onApply={push}
+            />
+          )}
+
+          {campaignId && runId && <RollLog campaignId={campaignId} runId={runId} state={state} />}
 
           {sel && selBlockId && campaignId && (
             <div className="card combat-statblock">

@@ -112,11 +112,12 @@ def _seed_actions(
                         "side": spec.get("side", "foe"), "max_hp": profile["max_hp"],
                         "initiative": profile["initiative"],
                         "initiative_tiebreak": profile["initiative_mod"],
-                        # Carried for the UI's stat-block panel and the initiative roll; the
-                        # reducer ignores both, so the folded state and its golden fixtures
-                        # are unaffected.
+                        # Carried for the UI's stat-block panel, the initiative roll and
+                        # attack resolution; the reducer ignores all three, so the folded
+                        # state and its golden fixtures are unaffected.
                         "stat_block_id": block.id if block else None,
                         "initiative_dice": profile["initiative_dice"],
+                        "ac": profile["ac"],
                     })
 
     # Party PCs join as allies with their live HP.
@@ -137,6 +138,7 @@ def _seed_actions(
             "initiative_tiebreak": profile["initiative_mod"],
             "stat_block_id": member.stat_block_id,
             "initiative_dice": profile["initiative_dice"],
+            "ac": profile["ac"],
         })
     return seed
 
@@ -158,12 +160,15 @@ def combatant_blocks(session: Session, run_id: str) -> dict[str, str]:
     return out
 
 
-def initiative_specs(session: Session, run_id: str) -> dict[str, dict[str, Any]]:
-    """Map each combatant id → ``{"dice", "mod"}``, read from the ``add_combatant`` log.
+def combatant_specs(session: Session, run_id: str) -> dict[str, dict[str, Any]]:
+    """Map each combatant id → ``{"dice", "mod", "ac"}``, read from the ``add_combatant`` log.
 
     Same trick as ``combatant_blocks``: the seed actions are always in the log, so this is
-    cursor-independent and keeps working across undo/redo. ``dice`` is None for a system
-    that doesn't roll for order at all (Nimble) — those combatants are never rolled for.
+    cursor-independent and keeps working across undo/redo — and it means neither rolling
+    initiative nor resolving an attack has to go back to a stat block mid-combat.
+
+    ``dice`` is None for a system that doesn't roll for order (Nimble); ``ac`` is None where
+    the system has no such number (Nimble again) or for an ad-hoc combatant nobody gave one.
     """
     out: dict[str, dict[str, Any]] = {}
     for action in _actions(session, run_id):
@@ -173,6 +178,7 @@ def initiative_specs(session: Session, run_id: str) -> dict[str, dict[str, Any]]
         out[payload["id"]] = {
             "dice": payload.get("initiative_dice"),
             "mod": int(payload.get("initiative_tiebreak", 0)),
+            "ac": payload.get("ac"),
         }
     return out
 
@@ -251,7 +257,7 @@ def roll_initiative(
         raise CombatClosed(run_id)
 
     state = state_of(session, run)
-    specs = initiative_specs(session, run_id)
+    specs = combatant_specs(session, run_id)
     manual = {k: v for k, v in (values or {}).items() if k in state.combatants}
     now = now_real_iso()
 
@@ -345,6 +351,9 @@ def add_combatant(
         profile = {
             "max_hp": int(max_hp), "hp": int(max_hp), "initiative": 0,
             "initiative_mod": 0, "initiative_dice": initiative_die(session, run),
+            # Nobody typed an AC for a thing invented thirty seconds ago; an attack against
+            # it reports the roll and lets the GM call it.
+            "ac": None,
         }
         base, block_id = name, None
 
@@ -359,6 +368,7 @@ def add_combatant(
             "initiative_tiebreak": profile["initiative_mod"],
             "stat_block_id": block_id,
             "initiative_dice": profile["initiative_dice"],
+            "ac": profile["ac"],
         })
     session.commit()
 
@@ -373,6 +383,130 @@ def add_combatant(
     else:
         roll_initiative(session, campaign, run_id, scope="ids", ids=added, rng=rng)
     return run
+
+
+def attacks_for(
+    session: Session, campaign: Campaign, run_id: str, combatant_id: str
+) -> list[dict[str, Any]]:
+    """The attacks this combatant can make, resolved by its rule system into plain numbers.
+
+    Reads the stat block through ``attack_actions`` and nothing else — whether a "+7" was
+    printed on a monster or worked out from a character's level is the plugin's business.
+    """
+    blocks = combatant_blocks(session, run_id)
+    block_id = blocks.get(combatant_id)
+    if block_id is None:
+        return []  # an ad-hoc combatant has no sheet to read attacks off
+    block = session.get(StatBlock, block_id)
+    if block is None:
+        return []
+    system = registry.get_system(campaign.rule_system_id)
+    doc = json.loads(block.doc_json)
+    return [
+        {"index": i, **action}
+        for i, action in enumerate(system.attack_actions(block.sheet_type, doc))
+    ]
+
+
+def attack(
+    session: Session,
+    campaign: Campaign,
+    run_id: str,
+    *,
+    attacker_id: str,
+    action_index: int,
+    target_id: str | None = None,
+    mode: str = "normal",
+    rng: random.Random | None = None,
+) -> dict[str, Any]:
+    """Roll an attack and report what happened. **Deliberately changes nothing.**
+
+    The GM applies the damage (or doesn't). Resistance, cover, a ruling that the wall took
+    it instead — none of that is knowable here, and auto-applying would take away the exact
+    moment a GM is for. The returned damage rolls carry their ids, so applying is an ordinary
+    ``damage`` action with a ``roll_id`` and the number stays traceable.
+    """
+    run = _require(session, campaign.id, run_id)
+    if run.status == "completed":
+        raise CombatClosed(run_id)
+    state = state_of(session, run)
+    if attacker_id not in state.combatants:
+        raise CombatantNotFound(attacker_id)
+
+    options = attacks_for(session, campaign, run_id, attacker_id)
+    if not 0 <= action_index < len(options):
+        raise BadCombatant(f"no attack {action_index} on {state.combatants[attacker_id].name}")
+    action = options[action_index]
+
+    target_ac: int | None = None
+    if target_id:
+        if target_id not in state.combatants:
+            raise CombatantNotFound(target_id)
+        spec = combatant_specs(session, run_id).get(target_id) or {}
+        ac = spec.get("ac")
+        target_ac = int(ac) if ac is not None else None
+
+    now = now_real_iso()
+    to_hit_roll: CombatRoll | None = None
+    outcome: str | None = None
+    hit = True
+
+    if action.get("to_hit") is not None:
+        bonus = int(action["to_hit"])
+        expr = f"1d20{bonus:+d}" if bonus else "1d20"
+        result = dice.roll(expr, mode=mode, rng=rng)  # type: ignore[arg-type]
+        # A natural 20 hits whatever the number says, a natural 1 misses whatever it says —
+        # so the faces decide before the total does.
+        if result.critical:
+            outcome, hit = "crit", True
+        elif result.fumble:
+            outcome, hit = "fumble", False
+        elif target_ac is not None:
+            hit = result.total >= target_ac
+            outcome = "hit" if hit else "miss"
+        else:
+            outcome, hit = None, True  # no AC to beat: report the roll, let the GM call it
+        to_hit_roll = CombatRoll(
+            id=new_id(), combat_run_id=run_id, combatant_id=attacker_id, kind="attack",
+            label=str(action["name"]), expression=expr, mode=mode,
+            detail_json=json.dumps(_roll_detail(result)), total=result.total,
+            target=target_ac, outcome=outcome, recorded_at_real=now,
+        )
+        session.add(to_hit_roll)
+
+    damage_rolls: list[CombatRoll] = []
+    if hit:
+        for part in action.get("damage") or []:
+            expr = str(part["dice"])
+            if not expr or expr == "0":
+                continue
+            if outcome == "crit" and action.get("crit_rule") == "double_dice":
+                # The system names its rule; the arithmetic is generic (app.core.dice).
+                expr = dice.max_dice(expr)
+            result = dice.roll(expr, rng=rng)
+            roll = CombatRoll(
+                id=new_id(), combat_run_id=run_id, combatant_id=target_id or attacker_id,
+                kind="damage", label=f"{action['name']} ({part.get('type') or 'damage'})",
+                expression=expr, mode="normal",
+                detail_json=json.dumps(_roll_detail(result)), total=result.total,
+                recorded_at_real=now,
+            )
+            session.add(roll)
+            damage_rolls.append(roll)
+
+    session.commit()
+    return {
+        "action_name": str(action["name"]),
+        "attacker_id": attacker_id,
+        "target_id": target_id,
+        "target_ac": target_ac,
+        "outcome": outcome,
+        "to_hit": to_hit_roll,
+        "damage": damage_rolls,
+        "total_damage": sum(r.total for r in damage_rolls),
+        "save": action.get("save"),
+        "description": action.get("description"),
+    }
 
 
 def begin_combat(session: Session, campaign_id: str, run_id: str) -> CombatRun:

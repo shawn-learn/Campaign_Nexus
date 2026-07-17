@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import json
+import random
 from pathlib import Path
 
+from app.modules.campaign.models import Campaign
+from app.modules.playbook import combat
 from app.modules.playbook.combat_reducer import fold
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
 
 _GOLDEN = Path(__file__).parent / "fixtures" / "combat_golden.json"
 
@@ -146,6 +150,189 @@ def test_party_hp_is_written_back_when_combat_ends(client: TestClient) -> None:
     member = client.get(f"/api/v1/campaigns/{cid}/party").json()["members"][0]
     assert member["hp"] == 27
     assert member["status"]["current_hit_points"] == 27
+
+
+# --- attacks ----------------------------------------------------------------
+class ScriptedRandom(random.Random):
+    """Hands back pre-set faces, so a test can state the exact dice it means."""
+
+    def __init__(self, values: list[int]) -> None:
+        super().__init__()
+        self._values = list(values)
+
+    def randint(self, a: int, b: int) -> int:  # type: ignore[override]
+        return self._values.pop(0)
+
+
+def _two_goblins(client: TestClient, cid: str) -> tuple[str, str, str]:
+    """A run with two goblins; returns (run_id, attacker_id, target_id)."""
+    run_id = _start_from_two_goblins(client, cid)
+    run = client.get(f"/api/v1/campaigns/{cid}/combats/{run_id}").json()
+    order = run["state"]["order"]
+    return run_id, order[0], order[1]
+
+
+def test_a_combatant_offers_the_attacks_off_its_stat_block(client: TestClient) -> None:
+    cid = _demo(client)
+    run_id, goblin, _ = _two_goblins(client, cid)
+
+    attacks = client.get(
+        f"/api/v1/campaigns/{cid}/combats/{run_id}/combatants/{goblin}/attacks"
+    ).json()
+    by_name = {a["name"]: a for a in attacks}
+    assert set(by_name) == {"Scimitar", "Shortbow"}
+    assert by_name["Scimitar"]["to_hit"] == 4
+    assert by_name["Scimitar"]["damage"] == [{"dice": "1d6+2", "type": "slashing"}]
+    assert by_name["Shortbow"]["kind"] == "ranged"
+
+
+def test_an_ad_hoc_combatant_has_no_attacks_to_offer(client: TestClient) -> None:
+    cid = _demo(client)
+    run_id, _, _ = _two_goblins(client, cid)
+    out = client.post(
+        f"/api/v1/campaigns/{cid}/combats/{run_id}/combatants",
+        json={"name": "Swarm of Rats", "max_hp": 24},
+    ).json()
+    rats = next(c for c in out["state"]["combatants"].values() if c["name"] == "Swarm of Rats")
+    assert client.get(
+        f"/api/v1/campaigns/{cid}/combats/{run_id}/combatants/{rats['id']}/attacks"
+    ).json() == []
+
+
+def test_attack_rolls_to_hit_against_the_targets_ac_and_changes_nothing(
+    client: TestClient, db
+) -> None:
+    """The roll is reported; applying it is a separate, deliberate act.
+
+    Resistance, cover, "actually he ducks behind the pillar" — none of that is knowable
+    here, and auto-applying would spend the exact moment a GM is for.
+    """
+    cid = _demo(client)
+    run_id, attacker, target = _two_goblins(client, cid)
+    before = client.get(f"/api/v1/campaigns/{cid}/combats/{run_id}").json()
+
+    resp = client.post(
+        f"/api/v1/campaigns/{cid}/combats/{run_id}/attack",
+        json={"attacker_id": attacker, "action_index": 0, "target_id": target},
+    )
+    assert resp.status_code == 200, resp.text
+    result = resp.json()
+
+    assert result["action_name"] == "Scimitar"
+    assert result["target_ac"] == 15  # a goblin's AC, from its stat block
+    assert result["outcome"] in {"hit", "miss", "crit", "fumble"}
+    assert result["to_hit"]["expression"] == "1d20+4"
+    # Nothing moved: HP is untouched and the fold cursor hasn't advanced.
+    after = client.get(f"/api/v1/campaigns/{cid}/combats/{run_id}").json()
+    assert after["state"] == before["state"]
+    assert after["total_actions"] == before["total_actions"]
+
+
+def _scripted_attack(db: Session, cid: str, run_id: str, attacker: str, target: str | None,
+                     faces: list[int]) -> dict:
+    """Drive combat.attack with exact dice. The HTTP layer can't inject an rng, and a
+    seeded one would only prove the seed."""
+    db.expire_all()  # the client made its changes over HTTP, through another session
+    campaign = db.get(Campaign, cid)
+    assert campaign is not None
+    return combat.attack(
+        db, campaign, run_id, attacker_id=attacker, action_index=0,
+        target_id=target, rng=ScriptedRandom(faces),
+    )
+
+
+def test_a_hit_rolls_damage_and_a_miss_does_not(client: TestClient, db: Session) -> None:
+    cid = _demo(client)
+    run_id, attacker, target = _two_goblins(client, cid)
+
+    # 16 + 4 = 20 vs AC 15 -> hit, then 1d6+2 damage on a face of 3.
+    hit = _scripted_attack(db, cid, run_id, attacker, target, [16, 3])
+    assert hit["outcome"] == "hit"
+    assert hit["total_damage"] == 5
+
+    # 2 + 4 = 6 vs AC 15 -> miss, and no damage die is thrown at all.
+    miss = _scripted_attack(db, cid, run_id, attacker, target, [2])
+    assert miss["outcome"] == "miss"
+    assert miss["damage"] == []
+    assert miss["total_damage"] == 0
+
+
+def test_a_natural_twenty_crits_and_doubles_the_damage_dice(
+    client: TestClient, db: Session
+) -> None:
+    cid = _demo(client)
+    run_id, attacker, target = _two_goblins(client, cid)
+    # Nat 20, then two d6 faces: 1d6+2 becomes 2d6+2, because 5e doubles the dice and not
+    # the modifier — and the plugin said so by naming `crit_rule: double_dice`.
+    result = _scripted_attack(db, cid, run_id, attacker, target, [20, 4, 5])
+    assert result["outcome"] == "crit"
+    assert result["damage"][0].expression == "2d6+2"
+    assert result["total_damage"] == 11  # 4 + 5 + 2, not (4+2) + (5+2)
+
+
+def test_a_natural_one_misses_whatever_the_total_says(
+    client: TestClient, db: Session
+) -> None:
+    # A goblin's +4 against AC 15 can't reach it on a 1 anyway — but the point is that the
+    # face decides before the total does, so this stays a miss even against a low AC.
+    cid = _demo(client)
+    run_id, attacker, target = _two_goblins(client, cid)
+    result = _scripted_attack(db, cid, run_id, attacker, target, [1])
+    assert result["outcome"] == "fumble"
+    assert result["damage"] == []
+
+
+def test_attacking_without_a_target_reports_the_roll_and_judges_nothing(
+    client: TestClient
+) -> None:
+    # No AC to beat means no verdict to give — but the damage is still rolled, because the
+    # GM asked for the attack and will decide what it hit.
+    cid = _demo(client)
+    run_id, attacker, _ = _two_goblins(client, cid)
+    result = client.post(
+        f"/api/v1/campaigns/{cid}/combats/{run_id}/attack",
+        json={"attacker_id": attacker, "action_index": 0},
+    ).json()
+    assert result["target_ac"] is None
+    assert result["outcome"] is None
+    assert result["total_damage"] > 0
+
+
+def test_an_attack_is_traceable_from_the_damage_it_caused(client: TestClient) -> None:
+    """Applying is an ordinary damage action carrying the roll's id.
+
+    "Where did this 8 come from" stays answerable, which is the whole reason rolls get ids.
+    """
+    cid = _demo(client)
+    run_id, attacker, target = _two_goblins(client, cid)
+    result = client.post(
+        f"/api/v1/campaigns/{cid}/combats/{run_id}/attack",
+        json={"attacker_id": attacker, "action_index": 0, "target_id": target},
+    ).json()
+    if not result["damage"]:
+        return  # it missed; nothing to apply
+
+    roll_id = result["damage"][0]["id"]
+    out = client.post(
+        f"/api/v1/campaigns/{cid}/combats/{run_id}/actions",
+        json={"action_type": "damage", "payload": {
+            "id": target, "amount": result["total_damage"], "roll_id": roll_id,
+        }},
+    ).json()
+    assert out["state"]["combatants"][target]["hp"] == max(0, 7 - result["total_damage"])
+    # And the roll it came from is in the log.
+    rolls = client.get(f"/api/v1/campaigns/{cid}/combats/{run_id}/rolls").json()
+    assert any(r["id"] == roll_id for r in rolls)
+
+
+def test_an_unknown_attack_index_is_rejected(client: TestClient) -> None:
+    cid = _demo(client)
+    run_id, attacker, _ = _two_goblins(client, cid)
+    resp = client.post(
+        f"/api/v1/campaigns/{cid}/combats/{run_id}/attack",
+        json={"attacker_id": attacker, "action_index": 99},
+    )
+    assert resp.status_code == 422
 
 
 # --- roster control ---------------------------------------------------------

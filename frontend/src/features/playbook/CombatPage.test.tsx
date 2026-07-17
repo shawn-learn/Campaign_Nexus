@@ -77,6 +77,33 @@ const fail = (detail: string) => Promise.resolve({ error: { detail } })
 let served: unknown = null
 /** What GET /rolls serves — the run's initiative rolls. */
 let rolls: unknown[] = []
+/** What GET /combatants/{id}/attacks serves. */
+let attacks: unknown[] = []
+
+const SCIMITAR = {
+  index: 0, name: 'Scimitar', kind: 'melee', to_hit: 4,
+  reach: '5 ft.', target: 'one target',
+  damage: [{ dice: '1d6+2', type: 'slashing' }], save: null, description: null,
+}
+
+/** A to-hit roll of 17 against AC 15. */
+const HIT_RESULT = {
+  action_name: 'Scimitar', attacker_id: 'g1', target_id: 's1', target_ac: 15,
+  outcome: 'hit', total_damage: 5,
+  to_hit: {
+    id: 'r-hit', combatant_id: 'g1', kind: 'attack', label: 'Scimitar',
+    expression: '1d20+4', mode: 'normal', total: 17, target: 15, outcome: 'hit',
+    recorded_at_real: 'now',
+    detail: { dice: [{ sides: 20, value: 13, kept: true, sign: 1 }], modifier: 4 },
+  },
+  damage: [{
+    id: 'r-dmg', combatant_id: 's1', kind: 'damage', label: 'Scimitar (slashing)',
+    expression: '1d6+2', mode: 'normal', total: 5, target: null, outcome: null,
+    recorded_at_real: 'now',
+    detail: { dice: [{ sides: 6, value: 3, kept: true, sign: 1 }], modifier: 2 },
+  }],
+  save: null, description: null,
+}
 
 // Built fresh per test, but referenced (not constructed) by the wrapper — constructing it
 // inside the wrapper body would hand React a new cache on every render.
@@ -94,12 +121,14 @@ beforeEach(() => {
   })
   served = null
   rolls = []
+  attacks = []
   GET.mockImplementation((path: string) => {
     if (path.includes('/encounters')) return ok([{ id: 'enc1', name: 'Goblin Ambush' }])
     if (path.includes('/conditions')) {
       return ok([{ id: 'prone', name: 'Prone', description: 'Disadvantage on attacks.' }])
     }
     if (path.includes('/rolls')) return ok(rolls)
+    if (path.includes('/attacks')) return ok(attacks)
     if (path.includes('/monsters')) return ok([{ id: 'm-ogre', name: 'Ogre' }])
     if (path.includes('/combats/')) return served ? ok(served) : fail('combat not found')
     return ok(null)
@@ -258,6 +287,87 @@ describe('CombatPage', () => {
     expect(ui.queryByRole('button', { name: /roll all/i })).not.toBeInTheDocument()
     expect(ui.queryByLabelText('Serah initiative')).not.toBeInTheDocument()
     expect(ui.getByRole('button', { name: /begin/i })).toBeEnabled()
+  })
+
+  it('rolls an attack against a default target and reports the verdict', async () => {
+    attacks = [SCIMITAR]
+    const ui = await startedCombat()
+    // Goblin (foe) is auto-selected; the target defaults to the first standing ally.
+    await ui.findByRole('button', { name: /scimitar/i })
+
+    POST.mockReturnValueOnce(ok(HIT_RESULT))
+    fireEvent.click(ui.getByRole('button', { name: /scimitar/i }))
+
+    await waitFor(() =>
+      expect(POST).toHaveBeenCalledWith(
+        '/api/v1/campaigns/{campaign_id}/combats/{run_id}/attack',
+        expect.objectContaining({
+          body: { attacker_id: 'g1', action_index: 0, target_id: 's1', mode: 'normal' },
+        }),
+      ),
+    )
+    expect(await ui.findByText('HIT')).toBeInTheDocument()
+    expect(ui.getByText('vs AC 15')).toBeInTheDocument()
+    // The faces behind the total, so a surprising roll is inspectable rather than magic.
+    // (Not asserting on "17" alone — the goblin's initiative is also 17.)
+    expect(ui.getByText(/1d20\+4 \(13\) \+4/)).toBeInTheDocument()
+    expect(ui.getByText(/1d6\+2 \(3\) \+2 = 5/)).toBeInTheDocument()
+  })
+
+  it('applies nothing until asked, then fires a damage action carrying the roll id', async () => {
+    attacks = [SCIMITAR]
+    const ui = await startedCombat()
+    await ui.findByRole('button', { name: /scimitar/i })
+    POST.mockReturnValueOnce(ok(HIT_RESULT))
+    fireEvent.click(ui.getByRole('button', { name: /scimitar/i }))
+    await ui.findByText('HIT')
+
+    // The roll landed but Serah is untouched — the ruling is the GM's to make.
+    expect(ui.getByText('30/30')).toBeInTheDocument()
+    expect(POST).not.toHaveBeenCalledWith(
+      '/api/v1/campaigns/{campaign_id}/combats/{run_id}/actions',
+      expect.anything(),
+    )
+
+    POST.mockReturnValueOnce(new Promise(() => {}))
+    fireEvent.click(ui.getByRole('button', { name: /apply 5/i }))
+
+    await waitFor(() =>
+      expect(POST).toHaveBeenCalledWith(
+        '/api/v1/campaigns/{campaign_id}/combats/{run_id}/actions',
+        expect.objectContaining({
+          body: {
+            action_type: 'damage',
+            // roll_id makes "where did this 5 come from" answerable from the log.
+            payload: { id: 's1', amount: 5, roll_id: 'r-dmg' },
+          },
+        }),
+      ),
+    )
+    expect(await ui.findByText('25/30')).toBeInTheDocument() // optimistic
+  })
+
+  it('rolls with advantage when asked', async () => {
+    attacks = [SCIMITAR]
+    const ui = await startedCombat()
+    await ui.findByRole('button', { name: /scimitar/i })
+
+    fireEvent.change(ui.getByLabelText(/roll mode/i), { target: { value: 'advantage' } })
+    POST.mockReturnValueOnce(ok(HIT_RESULT))
+    fireEvent.click(ui.getByRole('button', { name: /scimitar/i }))
+
+    await waitFor(() =>
+      expect(POST).toHaveBeenCalledWith(
+        '/api/v1/campaigns/{campaign_id}/combats/{run_id}/attack',
+        expect.objectContaining({ body: expect.objectContaining({ mode: 'advantage' }) }),
+      ),
+    )
+  })
+
+  it('shows no attack panel for a combatant with nothing to swing', async () => {
+    attacks = []
+    const ui = await startedCombat()
+    expect(ui.queryByRole('heading', { name: /^attacks$/i })).not.toBeInTheDocument()
   })
 
   it('sets temp HP from the keyboard', async () => {

@@ -18,10 +18,13 @@ from app.modules.playbook import (
     tables,
     travel,
 )
-from app.modules.playbook.models import CombatRun
+from app.modules.playbook.models import CombatRoll, CombatRun
 from app.modules.playbook.schemas import (
     AddCombatantIn,
     AddMember,
+    AttackIn,
+    AttackOut,
+    AttackResultOut,
     CombatActionIn,
     CombatRollOut,
     CombatRunBrief,
@@ -588,6 +591,69 @@ def begin_combat(
     return _run_out(session, run)
 
 
+def _roll_out(roll: CombatRoll) -> CombatRollOut:
+    return CombatRollOut(
+        id=roll.id, combatant_id=roll.combatant_id, kind=roll.kind, label=roll.label,
+        expression=roll.expression, mode=roll.mode,
+        detail=RollDetail.model_validate(json.loads(roll.detail_json)),
+        total=roll.total, target=roll.target, outcome=roll.outcome,
+        recorded_at_real=roll.recorded_at_real,
+    )
+
+
+@combat_router.get("/{run_id}/combatants/{combatant_id}/attacks", response_model=list[AttackOut])
+def list_attacks(
+    run_id: str,
+    combatant_id: str,
+    session: Session = Depends(get_session),
+    ctx: CampaignContext = Viewer,
+) -> list[AttackOut]:
+    """What this combatant can do, resolved by its rule system into plain numbers."""
+    _load_run(session, ctx.campaign_id, run_id)
+    return [
+        AttackOut.model_validate(a)
+        for a in combat.attacks_for(
+            session, _campaign(session, ctx.campaign_id), run_id, combatant_id
+        )
+    ]
+
+
+@combat_router.post("/{run_id}/attack", response_model=AttackResultOut)
+def roll_attack(
+    run_id: str,
+    body: AttackIn,
+    session: Session = Depends(get_session),
+    ctx: CampaignContext = Editor,
+) -> AttackResultOut:
+    """Roll an attack and report the result. Applies nothing — that stays the GM's call."""
+    try:
+        result = combat.attack(
+            session, _campaign(session, ctx.campaign_id), run_id,
+            attacker_id=body.attacker_id, action_index=body.action_index,
+            target_id=body.target_id, mode=body.mode,
+        )
+    except combat.CombatNotFound as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "combat not found") from exc
+    except combat.CombatantNotFound as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "combatant not found") from exc
+    except combat.BadCombatant as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
+    except combat.CombatClosed as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, "combat already ended") from exc
+    return AttackResultOut(
+        action_name=result["action_name"],
+        attacker_id=result["attacker_id"],
+        target_id=result["target_id"],
+        target_ac=result["target_ac"],
+        outcome=result["outcome"],
+        to_hit=_roll_out(result["to_hit"]) if result["to_hit"] else None,
+        damage=[_roll_out(r) for r in result["damage"]],
+        total_damage=result["total_damage"],
+        save=result["save"],
+        description=result["description"],
+    )
+
+
 @combat_router.get("/{run_id}/rolls", response_model=list[CombatRollOut])
 def list_rolls(
     run_id: str,
@@ -596,16 +662,7 @@ def list_rolls(
     ctx: CampaignContext = Viewer,
 ) -> list[CombatRollOut]:
     _load_run(session, ctx.campaign_id, run_id)
-    return [
-        CombatRollOut(
-            id=r.id, combatant_id=r.combatant_id, kind=r.kind, label=r.label,
-            expression=r.expression, mode=r.mode,
-            detail=RollDetail.model_validate(json.loads(r.detail_json)),
-            total=r.total, target=r.target, outcome=r.outcome,
-            recorded_at_real=r.recorded_at_real,
-        )
-        for r in combat.rolls_for(session, run_id, limit)
-    ]
+    return [_roll_out(r) for r in combat.rolls_for(session, run_id, limit)]
 
 
 @combat_router.post("/{run_id}/actions", response_model=CombatRunOut)
