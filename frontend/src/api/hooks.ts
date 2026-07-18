@@ -1837,6 +1837,7 @@ export async function whereWas(
 // An NPC write moves the graph, the timeline and the dashboard's NPCs-here panel.
 function invalidateNpcs(qc: ReturnType<typeof useQueryClient>, campaignId: string) {
   void qc.invalidateQueries({ queryKey: ['npcs', campaignId] })
+  void qc.invalidateQueries({ queryKey: ['npc', campaignId] })
   void qc.invalidateQueries({ queryKey: ['npc-history', campaignId] })
   void qc.invalidateQueries({ queryKey: ['npc-schedules', campaignId] })
   void qc.invalidateQueries({ queryKey: ['entity', campaignId] })
