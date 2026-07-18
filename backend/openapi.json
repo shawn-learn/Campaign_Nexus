@@ -3140,6 +3140,16 @@
               ],
               "title": "Facet2 Text"
             }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 200,
+              "title": "Limit"
+            }
           }
         ],
         "responses": {
@@ -11694,6 +11704,17 @@
             "type": "string",
             "title": "Monster Id"
           },
+          "monster_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monster Name"
+          },
           "count": {
             "type": "integer",
             "minimum": 1.0,
@@ -12131,6 +12152,17 @@
           "side": {
             "type": "string",
             "title": "Side"
+          },
+          "resolved_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved By"
           }
         },
         "type": "object",

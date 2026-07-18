@@ -532,6 +532,9 @@ ul.relations li:last-child { border-bottom: none; }
 /* "Actions" — the classic stat block's small-caps heading above the attack lines. */
 .sb-heading { font-size: 17px; font-variant: small-caps; color: var(--danger);
   border-bottom: 1px solid var(--danger); margin: 4px 0 2px; }
+/* Spell lists sit indented under their spellcasting trait, one line per slot level. */
+.sb-spell-line { margin: 2px 0 0 12px; font-size: 13px; }
+.sb-source { margin-top: 10px; font-size: 11px; font-style: italic; opacity: 0.7; }
 
 /* Character sheets */
 .sheet-layout { display: grid; grid-template-columns: 200px 1fr; gap: 16px; }

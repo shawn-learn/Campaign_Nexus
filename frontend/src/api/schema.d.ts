@@ -3039,6 +3039,8 @@ export interface components {
         CombatantSpec: {
             /** Monster Id */
             monster_id: string;
+            /** Monster Name */
+            monster_name?: string | null;
             /**
              * Count
              * @default 1
@@ -3193,6 +3195,8 @@ export interface components {
             count: number;
             /** Side */
             side: string;
+            /** Resolved By */
+            resolved_by?: string | null;
         };
         /** EncounterCreate */
         EncounterCreate: {
@@ -7375,6 +7379,7 @@ export interface operations {
                 facet1_num_lte?: number | null;
                 facet1_text?: string | null;
                 facet2_text?: string | null;
+                limit?: number;
             };
             header?: never;
             path: {

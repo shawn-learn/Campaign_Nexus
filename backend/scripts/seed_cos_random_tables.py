@@ -45,17 +45,17 @@ ENCOUNTERS: dict[str, dict] = {
         "terrain": "road",
         "tactics": "Torches and pitchforks (+2 to hit, 1d6). A mob bound for the castle or a "
                    "fleeing family; evadable by stealth.",
-        "monsters": [("Commoner", 10)],
+        "monsters": [("Barovian Commoner", 10)],
     },
     "Barovian Scouts": {
         "tactics": "Hunters/trappers seeking a missing person; light crossbows; friendly if "
                    "unprovoked.",
-        "monsters": [("Scout", 3)],
+        "monsters": [("Barovian Scout", 3)],
     },
     "Vistani Bandits": {
         "tactics": "Servants of Strahd. Will guide the party for 100 gp (drops later checks to "
                    "d12). One carries 2d4 gems (50 gp each).",
-        "monsters": [("Bandit", 3)],
+        "monsters": [("Vistana Bandit", 3)],
     },
     "Skeletal Rider": {
         "tactics": "Skeleton on a warhorse skeleton in ruined chain mail, carrying an unlit "
@@ -170,7 +170,7 @@ ENCOUNTERS: dict[str, dict] = {
     "Vistani Thugs": {
         "tactics": "Claim to be escaped captives offering alliance; betray the party when Strahd "
                    "appears. One carries 2d8 gems (50 gp each).",
-        "monsters": [("Thug", 3)],
+        "monsters": [("Vistana Thug", 3)],
     },
     "Wights (Guard Captains)": {
         "tactics": "Former guard captains in tattered livery; hostile on sight. Carry "
@@ -362,7 +362,10 @@ def _find_campaign(base: str, name: str) -> str:
 
 
 def _monster_map(base: str, cid: str) -> dict[str, str]:
-    monsters = _request("GET", f"{base}/api/v1/campaigns/{cid}/monsters")
+    # The list endpoint defaults to 200 rows. Against a full bestiary that silently truncates
+    # to the first 200 by (CR, name), so most names fail to resolve and their encounters get
+    # created with no combatants — which is how this seed lost most of its creatures.
+    monsters = _request("GET", f"{base}/api/v1/campaigns/{cid}/monsters?limit=100000")
     assert isinstance(monsters, list)
     return {m["name"]: m["id"] for m in monsters if isinstance(m, dict)}
 

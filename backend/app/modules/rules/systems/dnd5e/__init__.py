@@ -109,6 +109,150 @@ _LEGENDARY_SCHEMA: JsonSchema = {
     "required": ["count"],
 }
 
+#: The 18 SRD skills and the ability each keys off. Used both to constrain the ``skills``
+#: map and to complete it in ``derive`` — a monster prints only the skills it is proficient
+#: in, but a caller wants a modifier for any of them.
+_SKILL_ABILITY: dict[str, str] = {
+    "acrobatics": "dex", "animal_handling": "wis", "arcana": "int", "athletics": "str",
+    "deception": "cha", "history": "int", "insight": "wis", "intimidation": "cha",
+    "investigation": "int", "medicine": "wis", "nature": "int", "perception": "wis",
+    "performance": "cha", "persuasion": "cha", "religion": "int",
+    "sleight_of_hand": "dex", "stealth": "dex", "survival": "wis",
+}
+_SKILLS = tuple(_SKILL_ABILITY)
+
+#: Ability -> printed bonus. Used for saving throws.
+_MODIFIER_MAP: JsonSchema = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {a: {"type": "integer"} for a in _ABILITIES},
+}
+
+#: "bludgeoning, piercing and slashing from nonmagical attacks" is *one* entry with a
+#: qualifier, not three independent types. Keeping the types in a list preserves filtering
+#: ("what resists fire?") while ``note`` preserves the printed line. ``special`` carries the
+#: wholly unstructured cases ("damage from spells") that resist both.
+_DAMAGE_GROUP_SCHEMA: JsonSchema = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "types": {"type": "array", "items": {"type": "string"}},
+        "note": {"type": "string"},
+        "special": {"type": "string"},
+    },
+}
+
+_SENSES_SCHEMA: JsonSchema = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        # Ranges in feet: numeric because lighting/vision logic needs to compare them.
+        "darkvision": {"type": "integer", "minimum": 0},
+        "blindsight": {"type": "integer", "minimum": 0},
+        "truesight": {"type": "integer", "minimum": 0},
+        "tremorsense": {"type": "integer", "minimum": 0},
+        "blind_beyond": {"type": "boolean"},  # "(blind beyond this radius)"
+        "other": {"type": "array", "items": {"type": "string"}},
+    },
+}
+
+_MULTIATTACK_SCHEMA: JsonSchema = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        #: Always populated — the structured parse below is best-effort.
+        "description": {"type": "string"},
+        "attacks": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "name": {"type": "string"},  # matches an entry in `actions`
+                    "count": {"type": "integer", "minimum": 1},
+                },
+                "required": ["name"],
+            },
+        },
+    },
+}
+
+_SPELL_LIST: JsonSchema = {"type": "array", "items": {"type": "string"}}
+
+#: Spell names are plain strings, not references into the spell catalog. That catalog is a
+#: separate global table with its own ``(name, source)`` key; pointing at it from inside a
+#: stat block would couple the plugin to another module and break its self-containment.
+_SPELLCASTING_SCHEMA: JsonSchema = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "name": {"type": "string"},  # "Innate Spellcasting"
+        "kind": {"enum": ["prepared", "known", "innate"]},
+        "ability": {"enum": list(_ABILITIES)},
+        "save_dc": {"type": "integer", "minimum": 1},
+        "attack_bonus": {"type": "integer"},
+        "caster_level": {"type": "integer", "minimum": 1, "maximum": 20},
+        "description": {"type": "string"},
+        "at_will": _SPELL_LIST,
+        "per_day": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "uses": {"type": "integer", "minimum": 1},
+                    "each": {"type": "boolean"},  # 5etools "3e" = "3/day each"
+                    "spells": _SPELL_LIST,
+                },
+                "required": ["uses"],
+            },
+        },
+        #: An array of levels rather than an object keyed "0".."9": numeric-string keys under
+        #: ``additionalProperties: False`` have to be enumerated by hand, and an array sorts.
+        "slots": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "level": {"type": "integer", "minimum": 0, "maximum": 9},
+                    "slots": {"type": "integer", "minimum": 0},  # absent/0 = cantrips
+                    "spells": _SPELL_LIST,
+                },
+                "required": ["level"],
+            },
+        },
+    },
+}
+
+_NAMED_ENTRY_SCHEMA: JsonSchema = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {"name": {"type": "string"}, "description": {"type": "string"}},
+}
+
+_LAIR_SCHEMA: JsonSchema = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "description": {"type": "string"},
+        #: The initiative count the lair acts on (5e: 20). Stored so the *plugin* owns the
+        #: number and the playbook can stay ignorant of 5e's initiative rules.
+        "initiative": {"type": "integer"},
+        "options": {"type": "array", "items": _NAMED_ENTRY_SCHEMA},
+    },
+}
+
+_REGIONAL_SCHEMA: JsonSchema = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "description": {"type": "string"},
+        "effects": {"type": "array", "items": _NAMED_ENTRY_SCHEMA},
+        "fades": {"type": "string"},
+    },
+}
+
 _CHARACTER_SCHEMA: JsonSchema = {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -150,9 +294,47 @@ _MONSTER_SCHEMA: JsonSchema = {
         },
         "actions": {"type": "array", "items": _ATTACK_SCHEMA},
         "legendary_actions": _LEGENDARY_SCHEMA,
+
+        # --- everything below is optional, so the docs imported before these existed stay
+        # valid and no migration is forced. ``additionalProperties: False`` is preserved.
+        "alignment": {"type": "string"},
+        #: "19 (natural armor)" — the parenthetical, kept apart from the numeric AC.
+        "armor_class_note": {"type": "string"},
+        "hit_dice": {"type": "string"},          # "18d10 + 36"; hit_points stays authoritative
+        "hit_points_note": {"type": "string"},   # for the rare special-HP creatures
+        "saving_throws": _MODIFIER_MAP,
+        "skills": {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {s: {"type": "integer"} for s in _SKILLS},
+        },
+        "senses": _SENSES_SCHEMA,
+        "languages": {"type": "array", "items": {"type": "string"}},
+        "telepathy": {"type": "integer", "minimum": 0},
+        "damage_resistances": {"type": "array", "items": _DAMAGE_GROUP_SCHEMA},
+        "damage_immunities": {"type": "array", "items": _DAMAGE_GROUP_SCHEMA},
+        "damage_vulnerabilities": {"type": "array", "items": _DAMAGE_GROUP_SCHEMA},
+        #: Free strings rather than an enum over `_CONDITIONS`: real bestiary data includes
+        #: values 5e never defined as conditions ("disease"), and an enum would make those
+        #: entries fail to import. `derive` exposes the subset the tracker can act on.
+        "condition_immunities": {"type": "array", "items": {"type": "string"}},
+        "multiattack": _MULTIATTACK_SCHEMA,
+        #: Reactions and bonus actions reuse the attack schema — only `name` is required, so
+        #: a prose-only reaction fits, and `attack_actions` resolves the ones that do roll.
+        "bonus_actions": {"type": "array", "items": _ATTACK_SCHEMA},
+        "reactions": {"type": "array", "items": _ATTACK_SCHEMA},
+        #: A list: innate and prepared spellcasting coexist on the same creature.
+        "spellcasting": {"type": "array", "items": _SPELLCASTING_SCHEMA},
+        "lair_actions": _LAIR_SCHEMA,
+        "regional_effects": _REGIONAL_SCHEMA,
+        "source": {"type": "string"},
+        "page": {"type": "integer", "minimum": 1},
     },
     "required": ["size", "type", "armor_class", "hit_points", "challenge_rating", "abilities"],
 }
+
+#: 5e's default initiative count for lair actions, when a doc doesn't state one.
+_DEFAULT_LAIR_INITIATIVE = 20
 
 # Proficiency bonus by challenge rating (SRD table, condensed).
 _CR_PROFICIENCY = [(1, 2), (4, 2), (8, 3), (12, 4), (16, 5), (20, 6), (30, 9)]
@@ -241,8 +423,10 @@ _MONSTER_LAYOUT: LayoutSpec = {
             "fields": [
                 {"key": "size", "label": "Size", "role": "text"},
                 {"key": "type", "label": "Type", "role": "text"},
+                {"key": "alignment", "label": "Alignment", "role": "text"},
                 {"key": "challenge_rating", "label": "CR", "role": "number"},
                 {"key": "xp", "label": "XP", "role": "number"},
+                {"key": "source", "label": "Source", "role": "text"},
             ],
         },
         {
@@ -250,6 +434,7 @@ _MONSTER_LAYOUT: LayoutSpec = {
             "fields": [
                 {"key": "armor_class", "label": "Armor Class", "role": "number"},
                 {"key": "hit_points", "label": "Hit Points", "role": "number"},
+                {"key": "hit_dice", "label": "Hit Dice", "role": "text"},
                 {"key": "speed", "label": "Speed", "role": "text"},
             ],
         },
@@ -259,9 +444,19 @@ _MONSTER_LAYOUT: LayoutSpec = {
                         "keys": list(_ABILITIES)}],
         },
         {
+            "title": "Traits",
+            "fields": [{"key": "traits", "label": "Traits", "role": "trait-list"}],
+        },
+        {
             "title": "Actions",
-            "fields": [{"key": "actions", "label": "Attacks", "role": "attack-list",
-                        "keys": list(_ABILITIES)}],
+            "fields": [
+                {"key": "actions", "label": "Attacks", "role": "attack-list",
+                 "keys": list(_ABILITIES)},
+                {"key": "bonus_actions", "label": "Bonus Actions", "role": "attack-list",
+                 "keys": list(_ABILITIES)},
+                {"key": "reactions", "label": "Reactions", "role": "attack-list",
+                 "keys": list(_ABILITIES)},
+            ],
         },
     ]
 }
@@ -281,7 +476,10 @@ def _proficiency_for_cr(cr: float) -> int:
 class Dnd5eSystem(BaseRuleSystem):
     id = "dnd5e"
     name = "D&D 5e"
-    version = "5.1.0"
+    #: 5.2.0 added the full stat-block fields (saves, skills, senses, languages, damage
+    #: groups, reactions, bonus actions, spellcasting, lair/regional). All optional, so
+    #: documents written against 5.1.0 remain valid. Stored in ``StatBlock.schema_version``.
+    version = "5.2.0"
     _schemas: ClassVar[dict[str, JsonSchema]] = {
         "pc": _CHARACTER_SCHEMA,
         "npc": _CHARACTER_SCHEMA,
@@ -293,11 +491,41 @@ class Dnd5eSystem(BaseRuleSystem):
         mods = {a: _mod(int(abilities.get(a, 10))) for a in _ABILITIES}
         if sheet_type == "monster":
             prof = _proficiency_for_cr(float(doc.get("challenge_rating", 0)))
-            return {
+            # A monster is proficient only in the saves and skills its block *prints*, so
+            # these complete the maps from the bare ability modifier rather than assuming
+            # proficiency. Emitting every key means callers never branch on presence.
+            printed_saves = doc.get("saving_throws") or {}
+            saves = {a: int(printed_saves.get(a, mods[a])) for a in _ABILITIES}
+            printed_skills = doc.get("skills") or {}
+            skill_mods = {
+                s: int(printed_skills.get(s, mods[_SKILL_ABILITY[s]])) for s in _SKILLS
+            }
+            lair = doc.get("lair_actions") or None
+            result: dict[str, Any] = {
                 "ability_modifiers": mods,
                 "proficiency_bonus": prof,
-                "passive_perception": 10 + mods["wis"],
+                "saving_throws": saves,
+                "skill_modifiers": skill_mods,
+                # Perception proficiency raises passive Perception; using the bare wis
+                # modifier understates it for every monster that has the skill.
+                "passive_perception": 10 + skill_mods["perception"],
+                "has_lair": lair is not None,
+                "lair_initiative": (
+                    int(lair.get("initiative", _DEFAULT_LAIR_INITIATIVE)) if lair else None
+                ),
             }
+            blocks = doc.get("spellcasting") or []
+            if blocks:
+                first = blocks[0]
+                ability = first.get("ability")
+                if ability in _ABILITIES:
+                    result["spell_save_dc"] = int(
+                        first.get("save_dc", 8 + prof + mods[ability])
+                    )
+                    result["spell_attack_bonus"] = int(
+                        first.get("attack_bonus", prof + mods[ability])
+                    )
+            return result
         prof = 2 + (int(doc.get("level", 1)) - 1) // 4
         result: dict[str, Any] = {
             "ability_modifiers": mods,
@@ -367,6 +595,12 @@ class Dnd5eSystem(BaseRuleSystem):
             "initiative_dice": "1d20",
             "initiative_mod": dex_mod,
             "legendary": int((doc.get("legendary_actions") or {}).get("count", 0)),
+            # A lair rides initiative on a fixed count. Surfacing the number here keeps 5e's
+            # "initiative 20" rule inside the plugin instead of hardcoded in the tracker.
+            "has_lair": bool(doc.get("lair_actions")),
+            "lair_initiative": int(
+                (doc.get("lair_actions") or {}).get("initiative", _DEFAULT_LAIR_INITIATIVE)
+            ) if doc.get("lair_actions") else None,
         }
 
     def with_hit_points(self, status: Document, doc: Document, hit_points: int) -> Document:
@@ -396,10 +630,19 @@ class Dnd5eSystem(BaseRuleSystem):
             {**option, "cost": int(option.get("cost", 1))}
             for option in (doc.get("legendary_actions") or {}).get("options") or []
         ]
-        authored = [*(doc.get("actions") or []), *legendary]
+        # Every group resolves through the same arithmetic; `group` tells the tracker which
+        # heading an action belongs under. Lair options are name+description only, which the
+        # attack schema already permits (to_hit stays None, damage empty).
+        authored: list[tuple[str, dict[str, Any]]] = [
+            *(("action", a) for a in doc.get("actions") or []),
+            *(("bonus", a) for a in doc.get("bonus_actions") or []),
+            *(("reaction", a) for a in doc.get("reactions") or []),
+            *(("legendary", a) for a in legendary),
+            *(("lair", a) for a in (doc.get("lair_actions") or {}).get("options") or []),
+        ]
 
         out: list[AttackAction] = []
-        for action in authored:
+        for group, action in authored:
             ability = action.get("ability")
             ability_mod = int(mods.get(ability, 0)) if ability else 0
             bonus = int(action.get("bonus", 0))
@@ -435,6 +678,8 @@ class Dnd5eSystem(BaseRuleSystem):
                 # What this costs from the legendary pool, or None for an ordinary action.
                 # The tracker spends it; only this line knows which options are legendary.
                 "legendary_cost": int(action["cost"]) if "cost" in action else None,
+                #: Which heading this belongs under: action | bonus | reaction | legendary | lair.
+                "group": group,
             })
         return out
 

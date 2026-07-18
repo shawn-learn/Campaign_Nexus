@@ -202,12 +202,101 @@ def export_monsters(session: Session, campaign_id: str) -> dict[str, Any]:
     return {"kind": "bestiary", "version": 1, "monsters": monsters}
 
 
+#: Keys the upgrade pass may overwrite rather than only fill in. ``xp`` qualifies because
+#: the importer never emitted it — every pre-existing doc has it absent or 0, and nobody
+#: hand-authors a 0-XP monster — so a stale value here is always the old bug, not an edit.
+_UPGRADE_OVERWRITE_IF_FALSY = ("xp",)
+
+#: Keys always taken from the converter. These come from a source file the GM cannot edit
+#: through the app (lair actions and regional effects are joined in from 5etools' separate
+#: ``legendarygroups.json``), so there is no local edit for a refresh to overwrite.
+_UPGRADE_ALWAYS_REFRESH = ("lair_actions", "regional_effects")
+
+
+def _actions_are_stale(actions: Any) -> bool:
+    """True when an ``actions`` list bears the old converter's signature.
+
+    The previous converter emitted at most one damage part and never a damage ``type``, and
+    left the Multiattack entry inline among the real attacks. A hand-authored list does not
+    look like that, so this is a safe way to refresh the bulk-imported ones without a
+    timestamp to distinguish them by.
+    """
+    if not isinstance(actions, list) or not actions:
+        return False
+    has_typed_damage = any(
+        part.get("type")
+        for action in actions if isinstance(action, dict)
+        for part in action.get("damage") or [] if isinstance(part, dict)
+    )
+    return not has_typed_damage
+
+
+def upgrade_monster_doc(
+    session: Session, system_id: str, monster: Monster, new_doc: dict[str, Any]
+) -> bool:
+    """Merge freshly converted fields into an existing monster without losing hand edits.
+
+    ``StatBlock`` carries no timestamps, so an edited monster is indistinguishable from a
+    freshly imported one. The merge is therefore *additive*: a key is copied only when the
+    stored doc lacks it, which preserves GM edits by construction. ``derived_json`` is pure
+    plugin output and is always recomputed.
+
+    Returns ``True`` when anything changed.
+    """
+    block = session.get(StatBlock, monster.stat_block_id)
+    if block is None:
+        return False
+    doc = json.loads(block.doc_json)
+    changed = False
+    # Attacks written by the old converter carry no damage types and keep Multiattack inline;
+    # refreshing them is what turns "1d8+4 damage" back into "1d8+4 slashing plus 4d6 necrotic".
+    refresh_actions = "actions" in new_doc and _actions_are_stale(doc.get("actions"))
+    for key, value in new_doc.items():
+        replaceable = (
+            key not in doc
+            or key in _UPGRADE_ALWAYS_REFRESH
+            or (key in _UPGRADE_OVERWRITE_IF_FALSY and not doc.get(key))
+            or (key == "actions" and refresh_actions)
+        )
+        if replaceable and doc.get(key) != value:
+            doc[key] = value
+            changed = True
+
+    system = registry.get_system(system_id)
+    derived = json.dumps(system.derive("monster", doc))
+    if changed or block.derived_json != derived or block.schema_version != system.version:
+        block.doc_json = json.dumps(doc)
+        block.derived_json = derived
+        block.schema_version = system.version
+        for facet_key, facet_value in _facets(system_id, doc).items():
+            setattr(monster, facet_key, facet_value)
+        return True
+    return False
+
+
 def import_monsters_json(
-    session: Session, campaign_id: str, campaign_system_id: str, payload: dict[str, Any]
+    session: Session,
+    campaign_id: str,
+    campaign_system_id: str,
+    payload: dict[str, Any],
+    *,
+    mode: str = "create",
 ) -> dict[str, Any]:
-    """Import monsters from a bestiary JSON document. Returns counts + per-entry errors."""
-    imported = 0
+    """Import monsters from a bestiary JSON document. Returns counts + per-entry errors.
+
+    ``mode="upgrade"`` merges into an existing monster of the same name instead of reporting
+    it as new — used to backfill fields the converter has since learned to extract. Monsters
+    the GM owns (``custom`` source, or any copy-on-write variant) are never touched.
+    """
+    imported = upgraded = skipped = 0
     errors: list[str] = []
+    existing: dict[str, Monster] | None = None
+    if mode == "upgrade":
+        existing = {
+            m.name: m
+            for m in session.scalars(select(Monster).where(Monster.campaign_id == campaign_id))
+        }
+
     for i, entry in enumerate(payload.get("monsters", [])):
         name = str(entry.get("name", "")).strip()
         doc = entry.get("doc")
@@ -222,7 +311,23 @@ def import_monsters_json(
         if validation:
             errors.append(f"entry {i} ({name}): {'; '.join(validation)}")
             continue
+
+        current = existing.get(name) if existing is not None else None
+        if current is not None:
+            # FR-11.4: the GM's own monsters and variants are theirs, not the importer's.
+            if current.source == "custom" or current.variant_of is not None:
+                skipped += 1
+                continue
+            if upgrade_monster_doc(session, system_id, current, doc):
+                upgraded += 1
+            else:
+                skipped += 1
+            continue
+
         _create_monster(session, campaign_id, system_id, name, doc, source="imported")
         imported += 1
     session.commit()
-    return {"imported": imported, "errors": errors}
+    result = {"imported": imported, "errors": errors}
+    if mode == "upgrade":  # keep the create-mode response shape stable for existing callers
+        result |= {"upgraded": upgraded, "skipped": skipped}
+    return result

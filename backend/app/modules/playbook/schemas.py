@@ -145,6 +145,10 @@ class TravelResult(BaseModel):
 
 class CombatantSpec(BaseModel):
     monster_id: str
+    #: Fallback identity. ``monster_id`` is not a foreign key, so a bestiary re-import that
+    #: recreates rows under new IDs orphans every combatant referencing them. Recording the
+    #: name lets the encounter degrade to a resolvable creature instead of "(missing)".
+    monster_name: str | None = None
     count: int = Field(default=1, ge=1)
     side: str = Field(default="foe", pattern="^(foe|ally)$")
 
@@ -170,6 +174,9 @@ class EncounterCombatantOut(BaseModel):
     name: str
     count: int
     side: str
+    #: How the monster row was found: by ``monster_id``, by the ``monster_name`` fallback
+    #: (the stored ID is stale), or ``None`` when it could not be resolved at all.
+    resolved_by: str | None = None
 
 
 class DifficultyOut(BaseModel):

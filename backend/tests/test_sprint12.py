@@ -124,6 +124,51 @@ def test_encounter_update_recomputes_difficulty(client: TestClient) -> None:
     assert easy_rating != updated["difficulty"]["difficulty"] or True
 
 
+def test_stale_monster_id_falls_back_to_monster_name(client: TestClient) -> None:
+    """``monster_id`` is not a foreign key: a bestiary re-import recreates rows under new IDs
+    and orphans every combatant. With ``monster_name`` recorded the encounter must degrade to
+    the named creature instead of rendering "(missing)" and vanishing from difficulty math.
+    """
+    cid = _demo(client)
+    sb = _pc(client, cid, 3)
+    client.post(f"/api/v1/campaigns/{cid}/party/members", json={"stat_block_id": sb})
+
+    enc = client.post(
+        f"/api/v1/campaigns/{cid}/encounters",
+        json={"name": "Stale Link", "combatants": [
+            {"monster_id": "does-not-exist", "monster_name": "Wight", "count": 2},
+        ]},
+    ).json()
+
+    combatant = enc["combatants"][0]
+    assert combatant["name"] == "Wight"
+    assert combatant["resolved_by"] == "name"
+    assert enc["difficulty"]["total_xp"] > 0  # the foe still counts toward difficulty
+
+
+def test_unresolvable_combatant_is_reported_not_hidden(client: TestClient) -> None:
+    cid = _demo(client)
+    enc = client.post(
+        f"/api/v1/campaigns/{cid}/encounters",
+        json={"name": "Broken", "combatants": [{"monster_id": "nope", "count": 1}]},
+    ).json()
+    assert enc["combatants"][0]["name"] == "(missing)"
+    assert enc["combatants"][0]["resolved_by"] is None
+
+
+def test_live_monster_id_still_resolves_by_id(client: TestClient) -> None:
+    cid = _demo(client)
+    wight = _monster(client, cid, "Wight")
+    enc = client.post(
+        f"/api/v1/campaigns/{cid}/encounters",
+        json={"name": "Fresh", "combatants": [
+            {"monster_id": wight, "monster_name": "Ogre", "count": 1},  # name must not win
+        ]},
+    ).json()
+    assert enc["combatants"][0]["name"] == "Wight"
+    assert enc["combatants"][0]["resolved_by"] == "id"
+
+
 def test_simpletest_difficulty_unsupported(client: TestClient) -> None:
     other = client.post(
         "/api/v1/campaigns", json={"name": "Stub", "rule_system_id": "simpletest"}

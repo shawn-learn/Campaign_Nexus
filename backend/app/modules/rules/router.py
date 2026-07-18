@@ -171,12 +171,14 @@ def list_monsters(
     facet1_num_lte: float | None = None,
     facet1_text: str | None = None,
     facet2_text: str | None = None,
+    limit: int = 200,
     session: Session = Depends(get_session),
     ctx: CampaignContext = Viewer,
 ) -> list[MonsterOut]:
     rows = bestiary.list_monsters(
         session, ctx.campaign_id, q=q, facet1_num_gte=facet1_num_gte,
         facet1_num_lte=facet1_num_lte, facet1_text=facet1_text, facet2_text=facet2_text,
+        limit=limit,
     )
     return [MonsterOut.model_validate(r) for r in rows]
 
@@ -210,7 +212,12 @@ def import_bestiary_json(
 ) -> dict[str, Any]:
     campaign = session.get(Campaign, ctx.campaign_id)
     system_id = campaign.rule_system_id if campaign else "dnd5e"
-    return bestiary.import_monsters_json(session, ctx.campaign_id, system_id, payload)
+    # "upgrade" merges into same-named monsters instead of creating duplicates; the default
+    # stays "create" so existing callers are unaffected.
+    mode = "upgrade" if payload.get("mode") == "upgrade" else "create"
+    return bestiary.import_monsters_json(
+        session, ctx.campaign_id, system_id, payload, mode=mode
+    )
 
 
 @monsters_router.get("/{monster_id}", response_model=MonsterOut)

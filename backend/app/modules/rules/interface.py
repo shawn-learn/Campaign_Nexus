@@ -185,6 +185,9 @@ class BaseRuleSystem:
             "max_hp": 0, "hp": 0, "initiative": 0,
             "ac": None, "initiative_dice": None, "initiative_mod": 0,
             "legendary": 0,
+            # A system with no lair concept still answers the question, so the tracker can
+            # read these keys unconditionally.
+            "has_lair": False, "lair_initiative": None,
         }
 
     def with_hit_points(self, status: Document, doc: Document, hit_points: int) -> Document:

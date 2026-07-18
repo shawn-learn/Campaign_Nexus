@@ -32,12 +32,32 @@ class EncounterNotFound(LookupError):
     pass
 
 
-def _monster_doc(session: Session, monster_id: str) -> tuple[str, dict[str, Any]] | None:
+def _monster_doc(
+    session: Session,
+    monster_id: str,
+    *,
+    campaign_id: str | None = None,
+    monster_name: str | None = None,
+) -> tuple[str, dict[str, Any], str] | None:
+    """Resolve a combatant to ``(name, doc, resolved_by)``.
+
+    ``monster_id`` is not a foreign key, so a bestiary re-import can leave it dangling. When
+    it misses, fall back to the recorded ``monster_name`` within the campaign rather than
+    dropping the creature — a stale ID should degrade, not erase the combatant.
+    """
     monster = session.get(Monster, monster_id)
+    resolved_by = "id"
+    if monster is None and monster_name and campaign_id:
+        monster = session.scalars(
+            select(Monster)
+            .where(Monster.campaign_id == campaign_id, Monster.name == monster_name)
+            .limit(1)
+        ).first()
+        resolved_by = "name"
     if monster is None:
         return None
     block = session.get(StatBlock, monster.stat_block_id)
-    return monster.name, (json.loads(block.doc_json) if block else {})
+    return monster.name, (json.loads(block.doc_json) if block else {}), resolved_by
 
 
 def _party_docs(session: Session, campaign_id: str) -> list[dict[str, Any]]:
@@ -50,16 +70,20 @@ def _party_docs(session: Session, campaign_id: str) -> list[dict[str, Any]]:
 
 
 def _combatants_out(
-    session: Session, specs: list[dict[str, Any]]
+    session: Session, specs: list[dict[str, Any]], campaign_id: str | None = None
 ) -> list[EncounterCombatantOut]:
     out: list[EncounterCombatantOut] = []
     for spec in specs:
-        resolved = _monster_doc(session, spec["monster_id"])
-        name = resolved[0] if resolved else "(missing)"
+        resolved = _monster_doc(
+            session, spec["monster_id"],
+            campaign_id=campaign_id, monster_name=spec.get("monster_name"),
+        )
         out.append(
             EncounterCombatantOut(
-                monster_id=spec["monster_id"], name=name,
+                monster_id=spec["monster_id"],
+                name=resolved[0] if resolved else "(missing)",
                 count=int(spec.get("count", 1)), side=spec.get("side", "foe"),
+                resolved_by=resolved[2] if resolved else None,
             )
         )
     return out
@@ -74,7 +98,10 @@ def _difficulty(
     for spec in specs:
         if spec.get("side", "foe") != "foe":
             continue
-        resolved = _monster_doc(session, spec["monster_id"])
+        resolved = _monster_doc(
+            session, spec["monster_id"],
+            campaign_id=campaign.id, monster_name=spec.get("monster_name"),
+        )
         if resolved:
             foes.append((resolved[1], int(spec.get("count", 1))))
     report = system.encounter_difficulty(party, foes)
@@ -98,7 +125,7 @@ def to_out(session: Session, campaign: Campaign, encounter: Encounter) -> Encoun
         terrain=encounter.terrain,
         hazards=encounter.hazards,
         tactics=encounter.tactics,
-        combatants=_combatants_out(session, specs),
+        combatants=_combatants_out(session, specs, campaign.id),
         difficulty=_difficulty(session, campaign, specs),
         location_id=_location_id(session, encounter.entity_id),
     )

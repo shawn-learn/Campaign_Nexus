@@ -370,8 +370,11 @@ def add_combatant(
         base, block_id = name, None
 
     # A lair has no die to roll — it acts on a fixed count, so nothing is left to chance.
+    # Which count is the rule system's to say (5e: 20); the playbook only asks.
     if kind == "lair":
         profile = {**profile, "initiative_dice": None}
+        if initiative is None and profile.get("lair_initiative") is not None:
+            initiative = int(profile["lair_initiative"])
 
     added: list[str] = []
     for label in _next_labels(state, base, count):

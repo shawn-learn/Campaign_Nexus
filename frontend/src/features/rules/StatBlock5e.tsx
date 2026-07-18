@@ -1,67 +1,100 @@
 import type { Monster } from '../../api/client'
+import {
+  ABILITIES,
+  abilityMod,
+  actionBody,
+  crLabel,
+  damageGroupLine,
+  languagesLine,
+  modifierLine,
+  sensesLine,
+  signed,
+  spellcastingLines,
+  type Action,
+  type MonsterDerived,
+  type MonsterDoc,
+  type NamedEntry,
+} from './monsterDoc'
 
 // Bespoke classic-styled D&D 5e stat block (docs/08, §10.5 tier 2). Overrides the generic
 // renderer for 5e monsters; other systems fall back to the schema-driven view.
-const ABILITIES = ['str', 'dex', 'con', 'int', 'wis', 'cha'] as const
 
-function mod(score: number): string {
-  const m = Math.floor((score - 10) / 2)
-  return m >= 0 ? `+${m}` : `${m}`
+/** One "Label value" line, rendered only when there is a value. */
+function Line({ label, value }: { label: string; value: string | number | undefined }) {
+  if (value === undefined || value === '' || value === null) return null
+  return (
+    <div className="sb-line">
+      <b>{label}</b> {value}
+    </div>
+  )
 }
 
-function crLabel(cr: number): string {
-  if (cr === 0.125) return '1/8'
-  if (cr === 0.25) return '1/4'
-  if (cr === 0.5) return '1/2'
-  return String(cr)
+/** A named block of prose — traits, lair options, regional effects. */
+function Entry({ name, description }: NamedEntry) {
+  return (
+    <div className="sb-trait">
+      {name ? (
+        <b>
+          <i>{name}.</i>
+        </b>
+      ) : null}
+      {name ? ' ' : ''}
+      {description}
+    </div>
+  )
 }
 
-interface Damage { dice: string; type?: string }
-interface Action {
-  name: string
-  kind?: string
-  to_hit?: number
-  reach?: string
-  target?: string
-  damage?: Damage[]
-  description?: string
-}
-
-/** "+4 to hit, reach 5 ft., one target. Hit: 1d6+2 slashing." — the printed attack line. */
-function attackLine(a: Action): string {
-  const parts: string[] = []
-  if (a.to_hit !== undefined && a.kind !== 'save') {
-    const kind = a.kind === 'ranged' ? 'Ranged' : 'Melee'
-    parts.push(`${kind} Weapon Attack: ${a.to_hit >= 0 ? '+' : ''}${a.to_hit} to hit`)
-  }
-  if (a.reach) parts.push(a.reach)
-  if (a.target) parts.push(a.target)
-  const head = parts.join(', ')
-  const hit = (a.damage ?? [])
-    .filter((d) => d.dice && d.dice !== '0')
-    .map((d) => `${d.dice}${d.type ? ` ${d.type}` : ''}`)
-    .join(' plus ')
-  return hit ? `${head}. Hit: ${hit} damage.` : `${head}.`
+/** An "Actions"-style heading followed by its attacks. Used five times over. */
+function ActionSection({ title, actions }: { title: string; actions?: Action[] }) {
+  if (!actions?.length) return null
+  return (
+    <>
+      <div className="sb-rule" />
+      <div className="sb-heading">{title}</div>
+      {actions.map((a) => {
+        const cost = a.cost && a.cost > 1 ? ` (Costs ${a.cost} Actions)` : ''
+        return (
+          <div key={a.name} className="sb-trait">
+            <b>
+              <i>
+                {a.name}
+                {cost}.
+              </i>
+            </b>{' '}
+            {actionBody(a)}
+          </div>
+        )
+      })}
+    </>
+  )
 }
 
 export function StatBlock5e({ monster }: { monster: Monster }) {
-  const doc = monster.doc as Record<string, unknown>
-  const abilities = (doc.abilities as Record<string, number>) ?? {}
+  const doc = (monster.doc ?? {}) as MonsterDoc
+  const derived = (monster.derived ?? {}) as MonsterDerived
+  const abilities = doc.abilities ?? {}
   const cr = Number(doc.challenge_rating ?? 0)
-  const traits = (doc.traits as { name: string; description: string }[] | undefined) ?? []
-  const actions = (doc.actions as Action[] | undefined) ?? []
+
+  const ac = doc.armor_class_note
+    ? `${doc.armor_class ?? '—'} (${doc.armor_class_note})`
+    : (doc.armor_class ?? '—')
+  const hp = doc.hit_dice ? `${doc.hit_points ?? '—'} (${doc.hit_dice})` : (doc.hit_points ?? '—')
+  const subtitle = [doc.size, doc.type].filter(Boolean).join(' ')
+  const lair = doc.lair_actions
+  const regional = doc.regional_effects
 
   return (
     <div className="statblock">
       <div className="sb-name">{monster.name}</div>
       <div className="sb-sub">
-        {String(doc.size ?? '')} {String(doc.type ?? '')}
+        {subtitle}
+        {doc.alignment ? `, ${doc.alignment}` : ''}
       </div>
       <div className="sb-rule" />
 
-      <div className="sb-line"><b>Armor Class</b> {String(doc.armor_class ?? '—')}</div>
-      <div className="sb-line"><b>Hit Points</b> {String(doc.hit_points ?? '—')}</div>
-      {doc.speed ? <div className="sb-line"><b>Speed</b> {String(doc.speed)}</div> : null}
+      <Line label="Armor Class" value={ac} />
+      <Line label="Hit Points" value={hp} />
+      <Line label="Speed" value={doc.speed} />
 
       <div className="sb-rule" />
       <div className="sb-abilities">
@@ -69,37 +102,103 @@ export function StatBlock5e({ monster }: { monster: Monster }) {
           <div key={ab} className="sb-ability">
             <div className="sb-ability-name">{ab.toUpperCase()}</div>
             <div className="sb-ability-score">
-              {abilities[ab] ?? 10} ({mod(abilities[ab] ?? 10)})
+              {abilities[ab] ?? 10} ({abilityMod(abilities[ab] ?? 10)})
             </div>
           </div>
         ))}
       </div>
 
       <div className="sb-rule" />
+      {/* Only the saves and skills the block actually prints — `derived` holds a complete
+          map, but showing all of it would give every creature six saves and 18 skills. */}
+      <Line label="Saving Throws" value={modifierLine(doc.saving_throws, derived.saving_throws)} />
+      <Line label="Skills" value={modifierLine(doc.skills, derived.skill_modifiers)} />
+      <Line label="Damage Vulnerabilities" value={damageGroupLine(doc.damage_vulnerabilities)} />
+      <Line label="Damage Resistances" value={damageGroupLine(doc.damage_resistances)} />
+      <Line label="Damage Immunities" value={damageGroupLine(doc.damage_immunities)} />
+      <Line label="Condition Immunities" value={(doc.condition_immunities ?? []).join(', ')} />
+      <Line label="Senses" value={sensesLine(doc.senses, derived.passive_perception)} />
+      <Line label="Languages" value={languagesLine(doc.languages, doc.telepathy)} />
       <div className="sb-line">
-        <b>Challenge</b> {crLabel(cr)} ({String(doc.xp ?? 0)} XP) ·{' '}
-        <b>Prof</b> +{String((monster.derived as Record<string, unknown>).proficiency_bonus ?? '')}
+        <b>Challenge</b> {crLabel(cr)} ({doc.xp ?? 0} XP) · <b>Prof</b>{' '}
+        {signed(derived.proficiency_bonus ?? 0)}
       </div>
 
-      {traits.length > 0 && <div className="sb-rule" />}
-      {traits.map((t) => (
-        <div key={t.name} className="sb-trait">
-          <b><i>{t.name}.</i></b> {t.description}
+      {doc.traits?.length ? <div className="sb-rule" /> : null}
+      {(doc.traits ?? []).map((t) => (
+        <Entry key={t.name} {...t} />
+      ))}
+
+      {doc.spellcasting?.length ? <div className="sb-rule" /> : null}
+      {(doc.spellcasting ?? []).map((block) => (
+        <div key={block.name ?? 'spellcasting'} className="sb-trait">
+          <b>
+            <i>{block.name ?? 'Spellcasting'}.</i>
+          </b>{' '}
+          {block.description}
+          {spellcastingLines(block).map((line) => (
+            <div key={line.label} className="sb-spell-line">
+              <b>{line.label}:</b> {line.spells}
+            </div>
+          ))}
         </div>
       ))}
 
-      {actions.length > 0 && (
+      {doc.multiattack || doc.actions?.length ? (
         <>
           <div className="sb-rule" />
           <div className="sb-heading">Actions</div>
-          {actions.map((a) => (
-            <div key={a.name} className="sb-trait">
-              <b><i>{a.name}.</i></b> {attackLine(a)}
-              {a.description ? ` ${a.description}` : ''}
-            </div>
+          {doc.multiattack ? (
+            <Entry name="Multiattack" description={doc.multiattack.description} />
+          ) : null}
+          {/* A doc upgraded in place can still carry Multiattack inside `actions`; the
+              hoisted `multiattack` above is the one to show. */}
+          {(doc.actions ?? [])
+            .filter((a) => !doc.multiattack || !/^multiattack\b/i.test(a.name))
+            .map((a) => (
+              <div key={a.name} className="sb-trait">
+                <b>
+                  <i>{a.name}.</i>
+                </b>{' '}
+                {actionBody(a)}
+              </div>
+            ))}
+        </>
+      ) : null}
+
+      <ActionSection title="Bonus Actions" actions={doc.bonus_actions} />
+      <ActionSection title="Reactions" actions={doc.reactions} />
+      <ActionSection title="Legendary Actions" actions={doc.legendary_actions?.options} />
+
+      {lair ? (
+        <>
+          <div className="sb-rule" />
+          <div className="sb-heading">Lair Actions</div>
+          {lair.description ? <div className="sb-trait">{lair.description}</div> : null}
+          {(lair.options ?? []).map((o, i) => (
+            <Entry key={o.name || i} {...o} />
           ))}
         </>
-      )}
+      ) : null}
+
+      {regional ? (
+        <>
+          <div className="sb-rule" />
+          <div className="sb-heading">Regional Effects</div>
+          {regional.description ? <div className="sb-trait">{regional.description}</div> : null}
+          {(regional.effects ?? []).map((e, i) => (
+            <Entry key={e.name || i} {...e} />
+          ))}
+          {regional.fades ? <div className="sb-trait">{regional.fades}</div> : null}
+        </>
+      ) : null}
+
+      {doc.source ? (
+        <div className="sb-source">
+          {doc.source}
+          {doc.page ? `, p.${doc.page}` : ''}
+        </div>
+      ) : null}
     </div>
   )
 }
