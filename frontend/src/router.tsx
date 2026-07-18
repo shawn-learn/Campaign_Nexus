@@ -23,6 +23,7 @@ import { NpcsPage } from './features/npcs/NpcsPage'
 import { DataPage } from './features/settings/DataPage'
 import { EquipmentPage } from './features/equipment/EquipmentPage'
 import { MerchantsPage } from './features/merchants/MerchantsPage'
+import { SpellsPage } from './features/spells/SpellsPage'
 
 const rootRoute = createRootRoute({ component: Layout })
 
@@ -144,6 +145,12 @@ const merchantsRoute = createRoute({
   component: MerchantsPage,
 })
 
+const spellsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/spells',
+  component: SpellsPage,
+})
+
 const dataRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/data',
@@ -169,6 +176,7 @@ const routeTree = rootRoute.addChildren([
   npcsRoute,
   equipmentRoute,
   merchantsRoute,
+  spellsRoute,
   dataRoute,
 ])
 

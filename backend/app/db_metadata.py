@@ -47,6 +47,7 @@ from app.modules.playbook.models import (  # noqa: F401
     SkillChallengeRun,
 )
 from app.modules.rules.models import Monster, StatBlock  # noqa: F401
+from app.modules.spells.models import Spell  # noqa: F401
 from app.modules.story.models import StoryEdge, StoryNode  # noqa: F401
 from app.modules.time.models import ScheduledEvent  # noqa: F401
 from app.modules.wiki.models import (  # noqa: F401
