@@ -1273,6 +1273,21 @@ export function useSessionAction(campaignId: string, action: 'start' | 'end') {
   })
 }
 
+export function useDeleteSession(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (sessionId: string) => {
+      return unwrap(
+        await api.DELETE('/api/v1/campaigns/{campaign_id}/sessions/{session_id}' as const, {
+          params: { path: { campaign_id: campaignId, session_id: sessionId } },
+        }),
+        'delete session',
+      )
+    },
+    onSuccess: () => invalidateSessions(qc, campaignId),
+  })
+}
+
 export function useCaptureNote(campaignId: string) {
   const qc = useQueryClient()
   return useMutation({

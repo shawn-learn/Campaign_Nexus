@@ -21,13 +21,13 @@ export function DashboardPage() {
   const { campaign, isLoading } = useActiveCampaign()
   const campaignId = campaign?.id ?? null
   const { data, isLoading: dashLoading } = useDashboard(campaignId)
-  const [preset, setPreset] = useState<Preset>('exploration')
+  const [preset, setPreset] = useState<Preset>('prep')
 
   if (isLoading || dashLoading) return <p className="muted">Loading dashboard…</p>
   if (!campaign || !data) return <p className="muted">Select a campaign to begin.</p>
 
-  // Combat preset promotes the tracker; when combat is live, snap to it automatically.
-  const effective: Preset = data.active_combat ? 'combat' : preset
+  // Force combat when active; default to prep when no session, otherwise use preset
+  const effective: Preset = data.active_combat ? 'combat' : !data.session ? 'prep' : preset
 
   return (
     <>

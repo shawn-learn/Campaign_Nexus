@@ -5,6 +5,7 @@ import {
   useSessionAction,
   useSessionDetail,
   useSessions,
+  useDeleteSession,
 } from '../../api/hooks'
 import { useActiveCampaign } from '../../shell/useActiveCampaign'
 
@@ -17,6 +18,7 @@ export function SessionsPage() {
   const create = useCreateSession(campaignId ?? '')
   const start = useSessionAction(campaignId ?? '', 'start')
   const end = useSessionAction(campaignId ?? '', 'end')
+  const deleteSession = useDeleteSession(campaignId ?? '')
   const note = useCaptureNote(campaignId ?? '')
 
   const live = sessions?.find((s) => s.status === 'live') ?? null
@@ -60,6 +62,13 @@ export function SessionsPage() {
               <span className="badge">{s.status}</span>
               {s.status === 'planned' && !live && (
                 <button onClick={() => start.mutate(s.id)}>Start</button>
+              )}
+              {s.status !== 'live' && (
+                <button className="ghost tag-x" title="Delete session" onClick={() => {
+                  if (confirm(`Delete Session ${s.session_number}?`)) {
+                    deleteSession.mutate(s.id)
+                  }
+                }}>×</button>
               )}
             </span>
           </li>
