@@ -7,6 +7,7 @@ import {
 } from '../../api/hooks'
 import type { NpcFilters } from '../../api/hooks'
 import { useActiveCampaign } from '../../shell/useActiveCampaign'
+import { SearchableSelect } from '../../components/SearchableSelect'
 
 const STATUSES = ['alive', 'dead', 'missing', 'unknown', 'retired'] as const
 
@@ -63,25 +64,21 @@ export function NpcsPage() {
           </label>
           <label className="field-inline">
             <span className="muted">At location</span>
-            <select
+            <SearchableSelect
               value={filters.location_id ?? ''}
-              onChange={(e) => setFilter({ location_id: e.target.value || undefined })}
-            >
-              <option value="">anywhere</option>
-              {locations?.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-            </select>
+              onChange={(v) => setFilter({ location_id: v || undefined })}
+              options={locations?.map((l) => ({ id: l.id, name: l.name })) ?? []}
+              placeholder="anywhere"
+            />
           </label>
           <label className="field-inline">
             <span className="muted">Knows about</span>
-            <select
+            <SearchableSelect
               value={filters.knows ?? ''}
-              onChange={(e) => setFilter({ knows: e.target.value || undefined })}
-            >
-              <option value="">anything</option>
-              {entities?.filter((en) => en.entity_type !== 'npc').map((en) => (
-                <option key={en.id} value={en.id}>{en.name}</option>
-              ))}
-            </select>
+              onChange={(v) => setFilter({ knows: v || undefined })}
+              options={entities?.filter((en) => en.entity_type !== 'npc').map((en) => ({ id: en.id, name: en.name })) ?? []}
+              placeholder="anything"
+            />
           </label>
           <label className="field-inline">
             <span className="muted">Met the party</span>

@@ -20,6 +20,7 @@ import {
 import { useActiveCampaign } from '../../shell/useActiveCampaign'
 import { Tabs, TabPanel } from '../../components/Tabs'
 import { ListToolbar } from '../../components/ListToolbar'
+import { SearchableSelect } from '../../components/SearchableSelect'
 
 function errorText(err: unknown): string {
   return err instanceof Error ? err.message : 'Something went wrong'
@@ -58,17 +59,21 @@ function ShopFieldset({
       </label>
       <label className="field" style={{ flex: '1 1 150px' }}>
         <span className="muted">Shopkeeper (NPC)</span>
-        <select value={value.npcId} onChange={(e) => set('npcId', e.target.value)}>
-          <option value="">— none —</option>
-          {npcs?.map((n) => <option key={n.id} value={n.id}>{n.name}</option>)}
-        </select>
+        <SearchableSelect
+          value={value.npcId}
+          onChange={(v) => set('npcId', v)}
+          options={npcs?.map((n) => ({ id: n.id, name: n.name })) ?? []}
+          placeholder="— none —"
+        />
       </label>
       <label className="field" style={{ flex: '1 1 150px' }}>
         <span className="muted">Storefront (location)</span>
-        <select value={value.locationId} onChange={(e) => set('locationId', e.target.value)}>
-          <option value="">— none —</option>
-          {locations?.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-        </select>
+        <SearchableSelect
+          value={value.locationId}
+          onChange={(v) => set('locationId', v)}
+          options={locations?.map((l) => ({ id: l.id, name: l.name })) ?? []}
+          placeholder="— none —"
+        />
       </label>
       <label className="field" style={{ flex: '0 0 90px' }}>
         <span className="muted">Buyback %</span>

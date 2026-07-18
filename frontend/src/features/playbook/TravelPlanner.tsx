@@ -7,6 +7,7 @@ import {
 } from '../../api/hooks'
 import type { TravelLegInput } from '../../api/hooks'
 import type { TravelPlan } from '../../api/client'
+import { SearchableSelect } from '../../components/SearchableSelect'
 
 export interface LegDraft {
   distance: string
@@ -132,13 +133,12 @@ export function TravelPlanner({
             <option value="mounted difficult terrain">Mounted + Diff Terrain (Horse)</option>
             <option value="difficult terrain">Difficult Terrain (Foot)</option>
           </select>
-          <select
+          <SearchableSelect
             value={leg.to_location_id}
-            onChange={(e) => patch(i, { to_location_id: e.target.value })}
-          >
-            <option value="">— to where? —</option>
-            {locations?.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-          </select>
+            onChange={(v) => patch(i, { to_location_id: v })}
+            options={locations?.map((l) => ({ id: l.id, name: l.name })) ?? []}
+            placeholder="— to where? —"
+          />
           {legs.length > 1 && (
             <button className="ghost tag-x" onClick={() => setLegs((ls) => ls.filter((_, j) => j !== i))}>
               ×
