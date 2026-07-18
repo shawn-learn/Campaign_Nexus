@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
@@ -16,14 +18,21 @@ from app.modules.playbook import (
     tables,
     travel,
 )
-from app.modules.playbook.models import CombatRun
+from app.modules.playbook.models import CombatRoll, CombatRun
 from app.modules.playbook.schemas import (
+    AddCombatantIn,
     AddMember,
+    AttackIn,
+    AttackOut,
+    AttackResultOut,
     CombatActionIn,
+    CombatRollOut,
     CombatRunBrief,
     CombatRunOut,
     CombatSummary,
     DashboardOut,
+    DeathSaveIn,
+    DeathSaveRulesOut,
     DependencyIn,
     EncounterCreate,
     EncounterOut,
@@ -44,6 +53,8 @@ from app.modules.playbook.schemas import (
     RecordCheckIn,
     RestRequest,
     RestResult,
+    RollDetail,
+    RollInitiativeIn,
     RollOut,
     SetLocation,
     SetPin,
@@ -473,6 +484,8 @@ def _run_out(session: Session, run: CombatRun) -> CombatRunOut:
         can_undo=run.fold_cursor > 0, can_redo=run.fold_cursor < total,
         state=combat.state_of(session, run),
         combatant_blocks=combat.combatant_blocks(session, run.id),
+        initiative_dice=combat.initiative_die(session, run),
+        death_saves=DeathSaveRulesOut.model_validate(combat.death_save_rules(session, run)),
     )
 
 
@@ -518,6 +531,164 @@ def get_combat(
     ctx: CampaignContext = Viewer,
 ) -> CombatRunOut:
     return _run_out(session, _load_run(session, ctx.campaign_id, run_id))
+
+
+@combat_router.post("/{run_id}/initiative", response_model=CombatRunOut)
+def roll_initiative(
+    run_id: str,
+    body: RollInitiativeIn,
+    session: Session = Depends(get_session),
+    ctx: CampaignContext = Editor,
+) -> CombatRunOut:
+    """Roll for a scope and/or take the totals the GM typed in — one round trip for both."""
+    try:
+        run = combat.roll_initiative(
+            session, _campaign(session, ctx.campaign_id), run_id,
+            scope=body.scope, ids=body.ids, values=body.values, mode=body.mode,
+        )
+    except combat.CombatNotFound as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "combat not found") from exc
+    except combat.CombatClosed as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, "combat already ended") from exc
+    return _run_out(session, run)
+
+
+@combat_router.post("/{run_id}/combatants", response_model=CombatRunOut)
+def add_combatant(
+    run_id: str,
+    body: AddCombatantIn,
+    session: Session = Depends(get_session),
+    ctx: CampaignContext = Editor,
+) -> CombatRunOut:
+    """Add a straggler mid-fight, seeded from the bestiary or entered by hand."""
+    try:
+        run = combat.add_combatant(
+            session, _campaign(session, ctx.campaign_id), run_id,
+            monster_id=body.monster_id, name=body.name, max_hp=body.max_hp,
+            count=body.count, side=body.side, kind=body.kind, initiative=body.initiative,
+        )
+    except combat.CombatNotFound as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "combat not found") from exc
+    except combat.CombatantNotFound as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "monster not found") from exc
+    except combat.BadCombatant as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
+    except combat.CombatClosed as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, "combat already ended") from exc
+    return _run_out(session, run)
+
+
+@combat_router.post("/{run_id}/death-save", response_model=CombatRunOut)
+def roll_death_save(
+    run_id: str,
+    body: DeathSaveIn,
+    session: Session = Depends(get_session),
+    ctx: CampaignContext = Editor,
+) -> CombatRunOut:
+    """Roll one death save. The rule system decides what the die means; this records it."""
+    try:
+        run = combat.roll_death_save(
+            session, _campaign(session, ctx.campaign_id), run_id, body.combatant_id,
+        )
+    except combat.CombatNotFound as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "combat not found") from exc
+    except combat.CombatantNotFound as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "combatant not found") from exc
+    except combat.BadCombatant as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
+    except combat.CombatClosed as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, "combat already ended") from exc
+    return _run_out(session, run)
+
+
+@combat_router.post("/{run_id}/begin", response_model=CombatRunOut)
+def begin_combat(
+    run_id: str,
+    session: Session = Depends(get_session),
+    ctx: CampaignContext = Editor,
+) -> CombatRunOut:
+    """Leave setup and start round 1."""
+    try:
+        run = combat.begin_combat(session, ctx.campaign_id, run_id)
+    except combat.CombatNotFound as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "combat not found") from exc
+    except combat.CombatClosed as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, "combat already ended") from exc
+    return _run_out(session, run)
+
+
+def _roll_out(roll: CombatRoll) -> CombatRollOut:
+    return CombatRollOut(
+        id=roll.id, combatant_id=roll.combatant_id, kind=roll.kind, label=roll.label,
+        expression=roll.expression, mode=roll.mode,
+        detail=RollDetail.model_validate(json.loads(roll.detail_json)),
+        total=roll.total, target=roll.target, outcome=roll.outcome,
+        recorded_at_real=roll.recorded_at_real,
+    )
+
+
+@combat_router.get("/{run_id}/combatants/{combatant_id}/attacks", response_model=list[AttackOut])
+def list_attacks(
+    run_id: str,
+    combatant_id: str,
+    session: Session = Depends(get_session),
+    ctx: CampaignContext = Viewer,
+) -> list[AttackOut]:
+    """What this combatant can do, resolved by its rule system into plain numbers."""
+    _load_run(session, ctx.campaign_id, run_id)
+    return [
+        AttackOut.model_validate(a)
+        for a in combat.attacks_for(
+            session, _campaign(session, ctx.campaign_id), run_id, combatant_id
+        )
+    ]
+
+
+@combat_router.post("/{run_id}/attack", response_model=AttackResultOut)
+def roll_attack(
+    run_id: str,
+    body: AttackIn,
+    session: Session = Depends(get_session),
+    ctx: CampaignContext = Editor,
+) -> AttackResultOut:
+    """Roll an attack and report the result. Applies nothing — that stays the GM's call."""
+    try:
+        result = combat.attack(
+            session, _campaign(session, ctx.campaign_id), run_id,
+            attacker_id=body.attacker_id, action_index=body.action_index,
+            target_id=body.target_id, mode=body.mode,
+        )
+    except combat.CombatNotFound as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "combat not found") from exc
+    except combat.CombatantNotFound as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "combatant not found") from exc
+    except combat.BadCombatant as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
+    except combat.CombatClosed as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, "combat already ended") from exc
+    return AttackResultOut(
+        action_name=result["action_name"],
+        attacker_id=result["attacker_id"],
+        target_id=result["target_id"],
+        target_ac=result["target_ac"],
+        outcome=result["outcome"],
+        to_hit=_roll_out(result["to_hit"]) if result["to_hit"] else None,
+        damage=[_roll_out(r) for r in result["damage"]],
+        total_damage=result["total_damage"],
+        save=result["save"],
+        description=result["description"],
+    )
+
+
+@combat_router.get("/{run_id}/rolls", response_model=list[CombatRollOut])
+def list_rolls(
+    run_id: str,
+    limit: int = Query(default=50, ge=1, le=200),
+    session: Session = Depends(get_session),
+    ctx: CampaignContext = Viewer,
+) -> list[CombatRollOut]:
+    _load_run(session, ctx.campaign_id, run_id)
+    return [_roll_out(r) for r in combat.rolls_for(session, run_id, limit)]
 
 
 @combat_router.post("/{run_id}/actions", response_model=CombatRunOut)

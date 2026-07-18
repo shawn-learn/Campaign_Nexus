@@ -208,7 +208,20 @@ class NimbleSystem(BaseRuleSystem):
             # Nimble rolls no initiative: the party acts, then the monsters do. The tracker
             # orders by initiative descending, so this ranking *is* the rule.
             "initiative": 1 if sheet_type in ("pc", "npc") else 0,
+            # No armour class to hit: Nimble's armour turns aside damage on a hit (see
+            # ``_ARMOR_VALUE``), so there is no target number and nothing to compare a roll
+            # against. ``initiative_dice: None`` says the same about order — there is no die
+            # to roll, so the tracker must leave the ranking above alone.
+            "ac": None,
+            "initiative_dice": None,
+            "initiative_mod": 0,
+            "legendary": 0,  # a solo's power is in its stat line here, not an action pool
         }
+
+    def with_hit_points(self, status: Document, doc: Document, hit_points: int) -> Document:
+        new_status = dict(status)
+        new_status["hp"] = max(0, int(hit_points))  # `hp`, not 5e's `current_hit_points`
+        return new_status
 
     # -- rests -------------------------------------------------------------
     def rest_types(self) -> list[str]:

@@ -9,10 +9,12 @@ from __future__ import annotations
 from typing import Any, ClassVar
 
 from app.modules.rules.interface import (
+    AttackAction,
     BaseRuleSystem,
     CombatProfile,
     ConditionDef,
     ContentPack,
+    DeathSaveRules,
     Document,
     FacetDef,
     FacetValues,
@@ -33,6 +35,80 @@ _ability_scores: JsonSchema = {
     "required": list(_ABILITIES),
 }
 
+_DAMAGE_SCHEMA: JsonSchema = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        # A rollable expression: "1d8", "2d6+3". Modifiers may be baked in (how the SRD
+        # prints a monster's damage) or added by `add_ability` below (how a PC's works).
+        "dice": {"type": "string"},
+        "type": {"type": "string"},  # slashing, fire, …
+        #: Add the attack's ability modifier (and `bonus`) to this roll. A PC's longsword
+        #: does 1d8 + str; a monster's printed 2d8+4 already includes it and sets this false.
+        "add_ability": {"type": "boolean"},
+    },
+    "required": ["dice"],
+}
+
+#: One shape for both halves of the bestiary/character split, because an attack is an attack.
+#: A monster stores what the SRD prints — `to_hit: 4`, `damage: [{dice: "1d6+2"}]`. A PC can
+#: instead store the *ingredients* — ability, proficient, a bare weapon die — and let the
+#: plugin sum them, so levelling up doesn't mean hand-editing every attack's bonus. Give both
+#: and the literal wins; `attack_actions` resolves either into the same finished numbers.
+_ATTACK_SCHEMA: JsonSchema = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "kind": {"enum": ["melee", "ranged", "save"]},
+        #: Literal attack bonus, as printed on a stat block.
+        "to_hit": {"type": "integer"},
+        #: Derived: which ability modifier this attack uses.
+        "ability": {"enum": list(_ABILITIES)},
+        #: Derived: add the proficiency bonus (which follows level / CR).
+        "proficient": {"type": "boolean"},
+        #: A magic weapon's plus, added to both the attack and its ability-scaled damage.
+        "bonus": {"type": "integer"},
+        "reach": {"type": "string"},
+        "target": {"type": "string"},
+        "damage": {"type": "array", "items": _DAMAGE_SCHEMA},
+        "save": {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "ability": {"enum": list(_ABILITIES)},
+                "dc": {"type": "integer", "minimum": 1},
+                "half_on_success": {"type": "boolean"},
+            },
+            "required": ["ability", "dc"],
+        },
+        "description": {"type": "string"},
+    },
+    "required": ["name"],
+}
+
+#: A legendary option is an ordinary attack that also costs something from the per-round
+#: pool. Built from the attack schema rather than beside it, so the two can't drift.
+_LEGENDARY_OPTION_SCHEMA: JsonSchema = {
+    **_ATTACK_SCHEMA,
+    "properties": {
+        **_ATTACK_SCHEMA["properties"],
+        "cost": {"type": "integer", "minimum": 1, "maximum": 3},
+    },
+}
+
+_LEGENDARY_SCHEMA: JsonSchema = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        #: How many the creature gets back at the start of each of its turns (usually 3).
+        "count": {"type": "integer", "minimum": 1, "maximum": 5},
+        "options": {"type": "array", "items": _LEGENDARY_OPTION_SCHEMA},
+        "description": {"type": "string"},
+    },
+    "required": ["count"],
+}
+
 _CHARACTER_SCHEMA: JsonSchema = {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -46,6 +122,7 @@ _CHARACTER_SCHEMA: JsonSchema = {
         "armor_class": {"type": "integer", "minimum": 1},
         "proficient_saves": {"type": "array", "items": {"enum": list(_ABILITIES)}},
         "spellcasting_ability": {"enum": [*_ABILITIES, None]},
+        "actions": {"type": "array", "items": _ATTACK_SCHEMA},
         "notes": {"type": "string"},
     },
     "required": ["level", "abilities", "max_hit_points", "armor_class"],
@@ -71,6 +148,8 @@ _MONSTER_SCHEMA: JsonSchema = {
                 "properties": {"name": {"type": "string"}, "description": {"type": "string"}},
             },
         },
+        "actions": {"type": "array", "items": _ATTACK_SCHEMA},
+        "legendary_actions": _LEGENDARY_SCHEMA,
     },
     "required": ["size", "type", "armor_class", "hit_points", "challenge_rating", "abilities"],
 }
@@ -146,6 +225,11 @@ _CHARACTER_LAYOUT: LayoutSpec = {
             "fields": [{"key": "abilities", "label": "Abilities", "role": "ability-array",
                         "keys": list(_ABILITIES)}],
         },
+        {
+            "title": "Attacks",
+            "fields": [{"key": "actions", "label": "Attacks", "role": "attack-list",
+                        "keys": list(_ABILITIES)}],
+        },
         {"title": "Notes", "fields": [{"key": "notes", "label": "Notes", "role": "paragraph"}]},
     ]
 }
@@ -172,6 +256,11 @@ _MONSTER_LAYOUT: LayoutSpec = {
         {
             "title": "Abilities",
             "fields": [{"key": "abilities", "label": "Abilities", "role": "ability-array",
+                        "keys": list(_ABILITIES)}],
+        },
+        {
+            "title": "Actions",
+            "fields": [{"key": "actions", "label": "Attacks", "role": "attack-list",
                         "keys": list(_ABILITIES)}],
         },
     ]
@@ -267,11 +356,92 @@ class Dnd5eSystem(BaseRuleSystem):
     ) -> CombatProfile:
         max_hp = self._max_hp(sheet_type, doc)
         abilities = doc.get("abilities") or {}
+        dex_mod = _mod(int(abilities.get("dex", 10)))
         return {
             "max_hp": max_hp,
             "hp": int((status or {}).get("current_hit_points", max_hp)),
-            "initiative": _mod(int(abilities.get("dex", 10))),
+            # The pre-roll seed. 5e initiative is 1d20+dex, so this is only the order a
+            # combat falls into before anyone rolls — the tracker replaces it on roll.
+            "initiative": dex_mod,
+            "ac": int(doc["armor_class"]) if "armor_class" in doc else None,
+            "initiative_dice": "1d20",
+            "initiative_mod": dex_mod,
+            "legendary": int((doc.get("legendary_actions") or {}).get("count", 0)),
         }
+
+    def with_hit_points(self, status: Document, doc: Document, hit_points: int) -> Document:
+        new_status = dict(status)
+        new_status["current_hit_points"] = max(0, int(hit_points))
+        return new_status
+
+    def attack_actions(self, sheet_type: str, doc: Document) -> list[AttackAction]:
+        """Resolve authored attacks into finished numbers the tracker can just roll.
+
+        This is the only place 5e's attack arithmetic lives. An attack may be stored the way
+        the SRD prints one (``to_hit: 4``, ``damage: [{"dice": "1d6+2"}]``) or as ingredients
+        (``ability: "str"``, ``proficient: true``, ``damage: [{"dice": "1d8",
+        "add_ability": true}]``) — the second form is what keeps a PC's attacks correct after
+        they level, since proficiency moves with them. A literal ``to_hit`` always wins.
+        """
+        derived = self.derive(sheet_type, doc)
+        mods: dict[str, int] = derived.get("ability_modifiers") or {}
+        proficiency = int(derived.get("proficiency_bonus", 0))
+
+        # Legendary options resolve exactly like any other attack — they just cost something
+        # from the per-round pool. Carrying `cost` through means one code path, not two.
+        # The default is 1 (5e), and it is injected here so the merged list is unambiguous:
+        # only the schema for legendary options permits `cost` at all, so its presence below
+        # is what marks an action as legendary.
+        legendary = [
+            {**option, "cost": int(option.get("cost", 1))}
+            for option in (doc.get("legendary_actions") or {}).get("options") or []
+        ]
+        authored = [*(doc.get("actions") or []), *legendary]
+
+        out: list[AttackAction] = []
+        for action in authored:
+            ability = action.get("ability")
+            ability_mod = int(mods.get(ability, 0)) if ability else 0
+            bonus = int(action.get("bonus", 0))
+
+            if "to_hit" in action:
+                to_hit: int | None = int(action["to_hit"])
+            elif ability:
+                to_hit = ability_mod + (proficiency if action.get("proficient") else 0) + bonus
+            else:
+                to_hit = None  # a save-based attack has no roll to beat an AC with
+
+            damage = []
+            for part in action.get("damage") or []:
+                expression = str(part["dice"])
+                if part.get("add_ability"):
+                    add = ability_mod + bonus
+                    if add:
+                        expression = f"{expression}{add:+d}"
+                damage.append({"dice": expression, "type": str(part.get("type", ""))})
+
+            out.append({
+                "name": str(action["name"]),
+                "kind": str(action.get("kind", "melee")),
+                "to_hit": to_hit,
+                "reach": action.get("reach"),
+                "target": action.get("target"),
+                "damage": damage,
+                "save": action.get("save"),
+                "description": action.get("description"),
+                # 5e doubles the dice on a crit, not the modifier. The playbook applies the
+                # rule by name; it does not know what a critical hit is.
+                "crit_rule": "double_dice",
+                # What this costs from the legendary pool, or None for an ordinary action.
+                # The tracker spends it; only this line knows which options are legendary.
+                "legendary_cost": int(action["cost"]) if "cost" in action else None,
+            })
+        return out
+
+    def death_save_rules(self) -> DeathSaveRules:
+        # A flat d20 — no ability modifier, no proficiency (PHB p.197). Three of either
+        # settles it; the count itself is the tracker's to keep.
+        return {"supported": True, "dice": "1d20", "dc": 10, "successes": 3, "failures": 3}
 
     def rest_types(self) -> list[str]:
         return ["short", "long"]

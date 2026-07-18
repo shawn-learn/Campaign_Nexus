@@ -36,6 +36,7 @@ from app.modules.npcs.models import Npc, NpcLocationHistory, NpcSchedule  # noqa
 from app.modules.playbook import quests as _playbook_quests  # noqa: F401  (registers action)
 from app.modules.playbook.models import (  # noqa: F401
     CombatAction,
+    CombatRoll,
     CombatRun,
     Encounter,
     Party,

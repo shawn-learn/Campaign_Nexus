@@ -101,10 +101,16 @@ export function EncounterPanel({
           <ul className="entities">
             {combats!.map((run) => (
               <li key={run.run_id}>
+                {/* Test against 'completed', not 'active': a run sitting in `setup` (rolling
+                    initiative) is unfinished, and reading it as Completed would be a lie. */}
                 <button className="linkish" onClick={() => openRun(run.run_id)}>
-                  {run.status === 'active' ? `In progress — round ${run.round}` : 'Completed'}
+                  {run.status === 'completed'
+                    ? 'Completed'
+                    : run.status === 'setup'
+                      ? 'Rolling initiative'
+                      : `In progress — round ${run.round}`}
                 </button>
-                <span className={'badge ' + (run.status === 'active' ? 'diff-hard' : '')}>
+                <span className={'badge ' + (run.status === 'completed' ? '' : 'diff-hard')}>
                   {run.status}
                 </span>
               </li>

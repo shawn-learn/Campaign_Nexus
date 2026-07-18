@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from app.modules.playbook.combat_reducer import ActionType
 from app.modules.time.schemas import ClockOut, FiredEvent
 
 
@@ -347,17 +348,55 @@ class RollOut(BaseModel):
 
 
 # --- combat ---------------------------------------------------------------- #
+class DeathSaveRulesOut(BaseModel):
+    """What a creature at 0 hp faces here, as the rule system prices it.
+
+    ``supported: False`` (the default) means the system has no such mechanic and the tracker
+    shows no row — the reducer counts saves, but what a count *means* is priced right here.
+    """
+
+    supported: bool = False
+    dice: str | None = None
+    dc: int | None = None
+    #: How many of each settles it — 5e says three and three; another system may not.
+    successes: int | None = None
+    failures: int | None = None
+
+
+class DeathSaves(BaseModel):
+    successes: int = 0
+    failures: int = 0
+
+
+class LegendaryActions(BaseModel):
+    max: int = 0
+    remaining: int = 0
+
+
 class Combatant(BaseModel):
+    """Mirrors the reducer's combatant exactly (``combat_reducer.py``).
+
+    ``state_of`` model_validates the folded dict through here, and pydantic drops fields it
+    doesn't declare — so a field added to the reducer but not to this model would be silently
+    stripped from the API response and never reach the tracker.
+    """
+
     id: str
     name: str
     side: str
+    #: "creature" | "lair" — a lair rides the order as an ordinary entry and is never defeated.
+    kind: str = "creature"
     max_hp: int
     hp: int
     temp_hp: int
     initiative: int
+    #: Breaks ties before id (5e: the dex modifier).
+    initiative_tiebreak: int = 0
     conditions: list[str]
     concentrating: bool
     defeated: bool
+    death_saves: DeathSaves = DeathSaves()
+    legendary: LegendaryActions = LegendaryActions()
 
 
 class CombatState(BaseModel):
@@ -378,6 +417,12 @@ class CombatRunOut(BaseModel):
     state: CombatState
     #: combatant id → stat-block id, so the UI can show a combatant's full stat block.
     combatant_blocks: dict[str, str] = {}
+    #: The die this system rolls for order ("1d20"), or None if it doesn't roll at all —
+    #: the tracker uses it to decide whether offering a roll would even be honest.
+    initiative_dice: str | None = None
+    #: How this system handles a creature at 0 hp, or unsupported — same idea: the tracker
+    #: shows a death-save row only where the rules actually have one.
+    death_saves: DeathSaveRulesOut = DeathSaveRulesOut()
 
 
 class CombatRunBrief(BaseModel):
@@ -392,8 +437,130 @@ class StartCombat(BaseModel):
 
 
 class CombatActionIn(BaseModel):
-    action_type: str
+    #: Constrained to the reducer's own vocabulary, so a typo 422s at the edge. Left as a
+    #: free string, an unknown type persisted to the log, advanced the fold cursor and was
+    #: then silently ignored — a no-op action the GM would have to press Undo to clear.
+    action_type: ActionType
     payload: dict[str, Any] = {}
+
+
+class RollInitiativeIn(BaseModel):
+    """Roll for a scope and/or accept the totals the GM typed in.
+
+    Both halves in one request, because that is the actual moment at the table: the monsters
+    roll, the players call their numbers out, and the order settles once.
+    """
+
+    #: all = everyone (absent players included); foes = monsters only; ids = an explicit list.
+    scope: Literal["all", "foes", "ids"] = "all"
+    ids: list[str] | None = None
+    #: combatant id → the total the player called out, modifier already included. A typed
+    #: value always wins over a roll for that combatant.
+    values: dict[str, int] | None = None
+    mode: Literal["normal", "advantage", "disadvantage"] = "normal"
+
+
+class DeathSaveIn(BaseModel):
+    combatant_id: str
+
+
+class AddCombatantIn(BaseModel):
+    """A straggler joining mid-fight: either a bestiary monster or an ad-hoc name + HP."""
+
+    monster_id: str | None = None
+    #: Ad-hoc: a name and hit points, for something that isn't in the bestiary.
+    name: str | None = None
+    max_hp: int | None = Field(default=None, ge=0)
+    count: int = Field(default=1, ge=1, le=20)
+    side: Literal["foe", "ally"] = "foe"
+    #: A lair rides the initiative order as an ordinary entry (5e: count 20) and is never
+    #: "defeated" — it has no hit points to lose.
+    kind: Literal["creature", "lair"] = "creature"
+    #: Use this exact initiative rather than rolling — a player's summon acts on their turn,
+    #: and a lair acts on 20.
+    initiative: int | None = None
+
+
+class DieFace(BaseModel):
+    sides: int
+    value: int
+    #: False for the die advantage/disadvantage discarded — kept so the log can show both.
+    kept: bool
+    sign: int
+
+
+class RollDetail(BaseModel):
+    dice: list[DieFace] = []
+    modifier: int = 0
+    critical: bool = False
+    fumble: bool = False
+
+
+class CombatRollOut(BaseModel):
+    id: str
+    combatant_id: str | None
+    kind: str
+    label: str
+    expression: str
+    mode: str
+    detail: RollDetail
+    total: int
+    target: int | None
+    outcome: str | None
+    recorded_at_real: str
+
+
+class AttackDamageOut(BaseModel):
+    #: Already rollable — the plugin resolved any ability modifier into the expression.
+    dice: str
+    type: str = ""
+
+
+class AttackSaveOut(BaseModel):
+    ability: str
+    dc: int
+    half_on_success: bool = False
+
+
+class AttackOut(BaseModel):
+    """One thing a combatant can do, with every number already worked out by its system."""
+
+    index: int
+    name: str
+    kind: str = "melee"
+    to_hit: int | None = None
+    reach: str | None = None
+    target: str | None = None
+    damage: list[AttackDamageOut] = []
+    save: AttackSaveOut | None = None
+    description: str | None = None
+    #: What this costs from the legendary pool, or None for an ordinary action.
+    legendary_cost: int | None = None
+
+
+class AttackIn(BaseModel):
+    attacker_id: str
+    #: Which of the attacker's attacks, by position in ``GET .../attacks``.
+    action_index: int = Field(ge=0)
+    #: Omit to roll without a target — the roll is reported and the GM calls it.
+    target_id: str | None = None
+    mode: Literal["normal", "advantage", "disadvantage"] = "normal"
+
+
+class AttackResultOut(BaseModel):
+    """What the dice said. Nothing has been applied — that is the GM's call."""
+
+    action_name: str
+    attacker_id: str
+    target_id: str | None
+    target_ac: int | None
+    #: hit | miss | crit | fumble, or None when there was no AC to beat.
+    outcome: str | None
+    to_hit: CombatRollOut | None
+    damage: list[CombatRollOut] = []
+    total_damage: int = 0
+    save: AttackSaveOut | None = None
+    description: str | None = None
 
 
 class CombatSummary(BaseModel):

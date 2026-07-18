@@ -150,7 +150,16 @@ def get_encounter(session: Session, campaign: Campaign, encounter_id: str) -> En
 
 
 def list_encounters(session: Session, campaign: Campaign) -> list[EncounterOut]:
-    rows = session.scalars(select(Encounter).where(Encounter.campaign_id == campaign.id))
+    rows = session.scalars(
+        select(Encounter)
+        .where(Encounter.campaign_id == campaign.id)
+        # Hide encounters whose entity has been soft-deleted. Deleting a wiki entity only
+        # stamps `deleted_at_real`, so the Encounter row survives and — without this — kept
+        # showing up in the list and the combat page's "start an encounter" picker, where a
+        # deleted encounter looks exactly like a live one with no monsters in it.
+        .join(Entity, Entity.id == Encounter.entity_id)
+        .where(Entity.deleted_at_real.is_(None))
+    )
     return [to_out(session, campaign, e) for e in rows]
 
 

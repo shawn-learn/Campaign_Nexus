@@ -656,7 +656,7 @@
           "wiki"
         ],
         "summary": "Get References",
-        "description": "What points at this entity — shown before a delete so nothing is severed blindly.",
+        "description": "What points at this entity \u2014 shown before a delete so nothing is severed blindly.",
         "operationId": "get_references_api_v1_campaigns__campaign_id__entities__entity_id__references_get",
         "parameters": [
           {
@@ -2767,7 +2767,7 @@
           "rules"
         ],
         "summary": "Get Travel Table",
-        "description": "Paces, conveyances and terrain multipliers — the travel planner's vocabulary.",
+        "description": "Paces, conveyances and terrain multipliers \u2014 the travel planner's vocabulary.",
         "operationId": "get_travel_table_api_v1_rule_systems__system_id__travel_get",
         "parameters": [
           {
@@ -4222,6 +4222,438 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CombatRunOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/combats/{run_id}/initiative": {
+      "post": {
+        "tags": [
+          "combat"
+        ],
+        "summary": "Roll Initiative",
+        "description": "Roll for a scope and/or take the totals the GM typed in \u2014 one round trip for both.",
+        "operationId": "roll_initiative_api_v1_campaigns__campaign_id__combats__run_id__initiative_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RollInitiativeIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CombatRunOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/combats/{run_id}/combatants": {
+      "post": {
+        "tags": [
+          "combat"
+        ],
+        "summary": "Add Combatant",
+        "description": "Add a straggler mid-fight, seeded from the bestiary or entered by hand.",
+        "operationId": "add_combatant_api_v1_campaigns__campaign_id__combats__run_id__combatants_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddCombatantIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CombatRunOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/combats/{run_id}/death-save": {
+      "post": {
+        "tags": [
+          "combat"
+        ],
+        "summary": "Roll Death Save",
+        "description": "Roll one death save. The rule system decides what the die means; this records it.",
+        "operationId": "roll_death_save_api_v1_campaigns__campaign_id__combats__run_id__death_save_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeathSaveIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CombatRunOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/combats/{run_id}/begin": {
+      "post": {
+        "tags": [
+          "combat"
+        ],
+        "summary": "Begin Combat",
+        "description": "Leave setup and start round 1.",
+        "operationId": "begin_combat_api_v1_campaigns__campaign_id__combats__run_id__begin_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CombatRunOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/combats/{run_id}/combatants/{combatant_id}/attacks": {
+      "get": {
+        "tags": [
+          "combat"
+        ],
+        "summary": "List Attacks",
+        "description": "What this combatant can do, resolved by its rule system into plain numbers.",
+        "operationId": "list_attacks_api_v1_campaigns__campaign_id__combats__run_id__combatants__combatant_id__attacks_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "combatant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Combatant Id"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AttackOut"
+                  },
+                  "title": "Response List Attacks Api V1 Campaigns  Campaign Id  Combats  Run Id  Combatants  Combatant Id  Attacks Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/combats/{run_id}/attack": {
+      "post": {
+        "tags": [
+          "combat"
+        ],
+        "summary": "Roll Attack",
+        "description": "Roll an attack and report the result. Applies nothing \u2014 that stays the GM's call.",
+        "operationId": "roll_attack_api_v1_campaigns__campaign_id__combats__run_id__attack_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttackIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttackResultOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/combats/{run_id}/rolls": {
+      "get": {
+        "tags": [
+          "combat"
+        ],
+        "summary": "List Rolls",
+        "operationId": "list_rolls_api_v1_campaigns__campaign_id__combats__run_id__rolls_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CombatRollOut"
+                  },
+                  "title": "Response List Rolls Api V1 Campaigns  Campaign Id  Combats  Run Id  Rolls Get"
                 }
               }
             }
@@ -9969,6 +10401,83 @@
   },
   "components": {
     "schemas": {
+      "AddCombatantIn": {
+        "properties": {
+          "monster_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monster Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "max_hp": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Hp"
+          },
+          "count": {
+            "type": "integer",
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Count",
+            "default": 1
+          },
+          "side": {
+            "type": "string",
+            "enum": [
+              "foe",
+              "ally"
+            ],
+            "title": "Side",
+            "default": "foe"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "creature",
+              "lair"
+            ],
+            "title": "Kind",
+            "default": "creature"
+          },
+          "initiative": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Initiative"
+          }
+        },
+        "type": "object",
+        "title": "AddCombatantIn",
+        "description": "A straggler joining mid-fight: either a bestiary monster or an ad-hoc name + HP."
+      },
       "AddMember": {
         "properties": {
           "stat_block_id": {
@@ -10176,6 +10685,284 @@
           "sort_order"
         ],
         "title": "AttachmentOut"
+      },
+      "AttackDamageOut": {
+        "properties": {
+          "dice": {
+            "type": "string",
+            "title": "Dice"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "dice"
+        ],
+        "title": "AttackDamageOut"
+      },
+      "AttackIn": {
+        "properties": {
+          "attacker_id": {
+            "type": "string",
+            "title": "Attacker Id"
+          },
+          "action_index": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Action Index"
+          },
+          "target_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Id"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "advantage",
+              "disadvantage"
+            ],
+            "title": "Mode",
+            "default": "normal"
+          }
+        },
+        "type": "object",
+        "required": [
+          "attacker_id",
+          "action_index"
+        ],
+        "title": "AttackIn"
+      },
+      "AttackOut": {
+        "properties": {
+          "index": {
+            "type": "integer",
+            "title": "Index"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "default": "melee"
+          },
+          "to_hit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Hit"
+          },
+          "reach": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reach"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target"
+          },
+          "damage": {
+            "items": {
+              "$ref": "#/components/schemas/AttackDamageOut"
+            },
+            "type": "array",
+            "title": "Damage",
+            "default": []
+          },
+          "save": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AttackSaveOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "legendary_cost": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Legendary Cost"
+          }
+        },
+        "type": "object",
+        "required": [
+          "index",
+          "name"
+        ],
+        "title": "AttackOut",
+        "description": "One thing a combatant can do, with every number already worked out by its system."
+      },
+      "AttackResultOut": {
+        "properties": {
+          "action_name": {
+            "type": "string",
+            "title": "Action Name"
+          },
+          "attacker_id": {
+            "type": "string",
+            "title": "Attacker Id"
+          },
+          "target_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Id"
+          },
+          "target_ac": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Ac"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome"
+          },
+          "to_hit": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CombatRollOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "damage": {
+            "items": {
+              "$ref": "#/components/schemas/CombatRollOut"
+            },
+            "type": "array",
+            "title": "Damage",
+            "default": []
+          },
+          "total_damage": {
+            "type": "integer",
+            "title": "Total Damage",
+            "default": 0
+          },
+          "save": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AttackSaveOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action_name",
+          "attacker_id",
+          "target_id",
+          "target_ac",
+          "outcome",
+          "to_hit"
+        ],
+        "title": "AttackResultOut",
+        "description": "What the dice said. Nothing has been applied \u2014 that is the GM's call."
+      },
+      "AttackSaveOut": {
+        "properties": {
+          "ability": {
+            "type": "string",
+            "title": "Ability"
+          },
+          "dc": {
+            "type": "integer",
+            "title": "Dc"
+          },
+          "half_on_success": {
+            "type": "boolean",
+            "title": "Half On Success",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "ability",
+          "dc"
+        ],
+        "title": "AttackSaveOut"
       },
       "BackupOut": {
         "properties": {
@@ -10524,6 +11311,20 @@
         "properties": {
           "action_type": {
             "type": "string",
+            "enum": [
+              "add_combatant",
+              "remove_combatant",
+              "set_initiative",
+              "damage",
+              "heal",
+              "set_temp_hp",
+              "add_condition",
+              "remove_condition",
+              "set_concentration",
+              "death_save",
+              "legendary_use",
+              "next_turn"
+            ],
             "title": "Action Type"
           },
           "payload": {
@@ -10538,6 +11339,89 @@
           "action_type"
         ],
         "title": "CombatActionIn"
+      },
+      "CombatRollOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "combatant_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Combatant Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "expression": {
+            "type": "string",
+            "title": "Expression"
+          },
+          "mode": {
+            "type": "string",
+            "title": "Mode"
+          },
+          "detail": {
+            "$ref": "#/components/schemas/RollDetail"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome"
+          },
+          "recorded_at_real": {
+            "type": "string",
+            "title": "Recorded At Real"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "combatant_id",
+          "kind",
+          "label",
+          "expression",
+          "mode",
+          "detail",
+          "total",
+          "target",
+          "outcome",
+          "recorded_at_real"
+        ],
+        "title": "CombatRollOut"
       },
       "CombatRunBrief": {
         "properties": {
@@ -10621,6 +11505,23 @@
             "type": "object",
             "title": "Combatant Blocks",
             "default": {}
+          },
+          "initiative_dice": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Initiative Dice"
+          },
+          "death_saves": {
+            "$ref": "#/components/schemas/DeathSaveRulesOut",
+            "default": {
+              "supported": false
+            }
           }
         },
         "type": "object",
@@ -10715,6 +11616,11 @@
             "type": "string",
             "title": "Side"
           },
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "default": "creature"
+          },
           "max_hp": {
             "type": "integer",
             "title": "Max Hp"
@@ -10731,6 +11637,11 @@
             "type": "integer",
             "title": "Initiative"
           },
+          "initiative_tiebreak": {
+            "type": "integer",
+            "title": "Initiative Tiebreak",
+            "default": 0
+          },
           "conditions": {
             "items": {
               "type": "string"
@@ -10745,6 +11656,20 @@
           "defeated": {
             "type": "boolean",
             "title": "Defeated"
+          },
+          "death_saves": {
+            "$ref": "#/components/schemas/DeathSaves",
+            "default": {
+              "successes": 0,
+              "failures": 0
+            }
+          },
+          "legendary": {
+            "$ref": "#/components/schemas/LegendaryActions",
+            "default": {
+              "max": 0,
+              "remaining": 0
+            }
           }
         },
         "type": "object",
@@ -10760,7 +11685,8 @@
           "concentrating",
           "defeated"
         ],
-        "title": "Combatant"
+        "title": "Combatant",
+        "description": "Mirrors the reducer's combatant exactly (``combat_reducer.py``).\n\n``state_of`` model_validates the folded dict through here, and pydantic drops fields it\ndoesn't declare \u2014 so a field added to the reducer but not to this model would be silently\nstripped from the API response and never reach the tracker."
       },
       "CombatantSpec": {
         "properties": {
@@ -10991,6 +11917,91 @@
         ],
         "title": "DashboardSession"
       },
+      "DeathSaveIn": {
+        "properties": {
+          "combatant_id": {
+            "type": "string",
+            "title": "Combatant Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "combatant_id"
+        ],
+        "title": "DeathSaveIn"
+      },
+      "DeathSaveRulesOut": {
+        "properties": {
+          "supported": {
+            "type": "boolean",
+            "title": "Supported",
+            "default": false
+          },
+          "dice": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dice"
+          },
+          "dc": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dc"
+          },
+          "successes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Successes"
+          },
+          "failures": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failures"
+          }
+        },
+        "type": "object",
+        "title": "DeathSaveRulesOut",
+        "description": "What a creature at 0 hp faces here, as the rule system prices it.\n\n``supported: False`` (the default) means the system has no such mechanic and the tracker\nshows no row \u2014 the reducer counts saves, but what a count *means* is priced right here."
+      },
+      "DeathSaves": {
+        "properties": {
+          "successes": {
+            "type": "integer",
+            "title": "Successes",
+            "default": 0
+          },
+          "failures": {
+            "type": "integer",
+            "title": "Failures",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "DeathSaves"
+      },
       "DependencyIn": {
         "properties": {
           "depends_on_id": {
@@ -11003,6 +12014,34 @@
           "depends_on_id"
         ],
         "title": "DependencyIn"
+      },
+      "DieFace": {
+        "properties": {
+          "sides": {
+            "type": "integer",
+            "title": "Sides"
+          },
+          "value": {
+            "type": "integer",
+            "title": "Value"
+          },
+          "kept": {
+            "type": "boolean",
+            "title": "Kept"
+          },
+          "sign": {
+            "type": "integer",
+            "title": "Sign"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sides",
+          "value",
+          "kept",
+          "sign"
+        ],
+        "title": "DieFace"
       },
       "DifficultyOut": {
         "properties": {
@@ -12447,6 +13486,22 @@
         },
         "type": "object",
         "title": "ItemInstanceUpdate"
+      },
+      "LegendaryActions": {
+        "properties": {
+          "max": {
+            "type": "integer",
+            "title": "Max",
+            "default": 0
+          },
+          "remaining": {
+            "type": "integer",
+            "title": "Remaining",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "LegendaryActions"
       },
       "LibraryEntryCreate": {
         "properties": {
@@ -13955,6 +15010,10 @@
             "type": "string",
             "title": "Sheet Type"
           },
+          "stat_block_id": {
+            "type": "string",
+            "title": "Stat Block Id"
+          },
           "doc": {
             "additionalProperties": true,
             "type": "object",
@@ -13977,6 +15036,7 @@
           "variant_of",
           "rule_system_id",
           "sheet_type",
+          "stat_block_id",
           "doc",
           "derived",
           "facets"
@@ -15707,6 +16767,90 @@
           "members"
         ],
         "title": "RestResult"
+      },
+      "RollDetail": {
+        "properties": {
+          "dice": {
+            "items": {
+              "$ref": "#/components/schemas/DieFace"
+            },
+            "type": "array",
+            "title": "Dice",
+            "default": []
+          },
+          "modifier": {
+            "type": "integer",
+            "title": "Modifier",
+            "default": 0
+          },
+          "critical": {
+            "type": "boolean",
+            "title": "Critical",
+            "default": false
+          },
+          "fumble": {
+            "type": "boolean",
+            "title": "Fumble",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "RollDetail"
+      },
+      "RollInitiativeIn": {
+        "properties": {
+          "scope": {
+            "type": "string",
+            "enum": [
+              "all",
+              "foes",
+              "ids"
+            ],
+            "title": "Scope",
+            "default": "all"
+          },
+          "ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ids"
+          },
+          "values": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Values"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "advantage",
+              "disadvantage"
+            ],
+            "title": "Mode",
+            "default": "normal"
+          }
+        },
+        "type": "object",
+        "title": "RollInitiativeIn",
+        "description": "Roll for a scope and/or accept the totals the GM typed in.\n\nBoth halves in one request, because that is the actual moment at the table: the monsters\nroll, the players call their numbers out, and the order settles once."
       },
       "RollOut": {
         "properties": {

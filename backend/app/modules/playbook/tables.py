@@ -2,9 +2,12 @@
 link into the knowledge graph: an encounter to run, an NPC to introduce, or another table to
 nest. Two modes, chosen by the ``dice`` field:
 
-* range   — ``dice`` is an ``NdM`` expression; each row has an inclusive ``min``/``max`` and
-            the roll lands in exactly one row (the classic d20/d100 table).
+* range   — ``dice`` is a dice expression (``1d20``, ``d12+d8``, ``2d6+3``); each row has an
+            inclusive ``min``/``max`` and the roll lands in exactly one row.
 * weighted — ``dice`` is ``""``; a row is chosen at random in proportion to its ``weight``.
+
+Notation is parsed and rolled by ``app.core.dice`` — the one dice grammar in the codebase.
+Only the ``""`` weighted sentinel is table-specific, so it lives here rather than there.
 
 The dice roll and weighted pick are the only nondeterminism; both funnel through ``roll`` and
 accept an injected value so the selection logic is unit-testable without touching ``random``.
@@ -14,12 +17,12 @@ from __future__ import annotations
 
 import json
 import random
-import re
 from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core import dice as core_dice
 from app.modules.campaign.models import Campaign
 from app.modules.playbook.models import RandomTable
 from app.modules.playbook.schemas import (
@@ -32,8 +35,6 @@ from app.modules.wiki import search as wiki_search
 from app.modules.wiki import service as wiki_service
 from app.modules.wiki.models import Entity
 from app.modules.wiki.schemas import EntityCreate, EntityUpdate
-
-_DICE = re.compile(r"^\s*(\d*)d(\d+)\s*$", re.IGNORECASE)
 
 
 class RandomTableNotFound(LookupError):
@@ -48,31 +49,20 @@ class InvalidTable(ValueError):
     pass
 
 
-def parse_dice_terms(dice: str) -> list[tuple[int, int]] | None:
-    """Parse additive dice terms that are summed on a roll; empty input selects weighted mode."""
-    if not dice.strip():
-        return None
-    terms: list[tuple[int, int]] = []
-    for part in dice.split("+"):
-        m = _DICE.match(part)
-        if not m:
-            raise BadDice(dice)
-        count = int(m.group(1)) if m.group(1) else 1
-        sides = int(m.group(2))
-        if count < 1 or sides < 1:
-            raise BadDice(dice)
-        terms.append((count, sides))
-    return terms
+def dice_spec(dice: str) -> str | None:
+    """Validate a table's ``dice`` field: ``""`` → ``None`` (weighted), else the expression.
 
-
-def parse_dice(dice: str) -> tuple[int, int] | None:
-    """Single-term form: ``"2d6"`` → ``(2, 6)``, ``""`` → ``None``. Rejects multi-term exprs."""
-    terms = parse_dice_terms(dice)
-    if terms is None:
+    Re-raises the core parser's error as ``BadDice`` so the router's 422 mapping still fires;
+    a leaked ``BadExpression`` would surface as a 500 instead.
+    """
+    expr = dice.strip()
+    if not expr:
         return None
-    if len(terms) != 1:
-        raise BadDice(dice)
-    return terms[0]
+    try:
+        core_dice.parse(expr)
+    except core_dice.BadExpression as exc:
+        raise BadDice(dice) from exc
+    return expr
 
 
 def _target(
@@ -110,7 +100,7 @@ def to_out(session: Session, table: RandomTable) -> RandomTableOut:
 
 def validate_rows(session: Session, campaign_id: str, dice: str, rows: list[TableRow]) -> None:
     """Reject tables that cannot produce an unambiguous, campaign-safe result."""
-    terms = parse_dice_terms(dice)
+    spec = dice_spec(dice)  # bad notation fails before the row checks, as it always has
     if not rows:
         raise InvalidTable("a random table needs at least one row")
 
@@ -126,11 +116,10 @@ def validate_rows(session: Session, campaign_id: str, dice: str, rows: list[Tabl
             ):
                 raise InvalidTable("row target must be an active entity in this campaign")
 
-    if terms is None:
+    if spec is None:
         return
 
-    minimum = sum(count for count, _ in terms)
-    maximum = sum(count * sides for count, sides in terms)
+    minimum, maximum = core_dice.bounds(spec)
     ranges: list[tuple[int, int]] = []
     for row in rows:
         if row.min is None or row.max is None:
@@ -273,13 +262,11 @@ def roll(
 ) -> RollOut:
     table = _require(session, campaign.id, table_id)
     rows: list[dict[str, Any]] = json.loads(table.rows_json)
-    terms = parse_dice_terms(table.dice)
+    spec = dice_spec(table.dice)
 
     rolled: int | None = None
-    if terms is not None:
-        rolled = forced_roll if forced_roll is not None else sum(
-            random.randint(1, sides) for count, sides in terms for _ in range(count)
-        )
+    if spec is not None:
+        rolled = forced_roll if forced_roll is not None else core_dice.roll(spec).total
         index = select_range(rows, rolled)
     else:
         index = select_weighted(rows, random.random()) if rows else None

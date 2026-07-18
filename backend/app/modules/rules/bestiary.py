@@ -36,6 +36,7 @@ def _to_out(session: Session, monster: Monster) -> dict[str, Any]:
         "variant_of": monster.variant_of,
         "rule_system_id": block.rule_system_id if block else "",
         "sheet_type": "monster",
+        "stat_block_id": monster.stat_block_id,
         "doc": json.loads(block.doc_json) if block else {},
         "derived": json.loads(block.derived_json) if block else {},
         "facets": {
@@ -74,28 +75,62 @@ def _create_monster(
     return monster
 
 
+def _refresh_monster(
+    session: Session, system_id: str, monster: Monster, doc: dict[str, Any], source: str
+) -> None:
+    """Rewrite a pack-sourced monster's stat block from the pack's current content."""
+    block = session.get(StatBlock, monster.stat_block_id)
+    if block is not None:
+        block.doc_json = json.dumps(doc)
+        block.derived_json = json.dumps(registry.get_system(system_id).derive("monster", doc))
+        block.schema_version = registry.get_system(system_id).version
+    for key, value in _facets(system_id, doc).items():
+        setattr(monster, key, value)
+    monster.source = source
+
+
 def import_content_packs(session: Session, campaign_id: str, system_id: str) -> int:
-    """Materialize a system's SRD packs into the campaign bestiary (idempotent)."""
+    """Materialize a system's SRD packs into the campaign bestiary, and keep them current.
+
+    Idempotent while the pack version holds still: same version, nothing to do. When the
+    version moves, pack-sourced monsters are **rewritten** from the pack rather than
+    duplicated — matching on name within the same pack id, not the versioned source string.
+
+    That matching matters. Keying `existing` off the full versioned source (as this did)
+    meant a version bump found nothing existing and re-imported the whole pack alongside the
+    old copies: two Goblins, forever. And never bumping meant a pack could never correct or
+    extend anything it had already shipped.
+
+    Only monsters this pack owns are touched. A ``custom`` variant (``make_variant``) or an
+    ``imported`` monster is the GM's own — rewriting those would defeat the point of
+    copy-on-write (FR-11.4), which is exactly the mechanism for customizing a pack monster.
+    """
     system = registry.get_system(system_id)
-    imported = 0
+    changed = 0
     for pack in system.content_packs():
         source = f"content_pack:{pack['id']}@{pack['version']}"
-        existing = set(
-            session.scalars(
-                select(Monster.name).where(
-                    Monster.campaign_id == campaign_id, Monster.source == source
+        owned = f"content_pack:{pack['id']}@"
+        existing = {
+            m.name: m
+            for m in session.scalars(
+                select(Monster).where(
+                    Monster.campaign_id == campaign_id,
+                    Monster.source.startswith(owned),
                 )
             )
-        )
+        }
         for entry in pack.get("monsters", []):
-            if entry["name"] in existing:
-                continue
-            _create_monster(
-                session, campaign_id, system_id, entry["name"], entry["doc"], source=source
-            )
-            imported += 1
+            monster = existing.get(entry["name"])
+            if monster is None:
+                _create_monster(
+                    session, campaign_id, system_id, entry["name"], entry["doc"], source=source
+                )
+                changed += 1
+            elif monster.source != source:  # the pack moved on; bring this one with it
+                _refresh_monster(session, system_id, monster, entry["doc"], source)
+                changed += 1
     session.commit()
-    return imported
+    return changed
 
 
 def make_variant(session: Session, campaign_id: str, monster_id: str) -> dict[str, Any]:

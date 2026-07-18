@@ -132,6 +132,37 @@ def test_a_nimble_campaign_runs_end_to_end(client: TestClient) -> None:
     assert "The party completed a safe rest." in titles
 
 
+def test_rolling_initiative_does_nothing_in_a_system_that_has_none(client: TestClient) -> None:
+    """Nimble rolls no initiative: the party acts, then the monsters do.
+
+    So "roll initiative for everyone" must leave that ranking exactly as the plugin set it,
+    rather than shuffle it with a d20 the system does not have. This is the check that keeps
+    the tracker's initiative feature from being a quietly 5e-only one.
+    """
+    cid = _campaign(client)
+    pc = _block(client, cid, "pc", "Ragna", _PC)
+    client.post(f"/api/v1/campaigns/{cid}/party/members", json={"stat_block_id": pc})
+    client.post(f"/api/v1/campaigns/{cid}/monsters/import-json", json={
+        "monsters": [{"name": "Goblin", "doc": _GOBLIN}],
+    })
+    monster = client.get(f"/api/v1/campaigns/{cid}/monsters").json()[0]
+    encounter = client.post(f"/api/v1/campaigns/{cid}/encounters", json={
+        "name": "Ambush", "combatants": [{"monster_id": monster["id"], "count": 2}],
+    }).json()
+
+    run = client.post(f"/api/v1/campaigns/{cid}/combats",
+                      json={"encounter_id": encounter["id"]}).json()
+    before = [run["state"]["combatants"][i]["initiative"] for i in run["state"]["order"]]
+
+    out = client.post(f"/api/v1/campaigns/{cid}/combats/{run['run_id']}/initiative",
+                      json={"scope": "all"}).json()
+    after = [out["state"]["combatants"][i]["initiative"] for i in out["state"]["order"]]
+
+    assert after == before == [1, 0, 0]  # the party's 1 still outranks the monsters' 0
+    # And no dice were thrown, because there is no die to throw.
+    assert client.get(f"/api/v1/campaigns/{cid}/combats/{run['run_id']}/rolls").json() == []
+
+
 def test_partial_hp_survives_into_combat(client: TestClient) -> None:
     """The combat tracker reads live HP through the plugin, not through `current_hit_points`."""
     cid = _campaign(client)

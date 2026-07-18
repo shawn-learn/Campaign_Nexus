@@ -74,6 +74,8 @@ class MonsterOut(BaseModel):
     variant_of: str | None
     rule_system_id: str
     sheet_type: str
+    #: The stat block behind this monster — what you edit to change it (attacks included).
+    stat_block_id: str
     doc: dict[str, Any]
     derived: dict[str, Any]
     facets: MonsterFacets

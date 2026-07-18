@@ -22,8 +22,17 @@ ContentPack = dict[str, Any]  # {"id","version","attribution","monsters": [{"nam
 # {"supported", "distance_unit", "paces": {pace: {conveyance: distance_per_day}},
 #  "terrain": {terrain: multiplier}, "forced_march_after_seconds": int|None}
 TravelPaceTable = dict[str, Any]
-# {"max_hp": int, "hp": int, "initiative": int} — everything the combat tracker needs to
-# seed a combatant. The playbook reads *this*, never the stat-block document (docs/04 §6.8).
+# Everything the combat tracker needs to seed a combatant. The playbook reads *this*, never
+# the stat-block document (docs/04 §6.8):
+#   max_hp, hp, initiative  — as before; ``initiative`` is the pre-roll seed / static ranking.
+#   ac              — the number an attack must meet to hit, or None if the system has no
+#                     such concept (Nimble's armour reduces damage; it is not a target).
+#                     A None ac means the tracker reports the roll and lets the GM judge.
+#   initiative_dice — the die initiative is rolled on ("1d20"), or None if the system does
+#                     not roll for it at all — in which case ``initiative`` above already
+#                     *is* the order and the tracker must not offer to roll.
+#   initiative_mod  — what's added to that die, and the tiebreak between equal initiatives.
+#   legendary       — legendary actions per round, or 0 for a creature that has none.
 CombatProfile = dict[str, Any]
 # Ordered {tier: dc} — how a system prices skill-challenge difficulty tiers as concrete
 # target numbers. The skill-challenge feature is system-agnostic; this is its one hook into
@@ -35,7 +44,27 @@ SkillCheckDcs = dict[str, int]
 DIFFICULTY_TIERS = ("trivial", "easy", "normal", "hard", "very_hard", "nearly_impossible")
 
 # Display roles the generic renderer understands.
-FIELD_ROLES = ("text", "paragraph", "number", "boolean", "ability-array", "dice", "trait-list")
+FIELD_ROLES = (
+    "text", "paragraph", "number", "boolean", "ability-array", "dice", "trait-list",
+    "attack-list",
+)
+
+# What a creature can do on its turn, *resolved*: every number already summed, every damage
+# expression already a rollable string. A system may author attacks however it likes — 5e
+# lets a PC name an ability and a proficiency and derives the rest — but ``attack_actions``
+# hands back only finished numbers, so the playbook rolls dice without knowing any rules.
+#   {"name", "kind": "melee"|"ranged"|"save", "to_hit": int|None,
+#    "reach", "target", "damage": [{"dice", "type"}],
+#    "save": {"ability", "dc", "half_on_success"} | None,
+#    "description", "crit_rule": "double_dice"|None}
+AttackAction = dict[str, Any]
+
+# How a system handles a creature at 0 hit points, or ``{"supported": False}`` if it has no
+# such mechanic — the tracker then shows no death-save row at all rather than invent one.
+#   {"supported": True, "dice": "1d20", "dc": 10, "successes": 3, "failures": 3}
+# The reducer only counts; what a count *means* (stable, dead) is priced here, so 5e's
+# three-and-three never gets hard-coded into a system-agnostic module.
+DeathSaveRules = dict[str, Any]
 
 # The four generic facet columns on the monster table (docs/08, §10.4).
 FACET_KEYS = ("facet1_num", "facet2_num", "facet1_text", "facet2_text")
@@ -66,6 +95,11 @@ class RuleSystem(Protocol):
     def combat_profile(
         self, sheet_type: str, doc: Document, status: Document | None = None
     ) -> CombatProfile: ...
+    def with_hit_points(
+        self, status: Document, doc: Document, hit_points: int
+    ) -> Document: ...
+    def attack_actions(self, sheet_type: str, doc: Document) -> list[AttackAction]: ...
+    def death_save_rules(self) -> DeathSaveRules: ...
 
     # -- rests (docs/08, §10.2) --------------------------------------------
     def rest_types(self) -> list[str]: ...
@@ -145,8 +179,28 @@ class BaseRuleSystem:
     def combat_profile(
         self, sheet_type: str, doc: Document, status: Document | None = None
     ) -> CombatProfile:
-        # A system that ships no combat model still yields a well-formed combatant.
-        return {"max_hp": 0, "hp": 0, "initiative": 0}
+        # A system that ships no combat model still yields a well-formed combatant: no AC to
+        # hit, no die to roll for order. The tracker degrades to a manual list, not an error.
+        return {
+            "max_hp": 0, "hp": 0, "initiative": 0,
+            "ac": None, "initiative_dice": None, "initiative_mod": 0,
+            "legendary": 0,
+        }
+
+    def with_hit_points(self, status: Document, doc: Document, hit_points: int) -> Document:
+        # The write half of ``combat_profile``'s read: that method pulls live HP *out* of a
+        # status; this one puts it back after combat, without disturbing anything else in
+        # there (conditions, exhaustion). A system with no HP model writes nothing.
+        return dict(status)
+
+    def attack_actions(self, sheet_type: str, doc: Document) -> list[AttackAction]:
+        # A system with no attack model offers nothing to click; the tracker just doesn't
+        # show an attack panel. Same shape as every other optional hook: empty, not an error.
+        return []
+
+    def death_save_rules(self) -> DeathSaveRules:
+        # No death saves here — the tracker shows no row rather than guessing at one.
+        return {"supported": False}
 
     def rest_types(self) -> list[str]:
         return []

@@ -450,6 +450,10 @@ ul.relations li:last-child { border-bottom: none; }
 .cc-init { font-weight: 700; color: var(--accent); min-width: 22px; }
 .cc-name { flex: 1; font-weight: 600; }
 .cc-conc { color: var(--accent); }
+/* Bloodied (at or below half). The hp bar already shades toward red as it empties, so the
+   glyph carries the signal — the border alone was too easy to miss on a full rail. */
+.cc-bloodied { color: var(--danger); }
+.hp-bar.bloodied { border-color: var(--danger); }
 .hp-bar { position: relative; height: 18px; background: var(--bg); border-radius: 4px;
   overflow: hidden; margin-top: 6px; border: 1px solid var(--border); }
 .hp-fill { height: 100%; background: linear-gradient(90deg, var(--danger), #6a9a4f); transition: width 0.15s; }
@@ -457,6 +461,23 @@ ul.relations li:last-child { border-bottom: none; }
 .cc-conditions { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
 .combat-side { display: flex; flex-direction: column; gap: 12px; }
 .keypad-buffer { font-size: 18px; margin-bottom: 8px; }
+
+/* Initiative setup — the roster you settle before round 1. Two columns, because the roster
+   is the whole screen here rather than a rail beside the tracker. */
+.setup-rail { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+.setup-rail .combatant-card { cursor: default; }
+/* Sized and coloured like the .cc-init it replaces, so a typed number and a rolled one
+   read as the same thing in the same column. */
+.cc-init-input { width: 46px; padding: 2px 4px; font-weight: 700; font-size: 15px;
+  color: var(--accent); background: var(--bg); border: 1px solid var(--border);
+  border-radius: 4px; text-align: center; font-family: inherit; }
+.cc-init-input:focus { outline: none; border-color: var(--accent); }
+/* The spinners steal room from a two-digit number and invite the mouse into a keyboard flow. */
+.cc-init-input::-webkit-outer-spin-button,
+.cc-init-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.cc-init-input { -moz-appearance: textfield; appearance: textfield; }
+.cc-reroll { font-size: 14px; padding: 0 4px; line-height: 1; }
+.cc-setup-meta { display: flex; gap: 8px; font-size: 11px; margin-top: 6px; flex-wrap: wrap; }
 
 /* Encounter difficulty badges */
 .diff-trivial { color: var(--muted); }
@@ -508,6 +529,9 @@ ul.relations li:last-child { border-bottom: none; }
 .sb-ability-name { font-weight: 700; color: var(--danger); font-size: 12px; }
 .sb-ability-score { font-size: 13px; }
 .sb-trait { margin-top: 6px; }
+/* "Actions" — the classic stat block's small-caps heading above the attack lines. */
+.sb-heading { font-size: 17px; font-variant: small-caps; color: var(--danger);
+  border-bottom: 1px solid var(--danger); margin: 4px 0 2px; }
 
 /* Character sheets */
 .sheet-layout { display: grid; grid-template-columns: 200px 1fr; gap: 16px; }
@@ -520,6 +544,55 @@ ul.relations li:last-child { border-bottom: none; }
 .ability-name { font-size: 11px; color: var(--muted); }
 .ability input { width: 100%; text-align: center; padding: 6px 2px; }
 .derived { font-size: 13px; }
+
+/* Attack authoring (the `attack-list` field role) */
+.attack-row { border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;
+  margin-bottom: 10px; background: var(--panel-2); }
+.attack-row legend { font-size: 11px; padding: 0 4px; }
+.attack-row .field { margin-bottom: 6px; }
+.attack-row .field span { font-size: 11px; }
+
+/* Legendary actions — orbs, so a boss's remaining pool reads at a glance rather than as a
+   number to subtract from mid-turn. */
+.legendary-orbs { display: inline-flex; gap: 3px; align-items: center; }
+.orb { width: 8px; height: 8px; border-radius: 50%; border: 1px solid var(--accent);
+  opacity: 0.35; }
+.orb.on { background: var(--accent); opacity: 1; }
+.legendary-cost { color: var(--accent); font-size: 11px; }
+
+/* A lair has no hit points to lose, so the bar would only ever read 0/0. */
+.combatant-card.kind-lair .hp-bar { display: none; }
+.combatant-card.kind-lair { border-left-style: dashed; }
+
+/* Death saves — pips, because at a table this lives on a scrap of paper and gets lost. */
+.death-saves { border: 1px solid var(--danger); border-radius: 6px; padding: 8px;
+  margin-bottom: 8px; background: var(--bg); }
+.ds-row { display: flex; justify-content: space-between; align-items: center;
+  font-size: 12px; margin-top: 4px; }
+.ds-pips { display: flex; gap: 4px; }
+.ds-pip { width: 12px; height: 12px; border-radius: 50%; border: 1px solid var(--border); }
+.ds-pip.on.ok { background: #5aa469; border-color: #5aa469; }
+.ds-pip.on.bad { background: var(--danger); border-color: var(--danger); }
+.ds-stable { color: #5aa469; font-weight: 600; }
+.ds-dead { color: var(--danger); font-weight: 700; }
+
+/* Attack rolls in the tracker */
+.attack-list { display: flex; flex-direction: column; gap: 4px; }
+.attack-btn { text-align: left; width: 100%; }
+.attack-meta { font-size: 11px; color: var(--muted); }
+/* The roll result: an outcome you can read at a glance, then apply or ignore. */
+.roll-card { border: 1px solid var(--border); border-left: 3px solid var(--accent);
+  border-radius: 6px; padding: 8px; margin-top: 8px; background: var(--bg); }
+.roll-card.hit { border-left-color: #6a9a4f; }
+.roll-card.miss { border-left-color: var(--muted); }
+.roll-card.crit { border-left-color: var(--accent); }
+.roll-total { font-size: 20px; font-weight: 700; color: var(--accent); }
+.roll-outcome { font-weight: 600; }
+.roll-faces { font-size: 11px; color: var(--muted); }
+.roll-log { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column;
+  gap: 3px; max-height: 220px; overflow-y: auto; font-size: 12px; }
+.roll-log li { display: flex; gap: 6px; justify-content: space-between;
+  border-bottom: 1px solid var(--border); padding-bottom: 2px; }
 
 /* Timeline */
 ul.timeline { list-style: none; padding: 0; margin: 0; }

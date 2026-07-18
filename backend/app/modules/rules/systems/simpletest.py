@@ -129,7 +129,17 @@ class SimpleTestSystem(BaseRuleSystem):
             "max_hp": max_hp,
             "hp": int((status or {}).get("hp", max_hp)),
             "initiative": 0,  # this system has no initiative; insertion order wins
+            # No AC, and no die to roll for order — same as the two above.
+            "ac": None,
+            "initiative_dice": None,
+            "initiative_mod": 0,
+            "legendary": 0,
         }
+
+    def with_hit_points(self, status: Document, doc: Document, hit_points: int) -> Document:
+        new_status = dict(status)
+        new_status["hp"] = max(0, int(hit_points))
+        return new_status
 
 
 SYSTEM = SimpleTestSystem()

@@ -40,37 +40,67 @@
           "id": "a",
           "name": "Ogre",
           "side": "foe",
+          "kind": "creature",
           "max_hp": 59,
           "hp": 59,
           "temp_hp": 0,
           "initiative": 8,
+          "initiative_tiebreak": 0,
           "conditions": [],
           "concentrating": false,
-          "defeated": false
+          "defeated": false,
+          "death_saves": {
+            "successes": 0,
+            "failures": 0
+          },
+          "legendary": {
+            "max": 0,
+            "remaining": 0
+          }
         },
         "b": {
           "id": "b",
           "name": "Serah",
           "side": "ally",
+          "kind": "creature",
           "max_hp": 30,
           "hp": 30,
           "temp_hp": 0,
           "initiative": 17,
+          "initiative_tiebreak": 0,
           "conditions": [],
           "concentrating": false,
-          "defeated": false
+          "defeated": false,
+          "death_saves": {
+            "successes": 0,
+            "failures": 0
+          },
+          "legendary": {
+            "max": 0,
+            "remaining": 0
+          }
         },
         "c": {
           "id": "c",
           "name": "Goblin",
           "side": "foe",
+          "kind": "creature",
           "max_hp": 7,
           "hp": 7,
           "temp_hp": 0,
           "initiative": 17,
+          "initiative_tiebreak": 0,
           "conditions": [],
           "concentrating": false,
-          "defeated": false
+          "defeated": false,
+          "death_saves": {
+            "successes": 0,
+            "failures": 0
+          },
+          "legendary": {
+            "max": 0,
+            "remaining": 0
+          }
         }
       }
     }
@@ -113,13 +143,23 @@
           "id": "a",
           "name": "Goblin",
           "side": "foe",
+          "kind": "creature",
           "max_hp": 7,
           "hp": 0,
           "temp_hp": 0,
           "initiative": 10,
+          "initiative_tiebreak": 0,
           "conditions": [],
           "concentrating": false,
-          "defeated": true
+          "defeated": true,
+          "death_saves": {
+            "successes": 0,
+            "failures": 0
+          },
+          "legendary": {
+            "max": 0,
+            "remaining": 0
+          }
         }
       }
     }
@@ -157,13 +197,23 @@
           "id": "a",
           "name": "Serah",
           "side": "ally",
+          "kind": "creature",
           "max_hp": 30,
           "hp": 12,
           "temp_hp": 0,
           "initiative": 10,
+          "initiative_tiebreak": 0,
           "conditions": [],
           "concentrating": false,
-          "defeated": false
+          "defeated": false,
+          "death_saves": {
+            "successes": 0,
+            "failures": 0
+          },
+          "legendary": {
+            "max": 0,
+            "remaining": 0
+          }
         }
       }
     }
@@ -216,15 +266,25 @@
           "id": "a",
           "name": "X",
           "side": "foe",
+          "kind": "creature",
           "max_hp": 10,
           "hp": 10,
           "temp_hp": 0,
           "initiative": 10,
+          "initiative_tiebreak": 0,
           "conditions": [
             "poisoned"
           ],
           "concentrating": true,
-          "defeated": false
+          "defeated": false,
+          "death_saves": {
+            "successes": 0,
+            "failures": 0
+          },
+          "legendary": {
+            "max": 0,
+            "remaining": 0
+          }
         }
       }
     }
@@ -267,25 +327,45 @@
           "id": "a",
           "name": "A",
           "side": "foe",
+          "kind": "creature",
           "max_hp": 10,
           "hp": 10,
           "temp_hp": 0,
           "initiative": 20,
+          "initiative_tiebreak": 0,
           "conditions": [],
           "concentrating": false,
-          "defeated": false
+          "defeated": false,
+          "death_saves": {
+            "successes": 0,
+            "failures": 0
+          },
+          "legendary": {
+            "max": 0,
+            "remaining": 0
+          }
         },
         "b": {
           "id": "b",
           "name": "B",
           "side": "ally",
+          "kind": "creature",
           "max_hp": 10,
           "hp": 10,
           "temp_hp": 0,
           "initiative": 10,
+          "initiative_tiebreak": 0,
           "conditions": [],
           "concentrating": false,
-          "defeated": false
+          "defeated": false,
+          "death_saves": {
+            "successes": 0,
+            "failures": 0
+          },
+          "legendary": {
+            "max": 0,
+            "remaining": 0
+          }
         }
       }
     }
@@ -328,13 +408,816 @@
           "id": "a",
           "name": "Frac",
           "side": "foe",
+          "kind": "creature",
           "max_hp": 20,
           "hp": 18,
           "temp_hp": 0,
           "initiative": 10,
+          "initiative_tiebreak": 0,
           "conditions": [],
           "concentrating": false,
-          "defeated": false
+          "defeated": false,
+          "death_saves": {
+            "successes": 0,
+            "failures": 0
+          },
+          "legendary": {
+            "max": 0,
+            "remaining": 0
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "tiebreak_decides_equal_initiative",
+    "actions": [
+      {
+        "type": "add_combatant",
+        "id": "a",
+        "name": "Ogre",
+        "side": "foe",
+        "max_hp": 59,
+        "initiative": 15,
+        "initiative_tiebreak": 0
+      },
+      {
+        "type": "add_combatant",
+        "id": "b",
+        "name": "Serah",
+        "side": "ally",
+        "max_hp": 30,
+        "initiative": 15,
+        "initiative_tiebreak": 4
+      },
+      {
+        "type": "add_combatant",
+        "id": "c",
+        "name": "Goblin",
+        "side": "foe",
+        "max_hp": 7,
+        "initiative": 15,
+        "initiative_tiebreak": 2
+      }
+    ],
+    "expected": {
+      "round": 1,
+      "turn_index": 0,
+      "order": [
+        "b",
+        "c",
+        "a"
+      ],
+      "combatants": {
+        "a": {
+          "id": "a",
+          "name": "Ogre",
+          "side": "foe",
+          "kind": "creature",
+          "max_hp": 59,
+          "hp": 59,
+          "temp_hp": 0,
+          "initiative": 15,
+          "initiative_tiebreak": 0,
+          "conditions": [],
+          "concentrating": false,
+          "defeated": false,
+          "death_saves": {
+            "successes": 0,
+            "failures": 0
+          },
+          "legendary": {
+            "max": 0,
+            "remaining": 0
+          }
+        },
+        "b": {
+          "id": "b",
+          "name": "Serah",
+          "side": "ally",
+          "kind": "creature",
+          "max_hp": 30,
+          "hp": 30,
+          "temp_hp": 0,
+          "initiative": 15,
+          "initiative_tiebreak": 4,
+          "conditions": [],
+          "concentrating": false,
+          "defeated": false,
+          "death_saves": {
+            "successes": 0,
+            "failures": 0
+          },
+          "legendary": {
+            "max": 0,
+            "remaining": 0
+          }
+        },
+        "c": {
+          "id": "c",
+          "name": "Goblin",
+          "side": "foe",
+          "kind": "creature",
+          "max_hp": 7,
+          "hp": 7,
+          "temp_hp": 0,
+          "initiative": 15,
+          "initiative_tiebreak": 2,
+          "conditions": [],
+          "concentrating": false,
+          "defeated": false,
+          "death_saves": {
+            "successes": 0,
+            "failures": 0
+          },
+          "legendary": {
+            "max": 0,
+            "remaining": 0
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "lair_is_never_defeated_but_a_creature_is",
+    "actions": [
+      {
+        "type": "add_combatant",
+        "id": "L",
+        "name": "Castle Ravenloft",
+        "side": "foe",
+        "max_hp": 0,
+        "initiative": 20,
+        "kind": "lair"
+      },
+      {
+        "type": "add_combatant",
+        "id": "g",
+        "name": "Goblin",
+        "side": "foe",
+        "max_hp": 7,
+        "initiative": 12
+      },
+      {
+        "type": "damage",
+        "id": "L",
+        "amount": 5
+      },
+      {
+        "type": "damage",
+        "id": "g",
+        "amount": 7
+      }
+    ],
+    "expected": {
+      "round": 1,
+      "turn_index": 0,
+      "order": [
+        "L",
+        "g"
+      ],
+      "combatants": {
+        "L": {
+          "id": "L",
+          "name": "Castle Ravenloft",
+          "side": "foe",
+          "kind": "lair",
+          "max_hp": 0,
+          "hp": 0,
+          "temp_hp": 0,
+          "initiative": 20,
+          "initiative_tiebreak": 0,
+          "conditions": [],
+          "concentrating": false,
+          "defeated": false,
+          "death_saves": {
+            "successes": 0,
+            "failures": 0
+          },
+          "legendary": {
+            "max": 0,
+            "remaining": 0
+          }
+        },
+        "g": {
+          "id": "g",
+          "name": "Goblin",
+          "side": "foe",
+          "kind": "creature",
+          "max_hp": 7,
+          "hp": 0,
+          "temp_hp": 0,
+          "initiative": 12,
+          "initiative_tiebreak": 0,
+          "conditions": [],
+          "concentrating": false,
+          "defeated": true,
+          "death_saves": {
+            "successes": 0,
+            "failures": 0
+          },
+          "legendary": {
+            "max": 0,
+            "remaining": 0
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "death_saves_accumulate",
+    "actions": [
+      {
+        "type": "add_combatant",
+        "id": "p",
+        "name": "Serah",
+        "side": "ally",
+        "max_hp": 30,
+        "initiative": 12
+      },
+      {
+        "type": "damage",
+        "id": "p",
+        "amount": 30
+      },
+      {
+        "type": "death_save",
+        "id": "p",
+        "result": "failure"
+      },
+      {
+        "type": "death_save",
+        "id": "p",
+        "result": "success"
+      },
+      {
+        "type": "death_save",
+        "id": "p",
+        "result": "failure"
+      }
+    ],
+    "expected": {
+      "round": 1,
+      "turn_index": 0,
+      "order": [
+        "p"
+      ],
+      "combatants": {
+        "p": {
+          "id": "p",
+          "name": "Serah",
+          "side": "ally",
+          "kind": "creature",
+          "max_hp": 30,
+          "hp": 0,
+          "temp_hp": 0,
+          "initiative": 12,
+          "initiative_tiebreak": 0,
+          "conditions": [],
+          "concentrating": false,
+          "defeated": true,
+          "death_saves": {
+            "successes": 1,
+            "failures": 2
+          },
+          "legendary": {
+            "max": 0,
+            "remaining": 0
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "death_save_crit_fail_costs_two",
+    "actions": [
+      {
+        "type": "add_combatant",
+        "id": "p",
+        "name": "Serah",
+        "side": "ally",
+        "max_hp": 30,
+        "initiative": 12
+      },
+      {
+        "type": "damage",
+        "id": "p",
+        "amount": 30
+      },
+      {
+        "type": "death_save",
+        "id": "p",
+        "result": "crit_fail"
+      }
+    ],
+    "expected": {
+      "round": 1,
+      "turn_index": 0,
+      "order": [
+        "p"
+      ],
+      "combatants": {
+        "p": {
+          "id": "p",
+          "name": "Serah",
+          "side": "ally",
+          "kind": "creature",
+          "max_hp": 30,
+          "hp": 0,
+          "temp_hp": 0,
+          "initiative": 12,
+          "initiative_tiebreak": 0,
+          "conditions": [],
+          "concentrating": false,
+          "defeated": true,
+          "death_saves": {
+            "successes": 0,
+            "failures": 2
+          },
+          "legendary": {
+            "max": 0,
+            "remaining": 0
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "death_save_crit_success_revives_at_one",
+    "actions": [
+      {
+        "type": "add_combatant",
+        "id": "p",
+        "name": "Serah",
+        "side": "ally",
+        "max_hp": 30,
+        "initiative": 12
+      },
+      {
+        "type": "damage",
+        "id": "p",
+        "amount": 30
+      },
+      {
+        "type": "death_save",
+        "id": "p",
+        "result": "failure"
+      },
+      {
+        "type": "death_save",
+        "id": "p",
+        "result": "failure"
+      },
+      {
+        "type": "death_save",
+        "id": "p",
+        "result": "crit_success"
+      }
+    ],
+    "expected": {
+      "round": 1,
+      "turn_index": 0,
+      "order": [
+        "p"
+      ],
+      "combatants": {
+        "p": {
+          "id": "p",
+          "name": "Serah",
+          "side": "ally",
+          "kind": "creature",
+          "max_hp": 30,
+          "hp": 1,
+          "temp_hp": 0,
+          "initiative": 12,
+          "initiative_tiebreak": 0,
+          "conditions": [],
+          "concentrating": false,
+          "defeated": false,
+          "death_saves": {
+            "successes": 0,
+            "failures": 0
+          },
+          "legendary": {
+            "max": 0,
+            "remaining": 0
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "damage_while_down_is_an_automatic_failure",
+    "actions": [
+      {
+        "type": "add_combatant",
+        "id": "p",
+        "name": "Serah",
+        "side": "ally",
+        "max_hp": 30,
+        "initiative": 12
+      },
+      {
+        "type": "add_combatant",
+        "id": "L",
+        "name": "The Castle",
+        "side": "foe",
+        "max_hp": 0,
+        "initiative": 20,
+        "kind": "lair"
+      },
+      {
+        "type": "damage",
+        "id": "p",
+        "amount": 30
+      },
+      {
+        "type": "damage",
+        "id": "p",
+        "amount": 4
+      },
+      {
+        "type": "damage",
+        "id": "L",
+        "amount": 9
+      }
+    ],
+    "expected": {
+      "round": 1,
+      "turn_index": 0,
+      "order": [
+        "L",
+        "p"
+      ],
+      "combatants": {
+        "p": {
+          "id": "p",
+          "name": "Serah",
+          "side": "ally",
+          "kind": "creature",
+          "max_hp": 30,
+          "hp": 0,
+          "temp_hp": 0,
+          "initiative": 12,
+          "initiative_tiebreak": 0,
+          "conditions": [],
+          "concentrating": false,
+          "defeated": true,
+          "death_saves": {
+            "successes": 0,
+            "failures": 1
+          },
+          "legendary": {
+            "max": 0,
+            "remaining": 0
+          }
+        },
+        "L": {
+          "id": "L",
+          "name": "The Castle",
+          "side": "foe",
+          "kind": "lair",
+          "max_hp": 0,
+          "hp": 0,
+          "temp_hp": 0,
+          "initiative": 20,
+          "initiative_tiebreak": 0,
+          "conditions": [],
+          "concentrating": false,
+          "defeated": false,
+          "death_saves": {
+            "successes": 0,
+            "failures": 0
+          },
+          "legendary": {
+            "max": 0,
+            "remaining": 0
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "healing_above_zero_clears_death_saves",
+    "actions": [
+      {
+        "type": "add_combatant",
+        "id": "p",
+        "name": "Serah",
+        "side": "ally",
+        "max_hp": 30,
+        "initiative": 12
+      },
+      {
+        "type": "damage",
+        "id": "p",
+        "amount": 30
+      },
+      {
+        "type": "death_save",
+        "id": "p",
+        "result": "failure"
+      },
+      {
+        "type": "death_save",
+        "id": "p",
+        "result": "failure"
+      },
+      {
+        "type": "heal",
+        "id": "p",
+        "amount": 7
+      }
+    ],
+    "expected": {
+      "round": 1,
+      "turn_index": 0,
+      "order": [
+        "p"
+      ],
+      "combatants": {
+        "p": {
+          "id": "p",
+          "name": "Serah",
+          "side": "ally",
+          "kind": "creature",
+          "max_hp": 30,
+          "hp": 7,
+          "temp_hp": 0,
+          "initiative": 12,
+          "initiative_tiebreak": 0,
+          "conditions": [],
+          "concentrating": false,
+          "defeated": false,
+          "death_saves": {
+            "successes": 0,
+            "failures": 0
+          },
+          "legendary": {
+            "max": 0,
+            "remaining": 0
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "legendary_actions_spend_down",
+    "actions": [
+      {
+        "type": "add_combatant",
+        "id": "b",
+        "name": "Strahd",
+        "side": "foe",
+        "max_hp": 144,
+        "initiative": 10,
+        "legendary_max": 3
+      },
+      {
+        "type": "add_combatant",
+        "id": "p",
+        "name": "Ireena",
+        "side": "ally",
+        "max_hp": 34,
+        "initiative": 18
+      },
+      {
+        "type": "legendary_use",
+        "id": "b"
+      },
+      {
+        "type": "legendary_use",
+        "id": "b",
+        "cost": 2
+      },
+      {
+        "type": "legendary_use",
+        "id": "b",
+        "cost": 1
+      }
+    ],
+    "expected": {
+      "round": 1,
+      "turn_index": 0,
+      "order": [
+        "p",
+        "b"
+      ],
+      "combatants": {
+        "p": {
+          "id": "p",
+          "name": "Ireena",
+          "side": "ally",
+          "kind": "creature",
+          "max_hp": 34,
+          "hp": 34,
+          "temp_hp": 0,
+          "initiative": 18,
+          "initiative_tiebreak": 0,
+          "conditions": [],
+          "concentrating": false,
+          "defeated": false,
+          "death_saves": {
+            "successes": 0,
+            "failures": 0
+          },
+          "legendary": {
+            "max": 0,
+            "remaining": 0
+          }
+        },
+        "b": {
+          "id": "b",
+          "name": "Strahd",
+          "side": "foe",
+          "kind": "creature",
+          "max_hp": 144,
+          "hp": 144,
+          "temp_hp": 0,
+          "initiative": 10,
+          "initiative_tiebreak": 0,
+          "conditions": [],
+          "concentrating": false,
+          "defeated": false,
+          "death_saves": {
+            "successes": 0,
+            "failures": 0
+          },
+          "legendary": {
+            "max": 3,
+            "remaining": 0
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "legendary_actions_refill_on_their_turn",
+    "actions": [
+      {
+        "type": "add_combatant",
+        "id": "b",
+        "name": "Strahd",
+        "side": "foe",
+        "max_hp": 144,
+        "initiative": 10,
+        "legendary_max": 3
+      },
+      {
+        "type": "add_combatant",
+        "id": "p",
+        "name": "Ireena",
+        "side": "ally",
+        "max_hp": 34,
+        "initiative": 18
+      },
+      {
+        "type": "legendary_use",
+        "id": "b",
+        "cost": 3
+      },
+      {
+        "type": "next_turn"
+      }
+    ],
+    "expected": {
+      "round": 1,
+      "turn_index": 1,
+      "order": [
+        "p",
+        "b"
+      ],
+      "combatants": {
+        "p": {
+          "id": "p",
+          "name": "Ireena",
+          "side": "ally",
+          "kind": "creature",
+          "max_hp": 34,
+          "hp": 34,
+          "temp_hp": 0,
+          "initiative": 18,
+          "initiative_tiebreak": 0,
+          "conditions": [],
+          "concentrating": false,
+          "defeated": false,
+          "death_saves": {
+            "successes": 0,
+            "failures": 0
+          },
+          "legendary": {
+            "max": 0,
+            "remaining": 0
+          }
+        },
+        "b": {
+          "id": "b",
+          "name": "Strahd",
+          "side": "foe",
+          "kind": "creature",
+          "max_hp": 144,
+          "hp": 144,
+          "temp_hp": 0,
+          "initiative": 10,
+          "initiative_tiebreak": 0,
+          "conditions": [],
+          "concentrating": false,
+          "defeated": false,
+          "death_saves": {
+            "successes": 0,
+            "failures": 0
+          },
+          "legendary": {
+            "max": 3,
+            "remaining": 3
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "legendary_actions_do_not_refill_on_another_turn",
+    "actions": [
+      {
+        "type": "add_combatant",
+        "id": "b",
+        "name": "Strahd",
+        "side": "foe",
+        "max_hp": 144,
+        "initiative": 10,
+        "legendary_max": 3
+      },
+      {
+        "type": "add_combatant",
+        "id": "p",
+        "name": "Ireena",
+        "side": "ally",
+        "max_hp": 34,
+        "initiative": 18
+      },
+      {
+        "type": "next_turn"
+      },
+      {
+        "type": "legendary_use",
+        "id": "b",
+        "cost": 2
+      },
+      {
+        "type": "next_turn"
+      }
+    ],
+    "expected": {
+      "round": 2,
+      "turn_index": 0,
+      "order": [
+        "p",
+        "b"
+      ],
+      "combatants": {
+        "p": {
+          "id": "p",
+          "name": "Ireena",
+          "side": "ally",
+          "kind": "creature",
+          "max_hp": 34,
+          "hp": 34,
+          "temp_hp": 0,
+          "initiative": 18,
+          "initiative_tiebreak": 0,
+          "conditions": [],
+          "concentrating": false,
+          "defeated": false,
+          "death_saves": {
+            "successes": 0,
+            "failures": 0
+          },
+          "legendary": {
+            "max": 0,
+            "remaining": 0
+          }
+        },
+        "b": {
+          "id": "b",
+          "name": "Strahd",
+          "side": "foe",
+          "kind": "creature",
+          "max_hp": 144,
+          "hp": 144,
+          "temp_hp": 0,
+          "initiative": 10,
+          "initiative_tiebreak": 0,
+          "conditions": [],
+          "concentrating": false,
+          "defeated": false,
+          "death_saves": {
+            "successes": 0,
+            "failures": 0
+          },
+          "legendary": {
+            "max": 3,
+            "remaining": 1
+          }
         }
       }
     }

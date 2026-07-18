@@ -58,6 +58,29 @@ def test_build_encounter_with_difficulty_badge(client: TestClient) -> None:
     assert enc["combatants"][0]["name"] == "Wight" and enc["combatants"][0]["count"] == 2
 
 
+def test_deleted_encounter_drops_out_of_the_list(client: TestClient) -> None:
+    """Deleting an encounter's entity must remove it from the list.
+
+    Deleting a wiki entity only stamps `deleted_at_real`; the Encounter row survives. It
+    kept appearing in the list and in the combat page's encounter picker, where a deleted
+    encounter is indistinguishable from a live one that has no monsters in it — so you pick
+    it, start a combat, and get an empty initiative rail.
+    """
+    cid = _demo(client)
+    wight = _monster(client, cid, "Wight")
+    enc = client.post(
+        f"/api/v1/campaigns/{cid}/encounters",
+        json={"name": "Doomed Draft", "combatants": [{"monster_id": wight, "count": 1}]},
+    ).json()
+
+    listed = client.get(f"/api/v1/campaigns/{cid}/encounters").json()
+    assert enc["id"] in [e["id"] for e in listed]
+
+    assert client.delete(f"/api/v1/campaigns/{cid}/entities/{enc['id']}").status_code == 200
+    listed = client.get(f"/api/v1/campaigns/{cid}/encounters").json()
+    assert enc["id"] not in [e["id"] for e in listed]
+
+
 def test_encounter_linked_to_location_appears_as_backlink(client: TestClient) -> None:
     cid = _demo(client)
     goblin = _monster(client, cid, "Goblin")

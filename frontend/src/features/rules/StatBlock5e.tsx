@@ -16,11 +16,40 @@ function crLabel(cr: number): string {
   return String(cr)
 }
 
+interface Damage { dice: string; type?: string }
+interface Action {
+  name: string
+  kind?: string
+  to_hit?: number
+  reach?: string
+  target?: string
+  damage?: Damage[]
+  description?: string
+}
+
+/** "+4 to hit, reach 5 ft., one target. Hit: 1d6+2 slashing." — the printed attack line. */
+function attackLine(a: Action): string {
+  const parts: string[] = []
+  if (a.to_hit !== undefined && a.kind !== 'save') {
+    const kind = a.kind === 'ranged' ? 'Ranged' : 'Melee'
+    parts.push(`${kind} Weapon Attack: ${a.to_hit >= 0 ? '+' : ''}${a.to_hit} to hit`)
+  }
+  if (a.reach) parts.push(a.reach)
+  if (a.target) parts.push(a.target)
+  const head = parts.join(', ')
+  const hit = (a.damage ?? [])
+    .filter((d) => d.dice && d.dice !== '0')
+    .map((d) => `${d.dice}${d.type ? ` ${d.type}` : ''}`)
+    .join(' plus ')
+  return hit ? `${head}. Hit: ${hit} damage.` : `${head}.`
+}
+
 export function StatBlock5e({ monster }: { monster: Monster }) {
   const doc = monster.doc as Record<string, unknown>
   const abilities = (doc.abilities as Record<string, number>) ?? {}
   const cr = Number(doc.challenge_rating ?? 0)
   const traits = (doc.traits as { name: string; description: string }[] | undefined) ?? []
+  const actions = (doc.actions as Action[] | undefined) ?? []
 
   return (
     <div className="statblock">
@@ -58,6 +87,19 @@ export function StatBlock5e({ monster }: { monster: Monster }) {
           <b><i>{t.name}.</i></b> {t.description}
         </div>
       ))}
+
+      {actions.length > 0 && (
+        <>
+          <div className="sb-rule" />
+          <div className="sb-heading">Actions</div>
+          {actions.map((a) => (
+            <div key={a.name} className="sb-trait">
+              <b><i>{a.name}.</i></b> {attackLine(a)}
+              {a.description ? ` ${a.description}` : ''}
+            </div>
+          ))}
+        </>
+      )}
     </div>
   )
 }
