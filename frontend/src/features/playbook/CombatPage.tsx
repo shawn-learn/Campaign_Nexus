@@ -126,7 +126,19 @@ export function CombatPage() {
 
   const doUndo = useCallback(() => undo.mutate(), [undo])
   const doRedo = useCallback(() => redo.mutate(), [redo])
-  const finish = () => end.mutate(undefined, { onSuccess: setSummary })
+  // Ending drops the run entirely so the page falls back to the encounter picker — the
+  // summary is carried over so the fight's outcome survives the reset.
+  const finish = () =>
+    end.mutate(undefined, {
+      onSuccess: (s) => {
+        setSummary(s)
+        if (storageKey) localStorage.removeItem(storageKey)
+        setRunId(null)
+        setSelected(null)
+        setBuffer('')
+        setConcentration(null)
+      },
+    })
 
   const removeSelected = useCallback(() => {
     if (!state || !selected) return
@@ -177,6 +189,11 @@ export function CombatPage() {
     return (
       <>
         <h2>Combat</h2>
+        {summary && (
+          <p className="muted">
+            Combat ended after {summary.rounds} round(s); {summary.defeated.length} foe(s) defeated.
+          </p>
+        )}
         <div className="card row">
           <select value={pick} onChange={(e) => setPick(e.target.value)} style={{ flex: 1 }}>
             <option value="">Choose an encounter…</option>

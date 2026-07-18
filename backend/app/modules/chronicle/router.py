@@ -197,6 +197,20 @@ def get_session_detail(
     return detail
 
 
+@router.delete("/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_session(
+    session_id: str,
+    session: DbSession = Depends(get_session),
+    ctx: CampaignContext = Editor,
+) -> None:
+    try:
+        service.delete_session(session, ctx.campaign_id, session_id)
+    except service.NotFound as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "session not found") from exc
+    except service.SessionError as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
+
+
 @router.post("/sessions/{session_id}/start", response_model=SessionOut)
 def start_session(
     session_id: str,

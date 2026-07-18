@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import delete, func, select, text
+from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.orm import Session as DbSession
 
 from app.core.clock import now_real_iso
@@ -224,6 +224,32 @@ def end_session(db: DbSession, campaign_id: str, session_id: str) -> Session:
         )
     db.refresh(sess)
     return sess
+
+
+def delete_session(db: DbSession, campaign_id: str, session_id: str) -> None:
+    """Drop a session, keeping the history it stamped.
+
+    `session_id` on events and timeline entries is an unconstrained column, so the rows
+    would otherwise point at a session that no longer exists. Detaching them instead of
+    cascading keeps the campaign's history — only the grouping by session is lost.
+    """
+    campaign = db.get(Campaign, campaign_id)
+    if campaign is None:
+        raise NotFound(campaign_id)
+    sess = _require_session(db, campaign_id, session_id)
+    if sess.status == "live":
+        raise SessionError("end the session before deleting it")
+
+    db.execute(
+        update(DomainEvent).where(DomainEvent.session_id == session_id).values(session_id=None)
+    )
+    db.execute(
+        update(TimelineEntry).where(TimelineEntry.session_id == session_id).values(session_id=None)
+    )
+    if campaign.current_session_id == session_id:
+        campaign.current_session_id = None
+    db.delete(sess)
+    db.commit()
 
 
 def session_events(db: DbSession, session_id: str) -> list[DomainEvent]:

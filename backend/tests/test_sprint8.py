@@ -79,6 +79,44 @@ def test_live_session_stamps_events_and_autolinks(client: TestClient) -> None:
     assert any(e["title"] == "The party bargained with Serah." for e in tl)
 
 
+def test_delete_session_keeps_its_history(client: TestClient) -> None:
+    cid = _demo(client)
+    npc = _entity(client, cid, "Serah Voss")
+    sess = client.post(f"/api/v1/campaigns/{cid}/sessions", json={}).json()
+    client.post(f"/api/v1/campaigns/{cid}/sessions/{sess['id']}/start")
+    client.post(
+        f"/api/v1/campaigns/{cid}/notes",
+        json={"text": "The party bargained with Serah.", "entity_ids": [npc]},
+    )
+    client.post(f"/api/v1/campaigns/{cid}/sessions/{sess['id']}/end")
+
+    resp = client.delete(f"/api/v1/campaigns/{cid}/sessions/{sess['id']}")
+    assert resp.status_code == 204
+
+    # The session is gone...
+    assert client.get(f"/api/v1/campaigns/{cid}/sessions/{sess['id']}").status_code == 404
+    assert client.get(f"/api/v1/campaigns/{cid}/sessions").json() == []
+    # ...but the history it stamped survives, merely detached from the session.
+    tl = _timeline(client, cid)
+    assert any(e["title"] == "The party bargained with Serah." for e in tl)
+    assert _timeline(client, cid, session_id=sess["id"]) == []
+
+
+def test_cannot_delete_a_live_session(client: TestClient) -> None:
+    cid = _demo(client)
+    sess = client.post(f"/api/v1/campaigns/{cid}/sessions", json={}).json()
+    client.post(f"/api/v1/campaigns/{cid}/sessions/{sess['id']}/start")
+
+    resp = client.delete(f"/api/v1/campaigns/{cid}/sessions/{sess['id']}")
+    assert resp.status_code == 409
+    assert len(client.get(f"/api/v1/campaigns/{cid}/sessions").json()) == 1
+
+
+def test_delete_missing_session_is_404(client: TestClient) -> None:
+    cid = _demo(client)
+    assert client.delete(f"/api/v1/campaigns/{cid}/sessions/nope").status_code == 404
+
+
 def test_only_one_live_session(client: TestClient) -> None:
     cid = _demo(client)
     a = client.post(f"/api/v1/campaigns/{cid}/sessions", json={}).json()
