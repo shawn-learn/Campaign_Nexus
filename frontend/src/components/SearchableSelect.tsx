@@ -29,11 +29,15 @@ export function SearchableSelect({
   const containerRef = useRef<HTMLDivElement>(null)
   const useSearchable = options.length > 15
 
+  // The empty choice has to be in the list, exactly as the native <select> branch renders
+  // it — otherwise a filter can be set but never cleared again.
+  const withEmpty: SelectOption[] = [{ id: '', name: placeholder }, ...options]
+
   const filtered = query.trim()
-    ? options.filter((opt) =>
+    ? withEmpty.filter((opt) =>
         opt.name.toLowerCase().includes(query.toLowerCase())
       )
-    : options
+    : withEmpty
 
   const selectedOption = options.find((opt) => opt.id === value)
 

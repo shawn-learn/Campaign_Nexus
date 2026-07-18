@@ -1276,13 +1276,18 @@ export function useSessionAction(campaignId: string, action: 'start' | 'end') {
 export function useDeleteSession(campaignId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (sessionId: string) =>
-      unwrap(
-        await api.DELETE('/api/v1/campaigns/{campaign_id}/sessions/{session_id}', {
-          params: { path: { campaign_id: campaignId, session_id: sessionId } },
-        }),
-        'delete session',
-      ),
+    // 204, so there is no body to unwrap — `unwrap` would read the empty response as a
+    // failure and skip the invalidation, leaving a deleted session on screen.
+    mutationFn: async (sessionId: string) => {
+      const { error } = await api.DELETE(
+        '/api/v1/campaigns/{campaign_id}/sessions/{session_id}',
+        { params: { path: { campaign_id: campaignId, session_id: sessionId } } },
+      )
+      if (error) {
+        const detail = (error as { detail?: unknown }).detail
+        throw new Error(typeof detail === 'string' ? detail : 'delete session')
+      }
+    },
     onSuccess: () => invalidateSessions(qc, campaignId),
   })
 }

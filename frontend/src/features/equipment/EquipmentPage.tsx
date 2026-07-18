@@ -25,6 +25,7 @@ import {
 import { useActiveCampaign } from '../../shell/useActiveCampaign'
 import { Tabs, TabPanel } from '../../components/Tabs'
 import { Modal } from '../../components/Modal'
+import { SearchableSelect } from '../../components/SearchableSelect'
 
 const ITEM_TYPES = ['magical', 'mundane'] as const
 const RARITIES = ['common', 'uncommon', 'rare', 'very_rare', 'legendary'] as const
@@ -329,9 +330,12 @@ function AddCopyDialog({
       <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <label className="field">
           <span className="muted">Definition</span>
-          <select value={equipmentId} onChange={(e) => setEquipmentId(e.target.value)}>
-            {definitions.map((d) => <option key={d.entity_id} value={d.entity_id}>{d.name}</option>)}
-          </select>
+          <SearchableSelect
+            value={equipmentId}
+            onChange={setEquipmentId}
+            options={definitions.map((d) => ({ id: d.entity_id, name: d.name }))}
+            placeholder="— choose —"
+          />
         </label>
         <label className="field">
           <span className="muted">Label (optional — distinguishes this copy)</span>
@@ -346,19 +350,23 @@ function AddCopyDialog({
         {needsId && (
           <label className="field">
             <span className="muted">Select {holderType}</span>
-            <select value={holderId} onChange={(e) => setHolderId(e.target.value)}>
-              <option value="">— choose —</option>
-              {holderEntities?.map((en) => <option key={en.id} value={en.id}>{en.name}</option>)}
-            </select>
+            <SearchableSelect
+              value={holderId}
+              onChange={setHolderId}
+              options={holderEntities?.map((en) => ({ id: en.id, name: en.name })) ?? []}
+              placeholder="— choose —"
+            />
           </label>
         )}
         {holderType !== 'location' && (
           <label className="field">
             <span className="muted">Physical location (optional)</span>
-            <select value={locationId} onChange={(e) => setLocationId(e.target.value)}>
-              <option value="">— none —</option>
-              {locations?.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-            </select>
+            <SearchableSelect
+              value={locationId}
+              onChange={setLocationId}
+              options={locations?.map((l) => ({ id: l.id, name: l.name })) ?? []}
+              placeholder="— none —"
+            />
           </label>
         )}
         <div className="row" style={{ gap: 8 }}>
@@ -419,19 +427,23 @@ function TransferDialog({
         {needsId && (
           <label className="field">
             <span className="muted">Select {holderType}</span>
-            <select value={holderId} onChange={(e) => setHolderId(e.target.value)}>
-              <option value="">— choose —</option>
-              {holderEntities?.map((en) => <option key={en.id} value={en.id}>{en.name}</option>)}
-            </select>
+            <SearchableSelect
+              value={holderId}
+              onChange={setHolderId}
+              options={holderEntities?.map((en) => ({ id: en.id, name: en.name })) ?? []}
+              placeholder="— choose —"
+            />
           </label>
         )}
         {holderType !== 'location' && (
           <label className="field">
             <span className="muted">Physical location (optional)</span>
-            <select value={locationId} onChange={(e) => setLocationId(e.target.value)}>
-              <option value="">— none —</option>
-              {locations?.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-            </select>
+            <SearchableSelect
+              value={locationId}
+              onChange={setLocationId}
+              options={locations?.map((l) => ({ id: l.id, name: l.name })) ?? []}
+              placeholder="— none —"
+            />
           </label>
         )}
         <label className="field">
@@ -557,18 +569,22 @@ function ItemFilterBar({
         {holderEntities && (
           <label className="field-inline">
             <span className="muted">Specific {filters.holder_type}</span>
-            <select value={filters.holder_id ?? ''} onChange={(e) => setF({ holder_id: e.target.value || undefined })}>
-              <option value="">any</option>
-              {holderEntities.map((en) => <option key={en.id} value={en.id}>{en.name}</option>)}
-            </select>
+            <SearchableSelect
+              value={filters.holder_id ?? ''}
+              onChange={(v) => setF({ holder_id: v || undefined })}
+              options={holderEntities.map((en) => ({ id: en.id, name: en.name }))}
+              placeholder="any"
+            />
           </label>
         )}
         <label className="field-inline">
           <span className="muted">At location</span>
-          <select value={filters.location_id ?? ''} onChange={(e) => setF({ location_id: e.target.value || undefined })}>
-            <option value="">anywhere</option>
-            {locations?.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-          </select>
+          <SearchableSelect
+            value={filters.location_id ?? ''}
+            onChange={(v) => setF({ location_id: v || undefined })}
+            options={locations?.map((l) => ({ id: l.id, name: l.name })) ?? []}
+            placeholder="anywhere"
+          />
         </label>
         {active && <button className="ghost" onClick={() => setFilters({})}>Clear</button>}
       </div>
