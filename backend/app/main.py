@@ -41,6 +41,7 @@ from app.modules.playbook.router import router as party_router
 from app.modules.rules import bestiary as rules_bestiary
 from app.modules.rules import registry as rules_registry
 from app.modules.rules.router import blocks_router, monsters_router, systems_router
+from app.modules.spells.router import router as spells_router
 from app.modules.story.router import router as story_router
 from app.modules.time.router import router as time_router
 from app.modules.wiki import search as wiki_search
@@ -138,6 +139,7 @@ def create_app() -> FastAPI:
     app.include_router(equipment_router)
     app.include_router(items_router)
     app.include_router(library_router)
+    app.include_router(spells_router)
     app.include_router(merchant_router)
     app.include_router(story_router)
     app.include_router(atlas_router)

@@ -2030,6 +2030,58 @@ export interface paths {
         patch: operations["update_library_entry_api_v1_equipment_library__entry_id__patch"];
         trace?: never;
     };
+    "/api/v1/spells": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Spells */
+        get: operations["list_spells_api_v1_spells_get"];
+        put?: never;
+        /** Create Spell */
+        post: operations["create_spell_api_v1_spells_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/spells/facets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Spell Facets */
+        get: operations["spell_facets_api_v1_spells_facets_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/spells/{spell_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Spell */
+        get: operations["get_spell_api_v1_spells__spell_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/campaigns/{campaign_id}/merchants": {
         parameters: {
             query?: never;
@@ -5011,6 +5063,114 @@ export interface components {
             approaches?: components["schemas"]["SkillApproach"][] | null;
             /** Outcomes */
             outcomes?: components["schemas"]["GraduatedOutcome"][] | null;
+        };
+        /** SpellCreate */
+        SpellCreate: {
+            /** Name */
+            name: string;
+            /**
+             * Source
+             * @default
+             */
+            source?: string;
+            /** Level */
+            level: number;
+            /** School */
+            school?: string | null;
+            /** Casting Time */
+            casting_time?: string | null;
+            /** Range Text */
+            range_text?: string | null;
+            /**
+             * Component V
+             * @default false
+             */
+            component_v?: boolean;
+            /**
+             * Component S
+             * @default false
+             */
+            component_s?: boolean;
+            /**
+             * Component M
+             * @default false
+             */
+            component_m?: boolean;
+            /** Material */
+            material?: string | null;
+            /**
+             * Concentration
+             * @default false
+             */
+            concentration?: boolean;
+            /**
+             * Ritual
+             * @default false
+             */
+            ritual?: boolean;
+            /** Classes */
+            classes?: string | null;
+            /** Duration */
+            duration?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Higher Levels */
+            higher_levels?: string | null;
+            /** Damage Types */
+            damage_types?: string | null;
+            /** Saving Throw */
+            saving_throw?: string | null;
+        };
+        /**
+         * SpellFacetsOut
+         * @description Filter options actually present in the catalog, so the UI need not fetch every row.
+         */
+        SpellFacetsOut: {
+            /** Sources */
+            sources: string[];
+            /** Classes */
+            classes: string[];
+        };
+        /** SpellOut */
+        SpellOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Source */
+            source: string;
+            /** Level */
+            level: number;
+            /** School */
+            school: string | null;
+            /** Casting Time */
+            casting_time: string | null;
+            /** Range Text */
+            range_text: string | null;
+            /** Component V */
+            component_v: boolean;
+            /** Component S */
+            component_s: boolean;
+            /** Component M */
+            component_m: boolean;
+            /** Material */
+            material: string | null;
+            /** Concentration */
+            concentration: boolean;
+            /** Ritual */
+            ritual: boolean;
+            /** Classes */
+            classes: string | null;
+            /** Duration */
+            duration: string | null;
+            /** Description */
+            description: string | null;
+            /** Higher Levels */
+            higher_levels: string | null;
+            /** Damage Types */
+            damage_types: string | null;
+            /** Saving Throw */
+            saving_throw: string | null;
         };
         /** StartCombat */
         StartCombat: {
@@ -10492,6 +10652,126 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LibraryEntryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_spells_api_v1_spells_get: {
+        parameters: {
+            query?: {
+                level?: number | null;
+                school?: string | null;
+                class?: string | null;
+                source?: string | null;
+                q?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpellOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_spell_api_v1_spells_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SpellCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpellOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    spell_facets_api_v1_spells_facets_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpellFacetsOut"];
+                };
+            };
+        };
+    };
+    get_spell_api_v1_spells__spell_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                spell_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpellOut"];
                 };
             };
             /** @description Validation Error */

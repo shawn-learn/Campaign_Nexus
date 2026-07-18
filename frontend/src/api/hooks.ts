@@ -2624,6 +2624,45 @@ export function useSaveToLibrary(campaignId: string) {
   })
 }
 
+// --- spells (global, campaign-independent reference) -------------------------
+
+export type Spell = components['schemas']['SpellOut']
+export type SpellCreate = components['schemas']['SpellCreate']
+
+export interface SpellFilters {
+  level?: number
+  school?: string
+  class?: string
+  source?: string
+  q?: string
+}
+
+export function useSpells(filters: SpellFilters = {}) {
+  return useQuery({
+    queryKey: ['spells', filters],
+    queryFn: async () =>
+      unwrap(await api.GET('/api/v1/spells', { params: { query: filters } }), 'load spells'),
+  })
+}
+
+/** Filter options present in the catalog — avoids pulling all ~900 spells to fill dropdowns. */
+export function useSpellFacets() {
+  return useQuery({
+    queryKey: ['spell-facets'],
+    queryFn: async () =>
+      unwrap(await api.GET('/api/v1/spells/facets', {}), 'load spell facets'),
+  })
+}
+
+export function useCreateSpell() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: SpellCreate) =>
+      unwrap(await api.POST('/api/v1/spells', { body }), 'create spell'),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['spells'] }),
+  })
+}
+
 // --- merchants (shops) -------------------------------------------------------
 
 export type Merchant = components['schemas']['MerchantOut']
