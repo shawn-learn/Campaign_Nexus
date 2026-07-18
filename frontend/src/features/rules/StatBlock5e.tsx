@@ -51,10 +51,12 @@ function ActionSection({ title, actions }: { title: string; actions?: Action[] }
     <>
       <div className="sb-rule" />
       <div className="sb-heading">{title}</div>
-      {actions.map((a) => {
+      {/* Name is not unique — a few stat blocks repeat one (Xenk Yendar lists two
+          "Longsword" actions), so the index has to be part of the key. */}
+      {actions.map((a, i) => {
         const cost = a.cost && a.cost > 1 ? ` (Costs ${a.cost} Actions)` : ''
         return (
-          <div key={a.name} className="sb-trait">
+          <div key={`${a.name}-${i}`} className="sb-trait">
             <b>
               <i>
                 {a.name}
@@ -125,13 +127,13 @@ export function StatBlock5e({ monster }: { monster: Monster }) {
       </div>
 
       {doc.traits?.length ? <div className="sb-rule" /> : null}
-      {(doc.traits ?? []).map((t) => (
-        <Entry key={t.name} {...t} />
+      {(doc.traits ?? []).map((t, i) => (
+        <Entry key={`${t.name}-${i}`} {...t} />
       ))}
 
       {doc.spellcasting?.length ? <div className="sb-rule" /> : null}
-      {(doc.spellcasting ?? []).map((block) => (
-        <div key={block.name ?? 'spellcasting'} className="sb-trait">
+      {(doc.spellcasting ?? []).map((block, i) => (
+        <div key={`${block.name ?? 'spellcasting'}-${i}`} className="sb-trait">
           <b>
             <i>{block.name ?? 'Spellcasting'}.</i>
           </b>{' '}
@@ -155,8 +157,8 @@ export function StatBlock5e({ monster }: { monster: Monster }) {
               hoisted `multiattack` above is the one to show. */}
           {(doc.actions ?? [])
             .filter((a) => !doc.multiattack || !/^multiattack\b/i.test(a.name))
-            .map((a) => (
-              <div key={a.name} className="sb-trait">
+            .map((a, i) => (
+              <div key={`${a.name}-${i}`} className="sb-trait">
                 <b>
                   <i>{a.name}.</i>
                 </b>{' '}
