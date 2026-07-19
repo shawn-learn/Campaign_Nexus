@@ -54,6 +54,7 @@ export function Layout() {
         <Link to="/bestiary">Bestiary</Link>
         <Link to="/spells">Spells</Link>
         <Link to="/quests">Quests</Link>
+        <Link to="/story">Story</Link>
         <Link to="/encounters">Encounters</Link>
         <Link to="/skill-challenges">Skill Challenges</Link>
         <Link to="/random-tables">Tables</Link>

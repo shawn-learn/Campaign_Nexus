@@ -2,17 +2,17 @@
 
 from __future__ import annotations
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.core.ids import new_id
+from app.core.money import format_coins, format_cp, parse_cp
 from app.core.pipeline import command_tx
 from app.modules.campaign.models import Campaign
 from app.modules.equipment import service as equipment_service
 from app.modules.equipment.models import LibraryEntry
 from app.modules.equipment.schemas import ImportFromLibrary, ItemInstanceCreate
 from app.modules.merchant.models import Merchant, MerchantStock
-from app.core.money import format_cp, format_coins, parse_cp
 from app.modules.merchant.schemas import (
     MerchantCreate,
     MerchantOut,
@@ -147,7 +147,7 @@ def list_merchants(session: Session, campaign_id: str) -> list[MerchantOut]:
         .where(Entity.deleted_at_real.is_(None))
     )
     rows = list(session.scalars(stmt))
-    rows.sort(key=lambda m: (session.get(Entity, m.entity_id).name or "").lower())
+    rows.sort(key=lambda m: (_name_of(session, m.entity_id) or "").lower())
     return [_merchant_out(session, m) for m in rows]
 
 
@@ -202,9 +202,7 @@ def update_merchant(
 
 def delete_merchant(session: Session, campaign_id: str, merchant_id: str, *, deleted_by: str) -> None:
     m = _req_merchant(session, campaign_id, merchant_id)
-    session.execute(
-        MerchantStock.__table__.delete().where(MerchantStock.merchant_id == m.entity_id)
-    )
+    session.execute(delete(MerchantStock).where(MerchantStock.merchant_id == m.entity_id))
     session.commit()
     wiki_service.soft_delete_entity(session, campaign_id, m.entity_id)
 
@@ -317,7 +315,7 @@ def purchase(
             payload={"merchant_id": merchant.entity_id, "library_id": lib.id,
                      "item_ids": item_ids, "quantity": qty, "cost_cp": total_cp},
             narrative=(
-                f"The party bought {qty}× {lib.name} from {merchant_name} "
+                f"The party bought {qty}× {lib.name} from {merchant_name} "  # noqa: RUF001
                 f"for {format_cp(total_cp)}."
             ),
             subject_entity_ids=(merchant.entity_id,),

@@ -817,6 +817,49 @@
         }
       }
     },
+    "/api/v1/campaigns/{campaign_id}/entities/purge": {
+      "post": {
+        "tags": [
+          "wiki"
+        ],
+        "summary": "Purge Deleted",
+        "description": "Permanently delete every soft-deleted entity in the campaign. Irreversible.",
+        "operationId": "purge_deleted_api_v1_campaigns__campaign_id__entities_purge_post",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurgeResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/campaigns/{campaign_id}/entities/{entity_id}/restore": {
       "post": {
         "tags": [
@@ -4937,6 +4980,51 @@
         }
       }
     },
+    "/api/v1/campaigns/{campaign_id}/combats/{run_id}/cancel": {
+      "post": {
+        "tags": [
+          "combat"
+        ],
+        "summary": "Cancel Combat",
+        "description": "Call the fight off \u2014 no summary, no write-back, back to exploration.",
+        "operationId": "cancel_combat_api_v1_campaigns__campaign_id__combats__run_id__cancel_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/campaigns/{campaign_id}/skill-challenges": {
       "get": {
         "tags": [
@@ -6457,6 +6545,16 @@
                 }
               ],
               "title": "Knows"
+            }
+          },
+          {
+            "name": "include_deleted",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Include Deleted"
             }
           }
         ],
@@ -15557,6 +15655,11 @@
             },
             "type": "array",
             "title": "Knows About"
+          },
+          "deleted": {
+            "type": "boolean",
+            "title": "Deleted",
+            "default": false
           }
         },
         "type": "object",
@@ -16049,6 +16152,51 @@
           "party_wealth_label"
         ],
         "title": "PurchaseResult"
+      },
+      "PurgeResult": {
+        "properties": {
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "entities": {
+            "items": {
+              "$ref": "#/components/schemas/PurgedEntity"
+            },
+            "type": "array",
+            "title": "Entities",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "count"
+        ],
+        "title": "PurgeResult"
+      },
+      "PurgedEntity": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "entity_type": {
+            "type": "string",
+            "title": "Entity Type"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "entity_type",
+          "name"
+        ],
+        "title": "PurgedEntity",
+        "description": "One entity that a purge destroyed \u2014 enough to report what went, nothing more."
       },
       "QuestBrief": {
         "properties": {

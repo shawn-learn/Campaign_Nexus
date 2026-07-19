@@ -527,7 +527,7 @@ class Dnd5eSystem(BaseRuleSystem):
                     )
             return result
         prof = 2 + (int(doc.get("level", 1)) - 1) // 4
-        result: dict[str, Any] = {
+        result = {
             "ability_modifiers": mods,
             "proficiency_bonus": prof,
             "passive_perception": 10 + mods["wis"],

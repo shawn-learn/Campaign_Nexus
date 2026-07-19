@@ -198,6 +198,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/campaigns/{campaign_id}/entities/purge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Purge Deleted
+         * @description Permanently delete every soft-deleted entity in the campaign. Irreversible.
+         */
+        post: operations["purge_deleted_api_v1_campaigns__campaign_id__entities_purge_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/campaigns/{campaign_id}/entities/{entity_id}/restore": {
         parameters: {
             query?: never;
@@ -1284,6 +1304,26 @@ export interface paths {
         put?: never;
         /** End Combat */
         post: operations["end_combat_api_v1_campaigns__campaign_id__combats__run_id__end_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/combats/{run_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel Combat
+         * @description Call the fight off — no summary, no write-back, back to exploration.
+         */
+        post: operations["cancel_combat_api_v1_campaigns__campaign_id__combats__run_id__cancel_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4185,6 +4225,11 @@ export interface components {
             voice_notes: string | null;
             /** Knows About */
             knows_about: string[];
+            /**
+             * Deleted
+             * @default false
+             */
+            deleted?: boolean;
         };
         /** NpcUpdate */
         NpcUpdate: {
@@ -4342,6 +4387,28 @@ export interface components {
             party_wealth_cp: number;
             /** Party Wealth Label */
             party_wealth_label: string;
+        };
+        /** PurgeResult */
+        PurgeResult: {
+            /** Count */
+            count: number;
+            /**
+             * Entities
+             * @default []
+             */
+            entities?: components["schemas"]["PurgedEntity"][];
+        };
+        /**
+         * PurgedEntity
+         * @description One entity that a purge destroyed — enough to report what went, nothing more.
+         */
+        PurgedEntity: {
+            /** Id */
+            id: string;
+            /** Entity Type */
+            entity_type: string;
+            /** Name */
+            name: string;
         };
         /** QuestBrief */
         QuestBrief: {
@@ -6127,6 +6194,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EntityDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    purge_deleted_api_v1_campaigns__campaign_id__entities_purge_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PurgeResult"];
                 };
             };
             /** @description Validation Error */
@@ -8682,6 +8780,36 @@ export interface operations {
             };
         };
     };
+    cancel_combat_api_v1_campaigns__campaign_id__combats__run_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_skill_challenges_api_v1_campaigns__campaign_id__skill_challenges_get: {
         parameters: {
             query?: never;
@@ -9596,6 +9724,7 @@ export interface operations {
                 faction_id?: string | null;
                 met_party?: boolean | null;
                 knows?: string | null;
+                include_deleted?: boolean;
             };
             header?: never;
             path: {

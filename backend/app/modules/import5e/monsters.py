@@ -10,10 +10,11 @@ it and moves on.
 from __future__ import annotations
 
 import re
-from typing import Any, Optional
+from typing import Any
 
-from app.modules.import5e import codes, legendary as legendary_mod, tags
+from app.modules.import5e import codes, tags
 from app.modules.import5e import entries as entries_mod
+from app.modules.import5e import legendary as legendary_mod
 
 _ABILITIES = ("str", "dex", "con", "int", "wis", "cha")
 _SPEED_ORDER = ("walk", "burrow", "climb", "fly", "swim")
@@ -51,7 +52,7 @@ def _set(doc: dict[str, Any], key: str, value: Any) -> None:
         doc[key] = value
 
 
-def parse_cr(cr: Any) -> Optional[float]:
+def parse_cr(cr: Any) -> float | None:
     """``"1/4"`` -> 0.25, ``"10"`` -> 10.0, ``{"cr": "5"}`` -> 5.0."""
     if isinstance(cr, dict):
         cr = cr.get("cr")
@@ -74,7 +75,7 @@ def parse_cr(cr: Any) -> Optional[float]:
         return None
 
 
-def _xp(cr_field: Any, cr: Optional[float]) -> Optional[int]:
+def _xp(cr_field: Any, cr: float | None) -> int | None:
     """XP for the entry: an explicit ``{"cr": ..., "xp": N}`` override wins, else the CR table.
 
     5etools has no standalone ``xp`` field, so omitting this leaves every monster at 0 XP and
@@ -87,7 +88,7 @@ def _xp(cr_field: Any, cr: Optional[float]) -> Optional[int]:
     return codes.xp_for_cr(cr)
 
 
-def _type_str(type_field: Any) -> Optional[str]:
+def _type_str(type_field: Any) -> str | None:
     """``"humanoid"`` or ``{"type": "humanoid", "tags": [...]}`` -> ``"humanoid"``."""
     if isinstance(type_field, str):
         return type_field
@@ -102,7 +103,7 @@ def _type_str(type_field: Any) -> Optional[str]:
     return None
 
 
-def _armor_class(ac_field: Any) -> tuple[Optional[int], Optional[str]]:
+def _armor_class(ac_field: Any) -> tuple[int | None, str | None]:
     """The creature's base AC and the parenthetical that explains it.
 
     Entries carrying a ``condition`` are situational ("18 while in bear form"); taking the
@@ -113,11 +114,13 @@ def _armor_class(ac_field: Any) -> tuple[Optional[int], Optional[str]]:
     if not isinstance(ac_field, list) or not ac_field:
         return None, None
 
-    def value(item: Any) -> Optional[int]:
+    def value(item: Any) -> int | None:
         if isinstance(item, int):
             return item
-        if isinstance(item, dict) and isinstance(item.get("ac"), int):
-            return item["ac"]
+        if isinstance(item, dict):
+            ac = item.get("ac")
+            if isinstance(ac, int):
+                return ac
         return None
 
     unconditional = [
@@ -134,7 +137,7 @@ def _armor_class(ac_field: Any) -> tuple[Optional[int], Optional[str]]:
     return value(chosen), note
 
 
-def _hit_points(hp_field: Any) -> tuple[Optional[int], Optional[str], Optional[str]]:
+def _hit_points(hp_field: Any) -> tuple[int | None, str | None, str | None]:
     """``(hit_points, hit_dice, note)``.
 
     A ``special`` HP entry is usually prose ("immune to damage") but is sometimes just a
@@ -157,7 +160,7 @@ def _hit_points(hp_field: Any) -> tuple[Optional[int], Optional[str], Optional[s
     return None, formula, None
 
 
-def _abilities(entry: dict[str, Any]) -> Optional[dict[str, int]]:
+def _abilities(entry: dict[str, Any]) -> dict[str, int] | None:
     out: dict[str, int] = {}
     for ab in _ABILITIES:
         val = entry.get(ab)
@@ -167,7 +170,7 @@ def _abilities(entry: dict[str, Any]) -> Optional[dict[str, int]]:
     return out
 
 
-def _speed_str(speed: Any) -> Optional[str]:
+def _speed_str(speed: Any) -> str | None:
     if isinstance(speed, (int, float)):
         return f"{int(speed)} ft."
     if not isinstance(speed, dict):
@@ -197,7 +200,7 @@ def _traits(entry: dict[str, Any]) -> list[dict[str, str]]:
     return out
 
 
-def _attack(action: dict[str, Any]) -> Optional[dict[str, Any]]:
+def _attack(action: dict[str, Any]) -> dict[str, Any] | None:
     name = action.get("name")
     if not name:
         return None
@@ -226,7 +229,7 @@ def _attack(action: dict[str, Any]) -> Optional[dict[str, Any]]:
     return atk
 
 
-def _split_cost(name: str) -> tuple[str, Optional[int]]:
+def _split_cost(name: str) -> tuple[str, int | None]:
     """``"Tail Attack (Costs 2 Actions)"`` -> ``("Tail Attack", 2)``."""
     match = _COST_RE.search(name)
     if not match:
@@ -238,7 +241,7 @@ def _attacks(actions: Any) -> list[dict[str, Any]]:
     return [a for a in (_attack(x) for x in actions or [] if isinstance(x, dict)) if a]
 
 
-def _legendary(entry: dict[str, Any]) -> Optional[dict[str, Any]]:
+def _legendary(entry: dict[str, Any]) -> dict[str, Any] | None:
     legendary = entry.get("legendary")
     if not isinstance(legendary, list) or not legendary:
         return None
@@ -264,7 +267,7 @@ def _legendary(entry: dict[str, Any]) -> Optional[dict[str, Any]]:
     return out
 
 
-def _modifier_map(field: Any, allowed: Any) -> Optional[dict[str, int]]:
+def _modifier_map(field: Any, allowed: Any) -> dict[str, int] | None:
     """``{"con": "+6"}`` -> ``{"con": 6}``, dropping keys outside ``allowed``."""
     if not isinstance(field, dict):
         return None
@@ -280,7 +283,7 @@ def _modifier_map(field: Any, allowed: Any) -> Optional[dict[str, int]]:
     return out or None
 
 
-def _senses(entry: dict[str, Any]) -> Optional[dict[str, Any]]:
+def _senses(entry: dict[str, Any]) -> dict[str, Any] | None:
     raw = entry.get("senses")
     if isinstance(raw, str):
         raw = [raw]
@@ -302,7 +305,7 @@ def _senses(entry: dict[str, Any]) -> Optional[dict[str, Any]]:
     return out or None
 
 
-def _languages(entry: dict[str, Any]) -> tuple[Optional[list[str]], Optional[int]]:
+def _languages(entry: dict[str, Any]) -> tuple[list[str] | None, int | None]:
     """Language list plus telepathy range, which 5etools files in with the languages."""
     raw = entry.get("languages")
     if isinstance(raw, str):
@@ -310,7 +313,7 @@ def _languages(entry: dict[str, Any]) -> tuple[Optional[list[str]], Optional[int
     if not isinstance(raw, list):
         return None, None
     langs: list[str] = []
-    telepathy: Optional[int] = None
+    telepathy: int | None = None
     for item in raw:
         text = tags.strip_tags(str(item)).strip()
         if not text:
@@ -323,7 +326,7 @@ def _languages(entry: dict[str, Any]) -> tuple[Optional[list[str]], Optional[int
     return (langs or None), telepathy
 
 
-def _damage_groups(field: Any, key: str) -> Optional[list[dict[str, Any]]]:
+def _damage_groups(field: Any, key: str) -> list[dict[str, Any]] | None:
     """Normalise 5etools' damage resist/immune/vulnerable forms.
 
     Entries are a bare string, or ``{"<key>": [...], "note": ..., "cond": true}`` where the
@@ -363,7 +366,7 @@ def _is_multiattack(name: Any) -> bool:
     return isinstance(name, str) and name.strip().lower().startswith("multiattack")
 
 
-def _multiattack(actions: Any) -> Optional[dict[str, Any]]:
+def _multiattack(actions: Any) -> dict[str, Any] | None:
     """Pull the Multiattack entry out of ``actions`` — it describes them, it isn't one."""
     for item in actions or []:
         # "Multiattack (Vampire Form Only)" is still a multiattack — match the prefix.
@@ -399,7 +402,7 @@ def _parse_multiattack(text: str) -> list[dict[str, Any]]:
     return out
 
 
-def _spellcasting(entry: dict[str, Any]) -> Optional[list[dict[str, Any]]]:
+def _spellcasting(entry: dict[str, Any]) -> list[dict[str, Any]] | None:
     blocks = entry.get("spellcasting")
     if not isinstance(blocks, list) or not blocks:
         return None
@@ -413,7 +416,7 @@ def _spellcasting(entry: dict[str, Any]) -> Optional[list[dict[str, Any]]]:
     return out or None
 
 
-def _spellcasting_block(block: dict[str, Any]) -> Optional[dict[str, Any]]:
+def _spellcasting_block(block: dict[str, Any]) -> dict[str, Any] | None:
     name = str(block.get("name") or "Spellcasting")
     header_raw = " ".join(str(e) for e in block.get("headerEntries") or [] if isinstance(e, str))
     out: dict[str, Any] = {
@@ -477,8 +480,8 @@ def _spellcasting_block(block: dict[str, Any]) -> Optional[dict[str, Any]]:
 
 def to_monster_doc(
     entry: dict[str, Any],
-    legendary_groups: Optional[legendary_mod.GroupIndex] = None,
-) -> Optional[dict[str, Any]]:
+    legendary_groups: legendary_mod.GroupIndex | None = None,
+) -> dict[str, Any] | None:
     """Reshape one 5etools ``monster`` entry into a ``dnd5e`` doc, or ``None`` to skip it.
 
     ``legendary_groups`` is the index from ``legendarygroups.json``; without it lair actions

@@ -23,12 +23,11 @@ from app.modules.campaign.models import Campaign
 from app.modules.chronicle.models import Session as GameSession
 from app.modules.playbook import combat, quests
 from app.modules.playbook import service as party_service
-from app.modules.playbook.models import CombatRun
 from app.modules.playbook.schemas import (
     CombatRunOut,
-    DeathSaveRulesOut,
     DashboardOut,
     DashboardSession,
+    DeathSaveRulesOut,
     EntityBrief,
     EventBrief,
     QuestBrief,
@@ -149,17 +148,12 @@ def _recent_notes(session: Session, campaign_id: str) -> list[EventBrief]:
     return [_event_brief(e) for e in session.scalars(stmt)]
 
 def _active_combat(session: Session, campaign_id: str) -> CombatRunOut | None:
-    stmt = (
-        select(CombatRun)
-        # A run still rolling initiative hasn't begun, but it is very much in play — the
-        # dashboard should surface it rather than let it vanish until someone hits Begin.
-        .where(CombatRun.campaign_id == campaign_id, CombatRun.status.in_(("setup", "active")))
-        .order_by(desc(CombatRun.started_at_game))
-        .limit(1)
-    )
-    run = session.scalars(stmt).first()
-    if run is None:
+    # Shared with the tracker's resume, so the dashboard can't claim a fight is running
+    # that the Combat page won't open.
+    runs = combat.open_runs(session, campaign_id)
+    if not runs:
         return None
+    run = runs[0]
     total = combat._total_actions(session, run.id)
     return CombatRunOut(
         run_id=run.id, encounter_id=run.encounter_id, status=run.status,

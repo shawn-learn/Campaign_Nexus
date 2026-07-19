@@ -714,6 +714,49 @@ def restore_entity(session: Session, campaign_id: str, entity_id: str) -> Entity
     return entity
 
 
+def purge_deleted_entities(session: Session, campaign_id: str) -> list[dict[str, str]]:
+    """Permanently remove every soft-deleted entity in the campaign. Irreversible.
+
+    Soft delete only stamps ``deleted_at_real``, so the row and its module extensions
+    (Npc, Merchant, Encounter, …) survive forever. This is the only way to actually
+    reclaim them. Dependent rows go with it: ``ondelete="CASCADE"`` drops the owned
+    extensions, ``SET NULL`` clears references from surviving rows, and SQLite enforces
+    both (``PRAGMA foreign_keys=ON``, ADR-002).
+
+    The event log is deliberately left alone — it is immutable, and events naming a
+    purged entity keep naming it. ``chronicle.projectors`` skips ids with no surviving
+    entity so a projection rebuild still succeeds.
+
+    Returns what was purged (id / type / name), so the caller can report it.
+    """
+    entities = list(
+        session.scalars(
+            select(Entity).where(
+                Entity.campaign_id == campaign_id,
+                Entity.deleted_at_real.is_not(None),
+            )
+        )
+    )
+    if not entities:
+        return []
+    purged = [
+        {"id": e.id, "entity_type": e.entity_type, "name": e.name} for e in entities
+    ]
+    with command_tx(session, campaign_id, actor="gm") as ctx:
+        for entity in entities:
+            search.remove_entity(session, entity.id)
+            session.delete(entity)
+        ctx.emit(
+            "entities_purged",
+            payload={"count": len(purged), "entities": purged},
+            narrative=(
+                f"Permanently deleted {len(purged)} "
+                f"soft-deleted {'entity' if len(purged) == 1 else 'entities'}."
+            ),
+        )
+    return purged
+
+
 # --------------------------------------------------------------------------- #
 # Tags
 # --------------------------------------------------------------------------- #

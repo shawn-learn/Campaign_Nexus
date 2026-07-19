@@ -37,10 +37,15 @@ export function CombatSetup({
   campaignId,
   run,
   onBegun,
+  onCancel,
+  cancelling,
 }: {
   campaignId: string
   run: CombatRun
   onBegun: () => void
+  /** Back out before round 1 — the wrong encounter shouldn't have to be fought. */
+  onCancel: () => void
+  cancelling: boolean
 }) {
   const runId = run.run_id
   const state = run.state as unknown as CombatState
@@ -113,6 +118,9 @@ export function CombatSetup({
       <div className="row" style={{ justifyContent: 'space-between' }}>
         <h2 style={{ margin: 0 }}>Roll for initiative</h2>
         <div className="row" style={{ gap: 6 }}>
+          <button className="ghost" disabled={cancelling} onClick={onCancel}>
+            {cancelling ? 'Cancelling…' : 'Cancel combat'}
+          </button>
           {rollable && (
             <>
               <button className="ghost" disabled={roll.isPending} onClick={rollFoes}>

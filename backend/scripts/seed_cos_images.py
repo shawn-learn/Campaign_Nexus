@@ -11,14 +11,14 @@ import sys
 # Ensure backend root is in search path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from sqlalchemy import select, func
+from app.core.clock import now_real_iso
 from app.core.db import SessionLocal
 from app.core.ids import new_id
-from app.core.clock import now_real_iso
-from app.modules.campaign.models import Campaign
-from app.modules.wiki.models import Entity
 from app.modules.atlas.models import EntityMedia
 from app.modules.atlas.service import store_media_bytes
+from app.modules.campaign.models import Campaign
+from app.modules.wiki.models import Entity
+from sqlalchemy import func, select
 
 # Mapping of filename -> (entity_type, entity_name, caption)
 MAPPING = {

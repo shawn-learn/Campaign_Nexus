@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from fastapi.testclient import TestClient
-
 from app.modules.merchant.money import cp_to_gp_ceil, format_cp, parse_cp
+from fastapi.testclient import TestClient
 
 
 def _demo(client: TestClient) -> str:

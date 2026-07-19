@@ -56,6 +56,10 @@ the hard part (condition evaluation); this adds subscription + consent UX.
   World Anvil / Obsidian-vault importer (mention syntax maps cleanly onto our links).
 - **Whiteboard/relationship canvas:** free-form React Flow board over the existing
   neighborhood API for prep brainstorming.
+- **Spell links in prose:** let article/item descriptions link to spell catalog entries (e.g.
+  a spellbook's contents), which needs a link syntax the description renderer understands and
+  a linkable `/spells` route (search state in the URL + a spell detail view). Today
+  descriptions are plain text, so Kasimir's Spellbook lists its spells by name only.
 - Cross-campaign **world reuse**: promote a world + its entities to a shared library
   installable into new campaigns (content-pack machinery generalizes here).
 

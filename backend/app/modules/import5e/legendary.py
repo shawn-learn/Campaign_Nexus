@@ -9,7 +9,7 @@ no monster in the bestiary has a lair action at all.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from app.modules.import5e import entries, sources
 
@@ -36,7 +36,7 @@ def load_groups(bestiary_dir: Path) -> GroupIndex:
     return index
 
 
-def group_for(entry: dict[str, Any], index: GroupIndex) -> Optional[dict[str, Any]]:
+def group_for(entry: dict[str, Any], index: GroupIndex) -> dict[str, Any] | None:
     """The legendary group a monster entry points at, if any."""
     spec = entry.get("legendaryGroup")
     if not isinstance(spec, dict):
@@ -44,7 +44,7 @@ def group_for(entry: dict[str, Any], index: GroupIndex) -> Optional[dict[str, An
     return index.get(_key(str(spec.get("name", "")), str(spec.get("source", ""))))
 
 
-def lair_actions(group: Optional[dict[str, Any]]) -> Optional[dict[str, Any]]:
+def lair_actions(group: dict[str, Any] | None) -> dict[str, Any] | None:
     """Convert a group's ``lairActions`` into the plugin's ``lair_actions`` shape."""
     if not group or not group.get("lairActions"):
         return None
@@ -59,7 +59,7 @@ def lair_actions(group: Optional[dict[str, Any]]) -> Optional[dict[str, Any]]:
     return out
 
 
-def regional_effects(group: Optional[dict[str, Any]]) -> Optional[dict[str, Any]]:
+def regional_effects(group: dict[str, Any] | None) -> dict[str, Any] | None:
     """Convert a group's ``regionalEffects`` into the plugin's ``regional_effects`` shape."""
     if not group or not group.get("regionalEffects"):
         return None

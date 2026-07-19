@@ -88,6 +88,15 @@ export function NpcsPage() {
               onChange={(e) => setFilter({ met_party: e.target.checked ? true : undefined })}
             />
           </label>
+          <label className="field-inline">
+            <span className="muted">Show deleted</span>
+            <input
+              type="checkbox"
+              checked={filters.include_deleted === true}
+              // undefined rather than false when off, so it doesn't count as an active filter.
+              onChange={(e) => setFilter({ include_deleted: e.target.checked || undefined })}
+            />
+          </label>
           {active && (
             <button className="ghost" onClick={() => setFilters({})}>Clear</button>
           )}
@@ -97,7 +106,7 @@ export function NpcsPage() {
       <ul className="entities">
         {npcs?.length === 0 && <p className="muted">No NPCs match.</p>}
         {npcs?.map((npc) => (
-          <li key={npc.entity_id}>
+          <li key={npc.entity_id} className={npc.deleted ? 'deleted' : ''}>
             <Link
               className="linkish"
               to="/entities/$entityId"
@@ -106,6 +115,7 @@ export function NpcsPage() {
               {npc.name}
             </Link>
             <span className="row" style={{ gap: 6 }}>
+              {npc.deleted && <span className="tag danger">deleted</span>}
               {npc.current_location_name && (
                 <span className="badge">📍 {npc.current_location_name}</span>
               )}

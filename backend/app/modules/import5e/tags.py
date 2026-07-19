@@ -9,7 +9,6 @@ the first ``|``-segment of the payload, drop the tag wrapper"; a few tags render
 from __future__ import annotations
 
 import re
-from typing import Optional
 
 # One ``{@tag payload}`` occurrence. Payload is everything up to the matching brace; we do
 # not need to handle nesting (5etools does not nest tags inside a tag's own payload here).
@@ -54,7 +53,7 @@ def _render_tag(tag: str, payload: str) -> str:
     return _first_seg(payload)
 
 
-def strip_tags(text: Optional[str]) -> str:
+def strip_tags(text: str | None) -> str:
     """Return ``text`` with every ``{@tag}`` replaced by its plain-text rendering."""
     if not text:
         return ""
@@ -67,7 +66,7 @@ def strip_tags(text: Optional[str]) -> str:
     return out.strip()
 
 
-def first_tag(text: Optional[str], tag: str) -> Optional[str]:
+def first_tag(text: str | None, tag: str) -> str | None:
     """The raw payload of the first ``{@tag ...}`` of the given kind, or ``None``."""
     if not text:
         return None
@@ -77,7 +76,7 @@ def first_tag(text: Optional[str], tag: str) -> Optional[str]:
     return None
 
 
-def attack_kind(text: Optional[str]) -> Optional[str]:
+def attack_kind(text: str | None) -> str | None:
     """Read the attack ``kind`` (melee|ranged) from a ``{@atk ...}`` tag, if present."""
     payload = first_tag(text, "atk")
     if payload is None:
@@ -86,7 +85,7 @@ def attack_kind(text: Optional[str]) -> Optional[str]:
     return _ATK_KIND.get(code)
 
 
-def to_hit(text: Optional[str]) -> Optional[int]:
+def to_hit(text: str | None) -> int | None:
     """Read the integer attack bonus from a ``{@hit N}`` tag, if present."""
     payload = first_tag(text, "hit")
     if payload is None:
@@ -107,7 +106,7 @@ _DAMAGE_PART_RE = re.compile(
 )
 
 
-def damage_parts(text: Optional[str]) -> list[dict[str, str]]:
+def damage_parts(text: str | None) -> list[dict[str, str]]:
     """Every damage instance in a line as ``{"dice", "type"}``.
 
     ``first_damage`` returns only the first expression and no type at all, which loses both
@@ -123,7 +122,7 @@ def damage_parts(text: Optional[str]) -> list[dict[str, str]]:
     return parts
 
 
-def first_damage(text: Optional[str]) -> Optional[str]:
+def first_damage(text: str | None) -> str | None:
     """Read the first ``{@damage XdY+Z}`` dice expression, whitespace-normalised."""
     payload = first_tag(text, "damage")
     if payload is None:

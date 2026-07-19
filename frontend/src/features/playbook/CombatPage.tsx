@@ -1,12 +1,14 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   useCombat,
   useCombatAction,
   useCombatRedo,
   useCombatUndo,
+  useCancelCombat,
   useConditions,
   useEncounters,
   useEndCombat,
+  useOpenCombats,
   useRollDeathSave,
   useStartCombat,
   useStatBlock,
@@ -61,20 +63,38 @@ export function CombatPage() {
     if (saved) setRunId(saved)
   }, [campaignId, storageKey, runId])
 
+  // …and resume from the server when there is no local pointer at all. localStorage was
+  // the only way back into a fight, so clearing it (or opening the app in another browser)
+  // stranded the run: the tracker offered a fresh encounter while the campaign stayed
+  // pinned to combat mode, with no way to reach the fight and end it.
+  const openRuns = useOpenCombats(campaignId, !runId)
+  //: Ids that failed to load. Without this, adopting one whose GET 404s would clear it and
+  //  adopt it again off the same cached list, forever.
+  const dead = useRef<Set<string>>(new Set())
+  useEffect(() => {
+    if (runId) return
+    const live = openRuns.data?.find((r) => !dead.current.has(r.run_id))
+    if (!live) return
+    setRunId(live.run_id)
+    if (storageKey) localStorage.setItem(storageKey, live.run_id)
+  }, [openRuns.data, runId, storageKey])
+
   const run = useCombat(campaignId, runId)
   const start = useStartCombat(campaignId ?? '')
   const action = useCombatAction(campaignId ?? '', runId)
   const undo = useCombatUndo(campaignId ?? '', runId)
   const redo = useCombatRedo(campaignId ?? '', runId)
   const end = useEndCombat(campaignId ?? '', runId)
+  const cancel = useCancelCombat(campaignId ?? '', runId)
 
   // A saved id that no longer loads is a dead pointer — drop it rather than wedge the page.
   useEffect(() => {
     if (run.isError && storageKey) {
+      if (runId) dead.current.add(runId)
       localStorage.removeItem(storageKey)
       setRunId(null)
     }
-  }, [run.isError, storageKey])
+  }, [run.isError, storageKey, runId])
 
   const state = (run.data?.state ?? null) as CombatState | null
   const status = run.data?.status ?? 'active'
@@ -96,10 +116,18 @@ export function CombatPage() {
     })
   }
 
-  const newCombat = () => {
+  // Drop the run and everything hanging off it, so the page falls back to the encounter
+  // picker. The summary is separate: ending keeps it, cancelling and starting over don't.
+  const clearRun = useCallback(() => {
     if (storageKey) localStorage.removeItem(storageKey)
     setRunId(null)
     setSelected(null)
+    setBuffer('')
+    setConcentration(null)
+  }, [storageKey])
+
+  const newCombat = () => {
+    clearRun()
     setSummary(null)
   }
 
@@ -132,13 +160,22 @@ export function CombatPage() {
     end.mutate(undefined, {
       onSuccess: (s) => {
         setSummary(s)
-        if (storageKey) localStorage.removeItem(storageKey)
-        setRunId(null)
-        setSelected(null)
-        setBuffer('')
-        setConcentration(null)
+        clearRun()
       },
     })
+
+  // Calling it off, as opposed to ending it: the run closes without a summary, the clock
+  // rewinds, and the campaign goes back to exploration. Confirmed because it throws away
+  // the fight — everything that happened in it goes unrecorded.
+  const abandon = useCallback(() => {
+    if (!confirm('Cancel this combat? Nothing that happened in it will be recorded.')) return
+    cancel.mutate(undefined, {
+      onSuccess: () => {
+        setSummary(null)
+        clearRun()
+      },
+    })
+  }, [cancel, clearRun])
 
   const removeSelected = useCallback(() => {
     if (!state || !selected) return
@@ -186,6 +223,16 @@ export function CombatPage() {
   }, [currentId])
 
   if (!state) {
+    // Don't offer a fresh encounter while we're still asking whether one is already
+    // running — picking one here is how a campaign ends up with two open runs.
+    if (openRuns.isLoading) {
+      return (
+        <>
+          <h2>Combat</h2>
+          <p className="muted">Looking for a combat in progress…</p>
+        </>
+      )
+    }
     return (
       <>
         <h2>Combat</h2>
@@ -221,6 +268,8 @@ export function CombatPage() {
         campaignId={campaignId!}
         run={run.data}
         onBegun={() => setSelected(state.order[0] ?? null)}
+        onCancel={abandon}
+        cancelling={cancel.isPending}
       />
     )
   }
@@ -242,11 +291,20 @@ export function CombatPage() {
           )}
           <button disabled={!canUndo} onClick={doUndo}>Undo</button>
           <button disabled={!canRedo} onClick={doRedo}>Redo</button>
-          {status === 'active'
-            ? <button className="danger-btn" disabled={end.isPending} onClick={finish}>
+          {status === 'active' ? (
+            <>
+              {/* Ending records the fight; cancelling throws it away. Both land back on
+                  the encounter picker, so a wrong encounter is one click from the right one. */}
+              <button className="ghost" disabled={cancel.isPending} onClick={abandon}>
+                {cancel.isPending ? 'Cancelling…' : 'Cancel combat'}
+              </button>
+              <button className="danger-btn" disabled={end.isPending} onClick={finish}>
                 {end.isPending ? 'Ending…' : 'End'}
               </button>
-            : <button onClick={newCombat}>New combat</button>}
+            </>
+          ) : (
+            <button onClick={newCombat}>New combat</button>
+          )}
         </div>
       </div>
       <p className="muted combat-hint">↑/↓ select · digits + Enter = damage · h = heal · t = temp HP · Space = next turn · a = add · Del = remove · u/r = undo/redo</p>

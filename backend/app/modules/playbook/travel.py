@@ -288,8 +288,8 @@ def commit(session: Session, campaign: Campaign, body: TravelRequest) -> TravelR
             
         rules_description = "Special rules applied to the travel types used on this journey:\n\n" + "\n".join(rules_applied)
         
-        from app.modules.time.models import ScheduledEvent
         from app.core.ids import new_id
+        from app.modules.time.models import ScheduledEvent
         
         notification_event = ScheduledEvent(
             id=new_id(),

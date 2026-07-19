@@ -126,6 +126,7 @@ def _out(session: Session, npc: Npc) -> NpcOut:
         last_party_interaction_game=npc.last_party_interaction_game,
         goals=npc.goals, secrets=npc.secrets, voice_notes=npc.voice_notes,
         knows_about=_knows_about(session, npc.entity_id),
+        deleted=entity.deleted_at_real is not None,
     )
 
 
@@ -142,10 +143,21 @@ def list_npcs(
     faction_id: str | None = None,
     met_party: bool | None = None,
     knows: str | None = None,
+    include_deleted: bool = False,
 ) -> list[NpcOut]:
     """The saved-query surface (FR-6.6): status / location / faction / met / knows-X."""
     ensure_npc_rows(session, campaign_id)
-    stmt = select(Npc).where(Npc.campaign_id == campaign_id)
+    # Soft-deleting a wiki entity only stamps `deleted_at_real`; the Npc row survives, so
+    # without this join a deleted NPC keeps showing up here (and in every saved query built
+    # on it) looking exactly like a live one. `include_deleted` mirrors the entity list, so
+    # a deleted NPC is still reachable for restoring.
+    stmt = (
+        select(Npc)
+        .where(Npc.campaign_id == campaign_id)
+        .join(Entity, Entity.id == Npc.entity_id)
+    )
+    if not include_deleted:
+        stmt = stmt.where(Entity.deleted_at_real.is_(None))
     if status:
         stmt = stmt.where(Npc.status == status)
     if location_id:

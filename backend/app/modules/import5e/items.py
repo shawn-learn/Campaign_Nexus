@@ -7,7 +7,7 @@ requires_attunement, value_gp, weight_lb, properties, source``.
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from app.modules.import5e import codes, tags
 
@@ -24,7 +24,7 @@ _RARITY = {
 _MUNDANE_RARITY = {None, "none", "unknown", "varies"}
 
 
-def money_str(value_cp: Any) -> Optional[str]:
+def money_str(value_cp: Any) -> str | None:
     """Copper-piece value -> a display string in the largest tidy unit. ``1500`` -> ``"15 gp"``."""
     if not isinstance(value_cp, (int, float)) or value_cp <= 0:
         return None
@@ -38,7 +38,7 @@ def money_str(value_cp: Any) -> Optional[str]:
     return f"{cp} cp"
 
 
-def _rarity(entry: dict[str, Any]) -> Optional[str]:
+def _rarity(entry: dict[str, Any]) -> str | None:
     return _RARITY.get((entry.get("rarity") or "").lower())
 
 
@@ -102,7 +102,7 @@ def to_library_entry(
     *,
     source: str,
     is_base: bool = False,
-) -> Optional[dict[str, Any]]:
+) -> dict[str, Any] | None:
     """Reshape a 5etools item into ``LibraryEntry`` fields, or ``None`` to skip it."""
     name = entry.get("name")
     if not name:

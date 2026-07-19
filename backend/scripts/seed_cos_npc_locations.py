@@ -11,13 +11,13 @@ import sys
 # Ensure backend root is in search path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from sqlalchemy import select
 from app.core.db import SessionLocal
 from app.core.pipeline import command_tx
 from app.modules.campaign.models import Campaign
 from app.modules.npcs.models import Npc
-from app.modules.wiki.models import Entity
 from app.modules.npcs.service import _name_of
+from app.modules.wiki.models import Entity
+from sqlalchemy import select
 
 NPC_LOCATIONS = {
     # NPC name -> Location ID

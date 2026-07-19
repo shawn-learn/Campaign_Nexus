@@ -15,7 +15,9 @@ from app.main import create_app
 def main() -> None:
     schema = create_app().openapi()
     out = BACKEND_ROOT / "openapi.json"
-    out.write_text(json.dumps(schema, indent=2) + "\n", encoding="utf-8")
+    # newline="" suppresses Windows CRLF translation: .gitattributes mandates LF, so
+    # writing CRLF leaves the file permanently "modified" in git status after every run.
+    out.write_text(json.dumps(schema, indent=2) + "\n", encoding="utf-8", newline="")
     print(f"wrote {out}")
 
 

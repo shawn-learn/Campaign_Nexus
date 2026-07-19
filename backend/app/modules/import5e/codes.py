@@ -8,7 +8,7 @@ from whatever file the caller loaded.
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 # 5etools size codes -> our monster ``size`` enum (Tiny…Gargantuan).
 SIZE = {
@@ -31,7 +31,7 @@ DAMAGE_TYPE = {
 }
 
 
-def size_name(code: Any) -> Optional[str]:
+def size_name(code: Any) -> str | None:
     """``["S"]`` or ``"S"`` -> ``"Small"``. Unknown/missing -> ``None``."""
     if isinstance(code, list):
         code = code[0] if code else None
@@ -40,13 +40,13 @@ def size_name(code: Any) -> Optional[str]:
     return SIZE.get(code.upper())
 
 
-def school_name(code: Optional[str]) -> Optional[str]:
+def school_name(code: str | None) -> str | None:
     if not code:
         return None
     return SCHOOL.get(code.upper(), code)
 
 
-def damage_type(code: Optional[str]) -> Optional[str]:
+def damage_type(code: str | None) -> str | None:
     if not code:
         return None
     return DAMAGE_TYPE.get(code.upper(), code)
@@ -77,7 +77,7 @@ def build_item_dicts(items_base: dict[str, Any]) -> dict[str, dict[str, str]]:
     return {"type": type_map, "property": prop_map}
 
 
-def item_type_name(dicts: dict[str, dict[str, str]], code: Optional[Any]) -> Optional[str]:
+def item_type_name(dicts: dict[str, dict[str, str]], code: Any | None) -> str | None:
     """Resolve a base-item ``type`` code (may be ``"M|XPHB"``) to its full name."""
     if not code or not isinstance(code, str):
         return None
@@ -86,7 +86,7 @@ def item_type_name(dicts: dict[str, dict[str, str]], code: Optional[Any]) -> Opt
 
 
 def property_names(
-    dicts: dict[str, dict[str, str]], props: Optional[list[Any]]
+    dicts: dict[str, dict[str, str]], props: list[Any] | None
 ) -> list[str]:
     """Resolve a base-item ``property`` list (codes like ``"V"``, ``"F|XPHB"``) to names."""
     out: list[str] = []
@@ -110,7 +110,7 @@ XP_BY_CR: dict[float, int] = {
 }
 
 
-def xp_for_cr(cr: Optional[float]) -> Optional[int]:
+def xp_for_cr(cr: float | None) -> int | None:
     """XP for a challenge rating, or ``None`` when the CR is unknown/off-table."""
     if cr is None:
         return None
@@ -125,7 +125,7 @@ _ALIGNMENT = {
 }
 
 
-def alignment_str(codes: Optional[Any]) -> Optional[str]:
+def alignment_str(codes: Any | None) -> str | None:
     """``["C", "E"]`` -> ``"chaotic evil"``; ``["N"]`` -> ``"neutral"``."""
     if not isinstance(codes, list):
         return None

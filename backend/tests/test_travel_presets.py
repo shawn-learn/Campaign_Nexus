@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
+
 def _demo(client: TestClient) -> str:
     return client.get("/api/v1/campaigns").json()[0]["id"]
 
@@ -149,12 +150,12 @@ def test_travel_presets_commit_notification(client: TestClient) -> None:
     cid = _demo(client)
     keep = _entity(client, cid, "location", "Keep")
 
-    commit = client.post(
+    client.post(
         f"/api/v1/campaigns/{cid}/party/travel",
         json={"legs": [
             {"distance": 24, "terrain": "road", "travel_type": "mounted", "to_location_id": keep},
         ]},
-    ).json()
+    )
 
     # Verify a notification event was fired
     events = client.get(f"/api/v1/campaigns/{cid}/scheduled-events?status_filter=fired").json()

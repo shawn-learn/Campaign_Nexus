@@ -49,6 +49,9 @@ ignore = ["E501"]
 "**/router.py" = ["B008"]
 "**/*router.py" = ["B008"]
 "**/deps.py" = ["B008"]
+# Seed files are user-facing game prose: en dashes in ranges ("5–45 ft") and similar
+# typography are intentional, not homoglyph mistakes.
+"**/library_seed*.py" = ["RUF001"]
 
 # ---------------------------------------------------------------------------
 # mypy (strict)
@@ -97,9 +100,14 @@ layers = [
     # flags to evaluate conditions and run consequences (FR-4).
     "story",
     # Orchestration layer: may call into the time + rules engines (rests, combat), mint
-    # entities in the wiki (atlas, npcs) and read the chronicle (npcs: session spans).
-    # Independent of each other (' | ').
-    "playbook | atlas | npcs",
+    # entities in the wiki and read the chronicle (npcs: session spans). Independent of
+    # each other (' | ').
+    "playbook | npcs",
+    # Atlas (maps, markers, media) sits below playbook: the travel planner and party
+    # position resolve a location entity to map coordinates
+    # (playbook.travel.resolve_location_coordinates). Atlas itself depends only on
+    # wiki + campaign, so the direction is one-way and acyclic.
+    "atlas",
     # Chronicle orchestrates the destructive timeline reset, including the time engine's
     # clock reset. Wiki and Time remain independent siblings.
     "chronicle",

@@ -495,9 +495,14 @@ def list_combats(
     session: Session = Depends(get_session),
     ctx: CampaignContext = Viewer,
 ) -> list[CombatRunBrief]:
-    if not encounter_id:
-        return []
-    runs = combat.runs_for_encounter(session, ctx.campaign_id, encounter_id)
+    # Unfiltered, this used to answer "[]", which left an in-play run reachable only
+    # through whatever the browser had in localStorage — lose that and the campaign was
+    # stuck in combat mode with no way back. Unfiltered now means the runs still in play.
+    runs = (
+        combat.runs_for_encounter(session, ctx.campaign_id, encounter_id)
+        if encounter_id
+        else combat.open_runs(session, ctx.campaign_id)
+    )
     return [
         CombatRunBrief(
             run_id=r.id, encounter_id=r.encounter_id, status=r.status,
@@ -729,6 +734,19 @@ def end_combat(
 ) -> CombatSummary:
     try:
         return combat.end_combat(session, _campaign(session, ctx.campaign_id), run_id)
+    except combat.CombatNotFound as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "combat not found") from exc
+
+
+@combat_router.post("/{run_id}/cancel", status_code=status.HTTP_204_NO_CONTENT)
+def cancel_combat(
+    run_id: str,
+    session: Session = Depends(get_session),
+    ctx: CampaignContext = Editor,
+) -> None:
+    """Call the fight off — no summary, no write-back, back to exploration."""
+    try:
+        combat.cancel_combat(session, _campaign(session, ctx.campaign_id), run_id)
     except combat.CombatNotFound as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "combat not found") from exc
 

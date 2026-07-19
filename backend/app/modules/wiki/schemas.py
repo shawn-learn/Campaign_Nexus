@@ -67,6 +67,19 @@ class EntityOut(BaseModel):
     updated_at_real: str
 
 
+class PurgedEntity(BaseModel):
+    """One entity that a purge destroyed — enough to report what went, nothing more."""
+
+    id: str
+    entity_type: str
+    name: str
+
+
+class PurgeResult(BaseModel):
+    count: int
+    entities: list[PurgedEntity] = []
+
+
 class ArticleUpdate(BaseModel):
     """Full replace of the article body (Tiptap/ProseMirror JSON document)."""
 

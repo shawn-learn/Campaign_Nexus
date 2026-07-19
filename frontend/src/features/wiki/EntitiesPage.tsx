@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearch } from '@tanstack/react-router'
-import { useCreateEntity, useEntities, useTags } from '../../api/hooks'
+import { useCreateEntity, useEntities, usePurgeDeletedEntities, useTags } from '../../api/hooks'
 import { useActiveCampaign } from '../../shell/useActiveCampaign'
 import { ListToolbar } from '../../components/ListToolbar'
 import { useDebounced } from '../../lib/useDebounced'
@@ -47,6 +47,23 @@ export function EntitiesPage() {
   })
   // Unfiltered count for the "N of M" readout — cheap and gives the search real feedback.
   const { data: allEntities } = useEntities(campaignId, { include_deleted: includeDeleted })
+
+  // Soft-deleted entities linger forever until purged, so the count drives the purge button.
+  const { data: withDeleted } = useEntities(campaignId, { include_deleted: true })
+  const deletedCount = (withDeleted ?? []).filter((e) => e.deleted).length
+  const purge = usePurgeDeletedEntities(campaignId ?? '')
+
+  const doPurge = () => {
+    if (
+      window.confirm(
+        `Permanently delete ${deletedCount} soft-deleted ` +
+          `${deletedCount === 1 ? 'entity' : 'entities'}? ` +
+          'They cannot be restored afterwards. This cannot be undone.',
+      )
+    ) {
+      purge.mutate()
+    }
+  }
 
   const createEntity = useCreateEntity(campaignId ?? '')
   const [name, setName] = useState('')
@@ -110,6 +127,17 @@ export function EntitiesPage() {
           />
           Show deleted
         </label>
+        {deletedCount > 0 && (
+          <button
+            type="button"
+            className="danger-btn"
+            onClick={doPurge}
+            disabled={purge.isPending}
+            title="Permanently delete every soft-deleted entity in this campaign"
+          >
+            {purge.isPending ? 'Purging…' : `Purge ${deletedCount} deleted`}
+          </button>
+        )}
       </ListToolbar>
 
       <ul className="entities">

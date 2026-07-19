@@ -35,7 +35,7 @@ import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 BASE = "http://127.0.0.1:8000"
 DEFAULT_CAMPAIGN = "Curse of Strahd"
@@ -73,7 +73,7 @@ CANONICAL_CREATURE: dict[str, dict[str, str]] = {
 # --------------------------------------------------------------------------- #
 # HTTP
 # --------------------------------------------------------------------------- #
-def _request(method: str, url: str, body: Optional[dict[str, Any]] = None) -> Any:
+def _request(method: str, url: str, body: dict[str, Any] | None = None) -> Any:
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(url, data=data, method=method)
     req.add_header("Content-Type", "application/json")
@@ -132,7 +132,7 @@ def _repair(
     live_by_name: dict[str, str],
     live_ids: set[str],
     unresolved: list[str],
-) -> Optional[list[dict[str, Any]]]:
+) -> list[dict[str, Any]] | None:
     """Return rebuilt combatants, or ``None`` when the encounter needs no change."""
     name = encounter["name"]
     overrides = CANONICAL_CREATURE.get(name, {})
@@ -171,7 +171,7 @@ def _repair(
     return rebuilt if changed else None
 
 
-def main(argv: Optional[list[str]] = None) -> None:
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base", default=BASE)
     parser.add_argument("--campaign", default=DEFAULT_CAMPAIGN)

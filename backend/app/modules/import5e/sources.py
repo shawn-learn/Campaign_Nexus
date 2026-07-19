@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 
 def is_srd(entry: dict[str, Any]) -> bool:
@@ -22,7 +22,7 @@ def is_srd(entry: dict[str, Any]) -> bool:
 
 def load_json(path: Path) -> dict[str, Any]:
     with path.open(encoding="utf-8") as fh:
-        return json.load(fh)
+        return cast("dict[str, Any]", json.load(fh))
 
 
 def load_index(dir_path: Path) -> dict[str, str]:

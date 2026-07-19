@@ -19,6 +19,7 @@ import { CombatPage } from './features/playbook/CombatPage'
 import { RandomTablesPage } from './features/playbook/RandomTablesPage'
 import { MapsPage } from './features/atlas/MapsPage'
 import { QuestsPage } from './features/playbook/QuestsPage'
+import { StoryPage } from './features/story/StoryPage'
 import { NpcsPage } from './features/npcs/NpcsPage'
 import { DataPage } from './features/settings/DataPage'
 import { EquipmentPage } from './features/equipment/EquipmentPage'
@@ -127,6 +128,12 @@ const questsRoute = createRoute({
   component: QuestsPage,
 })
 
+const storyRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/story',
+  component: StoryPage,
+})
+
 const npcsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/npcs',
@@ -173,6 +180,7 @@ const routeTree = rootRoute.addChildren([
   randomTablesRoute,
   mapsRoute,
   questsRoute,
+  storyRoute,
   npcsRoute,
   equipmentRoute,
   merchantsRoute,

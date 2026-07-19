@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
 
 
 def _demo(client: TestClient) -> str:
@@ -83,6 +84,84 @@ def test_soft_delete_and_restore(client: TestClient) -> None:
 
     types = _event_types(client, cid)
     assert "entity_deleted" in types and "entity_restored" in types
+
+
+def test_purge_removes_only_soft_deleted(client: TestClient) -> None:
+    cid = _demo(client)
+    keep = client.post(
+        f"/api/v1/campaigns/{cid}/entities", json={"entity_type": "location", "name": "Keep"}
+    ).json()["id"]
+    doomed = client.post(
+        f"/api/v1/campaigns/{cid}/entities", json={"entity_type": "note", "name": "Scratch"}
+    ).json()["id"]
+    client.delete(f"/api/v1/campaigns/{cid}/entities/{doomed}")
+
+    resp = client.post(f"/api/v1/campaigns/{cid}/entities/purge")
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["count"] == 1
+    assert [e["name"] for e in body["entities"]] == ["Scratch"]
+
+    # Gone for good — not even include_deleted finds it. The live entity is untouched.
+    with_deleted = client.get(
+        f"/api/v1/campaigns/{cid}/entities", params={"include_deleted": "true"}
+    ).json()
+    ids = [e["id"] for e in with_deleted]
+    assert doomed not in ids
+    assert keep in ids
+    assert client.get(f"/api/v1/campaigns/{cid}/entities/{doomed}").status_code == 404
+    assert "entities_purged" in _event_types(client, cid)
+
+
+def test_purge_with_nothing_deleted_is_a_no_op(client: TestClient) -> None:
+    cid = _demo(client)
+    resp = client.post(f"/api/v1/campaigns/{cid}/entities/purge")
+    assert resp.status_code == 200
+    assert resp.json() == {"count": 0, "entities": []}
+    # A no-op must not litter the audit log.
+    assert "entities_purged" not in _event_types(client, cid)
+
+
+def test_soft_deleted_npc_drops_out_of_the_npc_list(client: TestClient) -> None:
+    """Soft delete leaves the Npc row behind; the list must still hide it."""
+    cid = _demo(client)
+    eid = client.post(
+        f"/api/v1/campaigns/{cid}/npcs", json={"name": "Doomed Baron"}
+    ).json()["entity_id"]
+    assert eid in [n["entity_id"] for n in client.get(f"/api/v1/campaigns/{cid}/npcs").json()]
+
+    client.delete(f"/api/v1/campaigns/{cid}/entities/{eid}")
+    assert eid not in [n["entity_id"] for n in client.get(f"/api/v1/campaigns/{cid}/npcs").json()]
+
+    # ...but include_deleted still reaches it, flagged, so it can be found and restored.
+    listed = client.get(
+        f"/api/v1/campaigns/{cid}/npcs", params={"include_deleted": "true"}
+    ).json()
+    match = [n for n in listed if n["entity_id"] == eid]
+    assert match and match[0]["deleted"] is True
+
+    client.post(f"/api/v1/campaigns/{cid}/entities/{eid}/restore")
+    back = client.get(f"/api/v1/campaigns/{cid}/npcs").json()
+    assert next(n for n in back if n["entity_id"] == eid)["deleted"] is False
+
+
+def test_projection_rebuild_survives_a_purge(client: TestClient, db: Session) -> None:
+    """Events keep naming a purged entity; replaying them must not blow up on the dead id."""
+    from scripts.rebuild_projections import rebuild
+
+    cid = _demo(client)
+    eid = client.post(
+        f"/api/v1/campaigns/{cid}/entities", json={"entity_type": "npc", "name": "Ghost"}
+    ).json()["id"]
+    client.post(
+        f"/api/v1/campaigns/{cid}/notes",
+        json={"text": "Ghost was here", "entity_ids": [eid]},
+    )
+    client.delete(f"/api/v1/campaigns/{cid}/entities/{eid}")
+    assert client.post(f"/api/v1/campaigns/{cid}/entities/purge").json()["count"] == 1
+
+    # Without the guard in chronicle.projectors this raises IntegrityError on the dead id.
+    assert rebuild(db, cid) > 0
 
 
 def test_tagging_and_filtering(client: TestClient) -> None:

@@ -24,7 +24,7 @@ import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from app.modules.import5e import codes, copyres, items, legendary, monsters, sources, spells
 
@@ -62,7 +62,7 @@ class Http:
 # --------------------------------------------------------------------------- #
 # Source-file selection
 # --------------------------------------------------------------------------- #
-def _select_files(dir_path: Path, prefix: str, wanted: Optional[set[str]]) -> list[Path]:
+def _select_files(dir_path: Path, prefix: str, wanted: set[str] | None) -> list[Path]:
     """Files ``<prefix>-<src>.json`` in ``dir_path``, filtered by the index and ``wanted``."""
     index = sources.load_index(dir_path)  # {"MM": "bestiary-mm.json", ...}
     files: list[Path] = []
@@ -271,7 +271,7 @@ def import_spells(http: Http, data: Path, args: argparse.Namespace) -> None:
 # --------------------------------------------------------------------------- #
 # Driver
 # --------------------------------------------------------------------------- #
-def _parse_sources(raw: Optional[str]) -> Optional[set[str]]:
+def _parse_sources(raw: str | None) -> set[str] | None:
     if not raw:
         return None
     return {s.strip().upper() for s in raw.split(",") if s.strip()}
@@ -285,7 +285,7 @@ def _resolve_campaign(http: Http, name: str) -> str:
     return match["id"]
 
 
-def main(argv: Optional[list[str]] = None) -> None:
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Import 5etools content into Campaign_Nexus.")
     parser.add_argument("--type", choices=["monsters", "items", "spells", "all"], default="all")
     parser.add_argument("--base", default=DEFAULT_BASE, help="server base URL")

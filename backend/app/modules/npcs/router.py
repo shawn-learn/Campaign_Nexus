@@ -45,6 +45,7 @@ def list_npcs(
     faction_id: str | None = None,
     met_party: bool | None = None,
     knows: str | None = None,
+    include_deleted: bool = False,
     session: Session = Depends(get_session),
     ctx: CampaignContext = Viewer,
 ) -> list[NpcOut]:
@@ -52,6 +53,7 @@ def list_npcs(
     return service.list_npcs(
         session, ctx.campaign_id, status=status_filter, location_id=location_id,
         faction_id=faction_id, met_party=met_party, knows=knows,
+        include_deleted=include_deleted,
     )
 
 

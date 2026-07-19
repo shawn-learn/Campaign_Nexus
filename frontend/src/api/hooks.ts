@@ -4,7 +4,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { applyOptimistic } from '../lib/combatReducer'
 import type { CombatState } from '../lib/combatReducer'
 import { api } from './client'
-import type { CampaignCreate, EntityCreate, EntityUpdate } from './client'
+import type {
+  CampaignCreate,
+  EntityCreate,
+  EntityUpdate,
+  StoryEdgeIn,
+  StoryGraph,
+  StoryNodeIn,
+  StoryNodeUpdate,
+} from './client'
 import type { components } from './schema'
 
 type SkillChallengeCreate = components['schemas']['SkillChallengeCreate']
@@ -141,6 +149,21 @@ export function useRestoreEntity(campaignId: string) {
           params: { path: { campaign_id: campaignId, entity_id: entityId } },
         }),
         'restore entity',
+      ),
+    onSuccess: () => invalidateCampaign(qc, campaignId),
+  })
+}
+
+/** Permanently destroy every soft-deleted entity in the campaign. Irreversible. */
+export function usePurgeDeletedEntities(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async () =>
+      unwrap(
+        await api.POST('/api/v1/campaigns/{campaign_id}/entities/purge', {
+          params: { path: { campaign_id: campaignId } },
+        }),
+        'purge deleted entities',
       ),
     onSuccess: () => invalidateCampaign(qc, campaignId),
   })
@@ -673,9 +696,32 @@ const combatKey = (campaignId: string | null, runId: string | null) =>
 function invalidateCombat(qc: ReturnType<typeof useQueryClient>, campaignId: string) {
   void qc.invalidateQueries({ queryKey: ['clock', campaignId] })
   void qc.invalidateQueries({ queryKey: ['dashboard', campaignId] })
+  // Starting, ending, or cancelling all change which runs are still in play.
+  void qc.invalidateQueries({ queryKey: ['combats', 'open', campaignId] })
   void qc.invalidateQueries({ queryKey: ['party', campaignId] })
   void qc.invalidateQueries({ queryKey: ['events', campaignId] })
   void qc.invalidateQueries({ queryKey: ['timeline', campaignId] })
+}
+
+/**
+ * The campaign's in-play runs (setup or active), newest first.
+ *
+ * This is how the tracker finds a fight it has no local pointer to. localStorage alone was
+ * never enough: clear it, or open the app in another browser, and a running combat became
+ * unreachable while the dashboard went on forcing the combat preset.
+ */
+export function useOpenCombats(campaignId: string | null, enabled = true) {
+  return useQuery({
+    enabled: !!campaignId && enabled,
+    queryKey: ['combats', 'open', campaignId],
+    queryFn: async () =>
+      unwrap(
+        await api.GET('/api/v1/campaigns/{campaign_id}/combats', {
+          params: { path: { campaign_id: campaignId! } },
+        }),
+        'load open combats',
+      ),
+  })
 }
 
 export function useCombat(campaignId: string | null, runId: string | null) {
@@ -906,6 +952,30 @@ export function useEndCombat(campaignId: string, runId: string | null) {
       ),
     onSuccess: () => {
       // The run's status flipped to completed and PC HP was written back to the party.
+      void qc.invalidateQueries({ queryKey: combatKey(campaignId, runId) })
+      invalidateCombat(qc, campaignId)
+    },
+  })
+}
+
+/**
+ * Call the fight off. Unlike ending it there is no summary and nothing is written back —
+ * the run closes, the clock rewinds to where it started, and the campaign leaves combat
+ * mode. Invalidating the dashboard is the part that matters: `active_combat` is what pins
+ * it to the combat preset.
+ */
+export function useCancelCombat(campaignId: string, runId: string | null) {
+  const qc = useQueryClient()
+  return useMutation({
+    // 204, so there is no body to unwrap — only an error worth raising.
+    mutationFn: async () => {
+      const { error } = await api.POST(
+        '/api/v1/campaigns/{campaign_id}/combats/{run_id}/cancel',
+        { params: { path: { campaign_id: campaignId, run_id: runId! } } },
+      )
+      if (error) throw new Error('cancel combat')
+    },
+    onSuccess: () => {
       void qc.invalidateQueries({ queryKey: combatKey(campaignId, runId) })
       invalidateCombat(qc, campaignId)
     },
@@ -1781,6 +1851,7 @@ export interface NpcFilters {
   faction_id?: string
   met_party?: boolean
   knows?: string
+  include_deleted?: boolean
 }
 
 export function useNpcs(campaignId: string | null, filters: NpcFilters = {}) {
@@ -2852,5 +2923,184 @@ export function useSellItem(campaignId: string, merchantId: string) {
         'sell item',
       ),
     onSuccess: () => invalidateShopTxn(qc, campaignId),
+  })
+}
+
+// --- story engine (FR-4) ----------------------------------------------------
+// The GM authors a graph of beats; the engine only *suggests* which are reachable
+// (backend service.py:146). Activating a beat runs its consequences, which reach into
+// quests, NPCs and flags — hence the wide invalidation on the status mutation.
+export function useStoryGraph(campaignId: string | null) {
+  return useQuery({
+    enabled: !!campaignId,
+    queryKey: ['story-graph', campaignId],
+    queryFn: async () =>
+      unwrap(
+        await api.GET('/api/v1/campaigns/{campaign_id}/story/graph', {
+          params: { path: { campaign_id: campaignId! } },
+        }),
+        'load story graph',
+      ),
+  })
+}
+
+export function useStorySuggestions(campaignId: string | null) {
+  return useQuery({
+    enabled: !!campaignId,
+    queryKey: ['story-suggestions', campaignId],
+    queryFn: async () =>
+      unwrap(
+        await api.GET('/api/v1/campaigns/{campaign_id}/story/suggestions', {
+          params: { path: { campaign_id: campaignId! } },
+        }),
+        'load story suggestions',
+      ),
+  })
+}
+
+// A query rather than a mutation: the check is a pure read of campaign state, so it caches
+// per-expression and a flag write can invalidate every displayed truth value at once.
+export function useConditionCheck(campaignId: string | null, expr: string) {
+  return useQuery({
+    enabled: !!campaignId && expr.trim() !== '',
+    queryKey: ['story-condition', campaignId, expr],
+    queryFn: async () =>
+      unwrap(
+        await api.POST('/api/v1/campaigns/{campaign_id}/story/conditions/check', {
+          params: { path: { campaign_id: campaignId! } },
+          body: { expr },
+        }),
+        'check condition',
+      ),
+  })
+}
+
+function invalidateStory(qc: ReturnType<typeof useQueryClient>, campaignId: string) {
+  void qc.invalidateQueries({ queryKey: ['story-graph', campaignId] })
+  void qc.invalidateQueries({ queryKey: ['story-suggestions', campaignId] })
+  void qc.invalidateQueries({ queryKey: ['story-condition', campaignId] })
+}
+
+export function useSetStoryFlag(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (vars: { key: string; value: unknown }) =>
+      unwrap(
+        await api.PUT('/api/v1/campaigns/{campaign_id}/story/flags', {
+          params: { path: { campaign_id: campaignId } },
+          body: { key: vars.key, value: vars.value },
+        }),
+        'set flag',
+      ),
+    onSuccess: () => invalidateStory(qc, campaignId),
+  })
+}
+
+export function useCreateStoryNode(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: StoryNodeIn) =>
+      unwrap(
+        await api.POST('/api/v1/campaigns/{campaign_id}/story/nodes', {
+          params: { path: { campaign_id: campaignId } },
+          body,
+        }),
+        'create story node',
+      ),
+    onSuccess: () => {
+      invalidateStory(qc, campaignId)
+      invalidateCampaign(qc, campaignId) // a beat is also a wiki entity
+    },
+  })
+}
+
+// Position writes deliberately patch the cache instead of invalidating: a refetch mid-drag
+// replaces the node array and the canvas snaps back. Consequence edits do invalidate.
+export function useUpdateStoryNode(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (vars: { nodeId: string } & StoryNodeUpdate) => {
+      const { nodeId, ...body } = vars
+      return unwrap(
+        await api.PATCH('/api/v1/campaigns/{campaign_id}/story/nodes/{node_id}', {
+          params: { path: { campaign_id: campaignId, node_id: nodeId } },
+          body,
+        }),
+        'update story node',
+      )
+    },
+    onSuccess: (node, vars) => {
+      qc.setQueryData(['story-graph', campaignId], (prev: StoryGraph | undefined) =>
+        prev
+          ? { ...prev, nodes: prev.nodes.map((n) => (n.entity_id === node.entity_id ? node : n)) }
+          : prev,
+      )
+      if (vars.consequences !== undefined) invalidateStory(qc, campaignId)
+    },
+  })
+}
+
+export function useSetStoryNodeStatus(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (vars: { nodeId: string; status: string }) =>
+      unwrap(
+        await api.POST('/api/v1/campaigns/{campaign_id}/story/nodes/{node_id}/status', {
+          params: { path: { campaign_id: campaignId, node_id: vars.nodeId } },
+          body: { status: vars.status },
+        }),
+        'set story node status',
+      ),
+    onSuccess: () => {
+      // Consequences can move quests, relocate NPCs, set flags and write the timeline.
+      invalidateStory(qc, campaignId)
+      invalidateQuests(qc, campaignId)
+      invalidateCampaign(qc, campaignId)
+      void qc.invalidateQueries({ queryKey: ['npcs', campaignId] })
+    },
+  })
+}
+
+export function useDeleteStoryNode(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (nodeId: string) => {
+      const { error } = await api.DELETE('/api/v1/campaigns/{campaign_id}/story/nodes/{node_id}', {
+        params: { path: { campaign_id: campaignId, node_id: nodeId } },
+      })
+      if (error) throw new Error('delete story node')
+    },
+    onSuccess: () => {
+      invalidateStory(qc, campaignId)
+      invalidateCampaign(qc, campaignId)
+    },
+  })
+}
+
+export function useCreateStoryEdge(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: StoryEdgeIn) =>
+      unwrap(
+        await api.POST('/api/v1/campaigns/{campaign_id}/story/edges', {
+          params: { path: { campaign_id: campaignId } },
+          body,
+        }),
+        'create story edge',
+      ),
+    onSuccess: () => invalidateStory(qc, campaignId),
+  })
+}
+
+export function useDeleteStoryEdge(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (edgeId: string) => {
+      const { error } = await api.DELETE('/api/v1/campaigns/{campaign_id}/story/edges/{edge_id}', {
+        params: { path: { campaign_id: campaignId, edge_id: edgeId } },
+      })
+      if (error) throw new Error('delete story edge')
+    },
+    onSuccess: () => invalidateStory(qc, campaignId),
   })
 }

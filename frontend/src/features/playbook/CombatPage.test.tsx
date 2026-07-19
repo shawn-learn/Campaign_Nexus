@@ -81,6 +81,8 @@ let served: unknown = null
 let rolls: unknown[] = []
 /** What GET /combatants/{id}/attacks serves. */
 let attacks: unknown[] = []
+/** What GET /combats serves — the campaign's runs still in play. */
+let openRuns: unknown[] = []
 
 const SCIMITAR = {
   index: 0, name: 'Scimitar', kind: 'melee', to_hit: 4,
@@ -127,6 +129,7 @@ beforeEach(() => {
   served = null
   rolls = []
   attacks = []
+  openRuns = []
   GET.mockImplementation((path: string) => {
     if (path.includes('/encounters')) return ok([{ id: 'enc1', name: 'Goblin Ambush' }])
     if (path.includes('/conditions')) {
@@ -136,6 +139,9 @@ beforeEach(() => {
     if (path.includes('/attacks')) return ok(attacks)
     if (path.includes('/monsters')) return ok([{ id: 'm-ogre', name: 'Ogre' }])
     if (path.includes('/combats/')) return served ? ok(served) : fail('combat not found')
+    // The unfiltered list: the campaign's in-play runs, which is how the tracker resumes a
+    // fight it has no localStorage pointer to.
+    if (path.endsWith('/combats')) return ok(openRuns)
     return ok(null)
   })
 })
@@ -571,6 +577,80 @@ describe('CombatPage', () => {
         }),
       ),
     )
+    confirmSpy.mockRestore()
+  })
+
+  it('resumes a running combat the browser has no pointer to', async () => {
+    // Nothing in localStorage — the state that used to strand a fight and pin the
+    // dashboard to combat mode with no way back into it.
+    served = run(stateWith(3, 0))
+    openRuns = [{ run_id: 'run1', encounter_id: 'enc1', status: 'active', round: 3 }]
+
+    const view = render(<CombatPage />, { wrapper })
+    const ui = within(view.container)
+
+    // The fight, not the encounter picker.
+    await ui.findByRole('heading', { name: /round 3/i })
+    expect(ui.queryByRole('combobox')).not.toBeInTheDocument()
+    // And the pointer is restored, so the next reload is cheap.
+    expect(localStorage.getItem('nexus.combat.camp1')).toBe('run1')
+  })
+
+  it('offers the encounter picker when nothing is in play', async () => {
+    openRuns = []
+    const view = render(<CombatPage />, { wrapper })
+    const ui = within(view.container)
+
+    await ui.findByRole('option', { name: 'Goblin Ambush' })
+    expect(ui.getByRole('button', { name: /start combat/i })).toBeInTheDocument()
+  })
+
+  it('cancels a running combat and falls back to the encounter picker', async () => {
+    const ui = await startedCombat()
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
+
+    fireEvent.click(ui.getByRole('button', { name: /cancel combat/i }))
+    expect(confirmSpy).toHaveBeenCalled()
+    expect(POST).not.toHaveBeenCalledWith(
+      '/api/v1/campaigns/{campaign_id}/combats/{run_id}/cancel',
+      expect.anything(),
+    )
+
+    confirmSpy.mockReturnValue(true)
+    POST.mockReturnValueOnce(Promise.resolve({})) // 204: no body
+    fireEvent.click(ui.getByRole('button', { name: /cancel combat/i }))
+
+    await waitFor(() =>
+      expect(POST).toHaveBeenCalledWith(
+        '/api/v1/campaigns/{campaign_id}/combats/{run_id}/cancel',
+        expect.objectContaining({
+          params: { path: { campaign_id: 'camp1', run_id: 'run1' } },
+        }),
+      ),
+    )
+    // Back to the picker, ready for a different encounter — and no summary, since a
+    // cancelled fight has no outcome to report.
+    await ui.findByRole('combobox')
+    expect(ui.queryByText(/combat ended after/i)).not.toBeInTheDocument()
+    // The dead run id is dropped, so a refresh doesn't resume it.
+    expect(localStorage.getItem('nexus.combat.camp1')).toBeNull()
+    confirmSpy.mockRestore()
+  })
+
+  it('cancels from the initiative roster, before round 1', async () => {
+    const ui = await startedSetup()
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    POST.mockReturnValueOnce(Promise.resolve({}))
+
+    fireEvent.click(ui.getByRole('button', { name: /cancel combat/i }))
+
+    await waitFor(() =>
+      expect(POST).toHaveBeenCalledWith(
+        '/api/v1/campaigns/{campaign_id}/combats/{run_id}/cancel',
+        expect.anything(),
+      ),
+    )
+    await ui.findByRole('combobox')
     confirmSpy.mockRestore()
   })
 

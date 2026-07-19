@@ -16,6 +16,8 @@ from app.modules.wiki.schemas import (
     LinkCreate,
     LinkTypeCreate,
     LinkTypeOut,
+    PurgedEntity,
+    PurgeResult,
     ReferencesOut,
     TagCreate,
     TagOut,
@@ -188,6 +190,18 @@ def delete_entity(
     except service.InvalidStateTransition as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
     return service.to_out(session, entity)
+
+
+@router.post("/entities/purge", response_model=PurgeResult)
+def purge_deleted(
+    session: Session = Depends(get_session),
+    ctx: CampaignContext = Editor,
+) -> PurgeResult:
+    """Permanently delete every soft-deleted entity in the campaign. Irreversible."""
+    purged = service.purge_deleted_entities(session, ctx.campaign_id)
+    return PurgeResult(
+        count=len(purged), entities=[PurgedEntity(**p) for p in purged]
+    )
 
 
 @router.post("/entities/{entity_id}/restore", response_model=EntityOut)

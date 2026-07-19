@@ -814,8 +814,11 @@ def test_list_combats_by_encounter(client: TestClient) -> None:
     client.post(f"/api/v1/campaigns/{cid}/combats/{run['run_id']}/begin")
     listed = client.get(f"/api/v1/campaigns/{cid}/combats?encounter_id={enc['id']}").json()
     assert listed[0]["status"] == "active"
-    # No filter → empty (the endpoint is scoped to an encounter, not a firehose).
-    assert client.get(f"/api/v1/campaigns/{cid}/combats").json() == []
+    # No filter → the runs still in play, which is how the tracker resumes one it has no
+    # pointer to. (It used to answer [], which is what stranded a fight.)
+    assert [r["run_id"] for r in client.get(f"/api/v1/campaigns/{cid}/combats").json()] == [
+        run["run_id"]
+    ]
 
 
 def test_actions_undo_redo_and_resume(client: TestClient) -> None:
@@ -857,6 +860,58 @@ def test_actions_undo_redo_and_resume(client: TestClient) -> None:
     after = client.get(f"/api/v1/campaigns/{cid}/combats/{run_id}").json()
     assert after["can_redo"] is False
     assert after["state"]["combatants"][gid]["hp"] == 6
+
+
+def test_open_runs_are_listable_so_a_fight_is_never_stranded(client: TestClient) -> None:
+    cid = _demo(client)
+    assert client.get(f"/api/v1/campaigns/{cid}/combats").json() == []
+
+    run_id = _start_from_two_goblins(client, cid)
+    # Unfiltered, the list is what's still in play — the tracker's way back into a fight
+    # when the browser has no pointer to it.
+    listed = client.get(f"/api/v1/campaigns/{cid}/combats").json()
+    assert [r["run_id"] for r in listed] == [run_id]
+    assert listed[0]["status"] == "setup"
+
+    client.post(f"/api/v1/campaigns/{cid}/combats/{run_id}/begin")
+    assert client.get(f"/api/v1/campaigns/{cid}/combats").json()[0]["status"] == "active"
+
+    # Cancelling takes it out of play, and with it the dashboard's combat mode.
+    client.post(f"/api/v1/campaigns/{cid}/combats/{run_id}/cancel")
+    assert client.get(f"/api/v1/campaigns/{cid}/combats").json() == []
+    dash = client.get(f"/api/v1/campaigns/{cid}/views/dashboard").json()
+    assert dash["active_combat"] is None
+
+
+def test_cancel_combat_rewinds_and_records_nothing(client: TestClient) -> None:
+    cid = _demo(client)
+    before = client.get(f"/api/v1/campaigns/{cid}/clock").json()["time_game"]
+    run_id = _start_from_two_goblins(client, cid)
+    run = client.get(f"/api/v1/campaigns/{cid}/combats/{run_id}").json()
+    gid = run["state"]["order"][0]
+    client.post(f"/api/v1/campaigns/{cid}/combats/{run_id}/actions",
+                json={"action_type": "damage", "payload": {"id": gid, "amount": 99}})
+    for _ in range(4):
+        client.post(f"/api/v1/campaigns/{cid}/combats/{run_id}/actions",
+                    json={"action_type": "next_turn", "payload": {}})
+
+    assert client.post(f"/api/v1/campaigns/{cid}/combats/{run_id}/cancel").status_code == 204
+
+    # Back to exploration: the clock is where it was and real time runs again.
+    clock = client.get(f"/api/v1/campaigns/{cid}/clock").json()
+    assert clock["time_game"] == before
+    assert clock["realtime_paused"] is False
+
+    # A cancelled fight leaves no trace in the chronicle, and takes no more actions.
+    types = [e["event_type"] for e in client.get(f"/api/v1/campaigns/{cid}/events").json()]
+    assert "combat_ended" not in types and "combatant_defeated" not in types
+    closed = client.post(f"/api/v1/campaigns/{cid}/combats/{run_id}/actions",
+                         json={"action_type": "next_turn", "payload": {}})
+    assert closed.status_code == 409
+
+    # Idempotent — a second cancel can't rewind anything further.
+    assert client.post(f"/api/v1/campaigns/{cid}/combats/{run_id}/cancel").status_code == 204
+    assert client.get(f"/api/v1/campaigns/{cid}/clock").json()["time_game"] == before
 
 
 def test_end_combat_advances_clock_and_logs(client: TestClient) -> None:

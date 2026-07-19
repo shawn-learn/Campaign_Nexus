@@ -18,6 +18,8 @@ class NpcOut(BaseModel):
     secrets: str | None
     voice_notes: str | None
     knows_about: list[str]
+    #: True when the underlying wiki entity is soft-deleted (only listed with include_deleted).
+    deleted: bool = False
 
 
 class NpcCreate(BaseModel):

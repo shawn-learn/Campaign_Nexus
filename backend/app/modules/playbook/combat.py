@@ -33,6 +33,13 @@ from app.modules.rules import registry
 from app.modules.rules.models import Monster, StatBlock
 from app.modules.time import service as time_service
 
+# A run in one of these is still in play — it holds the campaign in combat mode, and the
+# tracker should resume it. `setup` is rolling initiative; `active` is a fight underway.
+OPEN_STATUSES = frozenset({"setup", "active"})
+# A run in one of these is done with: no more actions, no more undo/redo. `completed` is a
+# fight that was played to its end; `abandoned` is one the GM called off (see cancel_combat).
+CLOSED_STATUSES = frozenset({"completed", "abandoned"})
+
 
 class CombatNotFound(LookupError):
     pass
@@ -263,7 +270,7 @@ def roll_initiative(
     my players' word for theirs" is one request rather than two.
     """
     run = _require(session, campaign.id, run_id)
-    if run.status == "completed":
+    if run.status in CLOSED_STATUSES:
         raise CombatClosed(run_id)
 
     state = state_of(session, run)
@@ -341,7 +348,7 @@ def add_combatant(
     never lets anything else read inside a stat block (docs/04 §6.8).
     """
     run = _require(session, campaign.id, run_id)
-    if run.status == "completed":
+    if run.status in CLOSED_STATUSES:
         raise CombatClosed(run_id)
     system = registry.get_system(campaign.rule_system_id)
     state = state_of(session, run)
@@ -447,7 +454,7 @@ def attack(
     ``damage`` action with a ``roll_id`` and the number stays traceable.
     """
     run = _require(session, campaign.id, run_id)
-    if run.status == "completed":
+    if run.status in CLOSED_STATUSES:
         raise CombatClosed(run_id)
     state = state_of(session, run)
     if attacker_id not in state.combatants:
@@ -544,7 +551,7 @@ def roll_death_save(
     word, so folding the log stays deterministic (ADR-005).
     """
     run = _require(session, campaign.id, run_id)
-    if run.status == "completed":
+    if run.status in CLOSED_STATUSES:
         raise CombatClosed(run_id)
     state = state_of(session, run)
     if combatant_id not in state.combatants:
@@ -580,7 +587,7 @@ def roll_death_save(
 def begin_combat(session: Session, campaign_id: str, run_id: str) -> CombatRun:
     """Leave setup and start round 1. Idempotent; a completed run cannot go back."""
     run = _require(session, campaign_id, run_id)
-    if run.status == "completed":
+    if run.status in CLOSED_STATUSES:
         raise CombatClosed(run_id)
     run.status = "active"
     session.commit()
@@ -596,6 +603,23 @@ def rolls_for(session: Session, run_id: str, limit: int = 50) -> list[CombatRoll
             .where(CombatRoll.combat_run_id == run_id)
             .order_by(CombatRoll.id.desc())
             .limit(limit)
+        )
+    )
+
+
+def open_runs(session: Session, campaign_id: str) -> list[CombatRun]:
+    """Runs still in play, newest first. A run rolling initiative counts: it hasn't begun,
+    but it is very much in play, and the campaign is already paused for it.
+
+    Ordered by id, not ``started_at_game``: ULIDs sort by creation time, whereas game time
+    is 0 for every run in a campaign whose clock never moved — which made "the newest run"
+    arbitrary exactly where it mattered.
+    """
+    return list(
+        session.scalars(
+            select(CombatRun)
+            .where(CombatRun.campaign_id == campaign_id, CombatRun.status.in_(OPEN_STATUSES))
+            .order_by(CombatRun.id.desc())
         )
     )
 
@@ -668,7 +692,7 @@ def append_action(
     run = _require(session, campaign_id, run_id)
     # Only a finished run is closed to writes: `setup` still takes actions, since that is
     # where initiative gets rolled and corrected before round 1 begins.
-    if run.status == "completed":
+    if run.status in CLOSED_STATUSES:
         raise CombatClosed(run_id)
 
     # A new action after an undo truncates the redo tail.
@@ -725,6 +749,32 @@ def _write_back_party_hp(
         doc = json.loads(block.doc_json) if block else {}
         status = system.with_hit_points(json.loads(member.status_json), doc, combatant.hp)
         member.status_json = json.dumps(status)
+
+
+def cancel_combat(session: Session, campaign: Campaign, run_id: str) -> None:
+    """Call the fight off: the run closes, and the campaign goes back to exploration.
+
+    The opposite of ``end_combat`` in every way that matters. A cancelled fight didn't
+    happen, so nothing is written back — no party HP, no chronicle entry, no clock
+    advance. The clock rewinds to where the combat started and real time resumes, which
+    is what takes the campaign out of combat mode (``realtime_paused`` is the flag the
+    dashboard reads to force the combat preset).
+
+    The action log stays put. It is the record of a run that was abandoned, and deleting
+    it would strand the rolls that reference it.
+
+    Idempotent: cancelling an already-closed run is a no-op, so a double-click can't
+    rewind the clock out from under a fight that legitimately ended.
+    """
+    run = _require(session, campaign.id, run_id)
+    if run.status in CLOSED_STATUSES:
+        return
+    campaign.clock_time_game = run.started_at_game
+    run.status = "abandoned"
+    campaign.realtime_paused = False
+    if campaign.realtime_enabled:
+        campaign.realtime_anchor_real = now_real_iso()  # resume real time from here
+    session.commit()
 
 
 def end_combat(session: Session, campaign: Campaign, run_id: str) -> CombatSummary:

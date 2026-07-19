@@ -19,7 +19,8 @@ from __future__ import annotations
 
 import copy
 import re
-from typing import Any, Iterable, Optional
+from collections.abc import Iterable
+from typing import Any
 
 #: 5etools bookkeeping that carries no game data. Dropped after resolution so the converted
 #: doc stays clean and the ``additionalProperties: False`` monster schema is easier to satisfy.
@@ -109,7 +110,7 @@ def _replace_arr(entry: dict[str, Any], target: str, op: dict[str, Any]) -> None
     if not isinstance(arr, list):
         return
     replace, items = op.get("replace"), _as_list(op.get("items"))
-    index: Optional[int] = None
+    index: int | None = None
     if isinstance(replace, dict) and isinstance(replace.get("index"), int):
         index = replace["index"]
     elif isinstance(replace, str):
@@ -262,7 +263,8 @@ def _apply_mods(entry: dict[str, Any], mod: dict[str, Any]) -> None:
         for op in _as_list(ops):
             if not isinstance(op, dict):
                 continue
-            handler = _MOD_HANDLERS.get(op.get("mode"))
+            mode = op.get("mode")
+            handler = _MOD_HANDLERS.get(mode) if isinstance(mode, str) else None
             if handler is not None:
                 handler(entry, target, op)
 
@@ -277,7 +279,7 @@ def strip_noise(entry: dict[str, Any]) -> dict[str, Any]:
 def resolve_copy(
     entry: dict[str, Any],
     index: MonsterIndex,
-    _seen: Optional[frozenset[tuple[str, str]]] = None,
+    _seen: frozenset[tuple[str, str]] | None = None,
 ) -> dict[str, Any]:
     """Return ``entry`` with its ``_copy`` base merged in and ``_mod`` operations applied.
 

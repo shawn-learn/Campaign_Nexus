@@ -721,7 +721,8 @@ ul.feed li:last-child { border-bottom: none; }
 .objectives .done { text-decoration: line-through; color: var(--muted); }
 
 /* React Flow renders on a dark canvas; keep its chrome in the app's palette. */
-.quest-graph .react-flow__controls-button {
+.quest-graph .react-flow__controls-button,
+.story-graph .react-flow__controls-button {
   background: var(--panel-2);
   border-bottom: 1px solid var(--border);
   fill: var(--text);

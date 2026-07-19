@@ -15,6 +15,7 @@ from app.core.event_bus import EventRecord
 from app.core.ids import new_id
 from app.core.projections import register_projector, register_reset
 from app.modules.chronicle.models import TimelineEntity, TimelineEntry
+from app.modules.wiki.models import Entity
 
 # event_type -> (significance 1..4, icon)
 TIMELINE_EVENTS: dict[str, tuple[int, str]] = {
@@ -83,7 +84,13 @@ def timeline_projector(session: Session, event: EventRecord) -> None:
     )
     session.add(entry)
     session.flush()
+    # `subject_entity_ids` lives in the event log as a plain id list with no foreign key, so
+    # an entity purged after the fact leaves the id behind. TimelineEntity *does* have the
+    # FK, so projecting a dead id would fail the insert — and take a whole replay with it.
+    # The log stays immutable; the projection just skips what no longer exists.
     for entity_id in event.subject_entity_ids:
+        if session.get(Entity, entity_id) is None:
+            continue
         session.add(TimelineEntity(timeline_id=entry.id, entity_id=entity_id))
 
 

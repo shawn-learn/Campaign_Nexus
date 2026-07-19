@@ -7,7 +7,7 @@ the resolved class names in via ``classes``.
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from app.modules.import5e import codes, tags
 
@@ -33,7 +33,7 @@ def _text(node: Any) -> str:
     return tags.strip_tags(" ".join(p for p in parts if p))
 
 
-def casting_time(time: Any) -> Optional[str]:
+def casting_time(time: Any) -> str | None:
     if not isinstance(time, list) or not time:
         return None
     t = time[0]
@@ -48,13 +48,13 @@ def casting_time(time: Any) -> Optional[str]:
     return f"{label}, {cond}" if cond else label
 
 
-def range_text(rng: Any) -> Optional[str]:
+def range_text(rng: Any) -> str | None:
     if not isinstance(rng, dict):
         return None
     rtype = rng.get("type")
     dist = rng.get("distance")
     if rtype in ("self", "touch") and not isinstance(dist, dict):
-        return rtype.capitalize()
+        return str(rtype).capitalize()
     if isinstance(dist, dict):
         dt = dist.get("type")
         amount = dist.get("amount")
@@ -75,7 +75,7 @@ def range_text(rng: Any) -> Optional[str]:
     return (rtype or "").capitalize() or None
 
 
-def duration_text(duration: Any) -> tuple[Optional[str], bool]:
+def duration_text(duration: Any) -> tuple[str | None, bool]:
     """Return ``(text, concentration)``."""
     if not isinstance(duration, list) or not duration:
         return None, False
@@ -84,6 +84,7 @@ def duration_text(duration: Any) -> tuple[Optional[str], bool]:
         return None, False
     concentration = bool(d.get("concentration"))
     dtype = d.get("type")
+    text: str | None
     if dtype == "instant":
         text = "Instantaneous"
     elif dtype == "permanent":
@@ -102,12 +103,12 @@ def duration_text(duration: Any) -> tuple[Optional[str], bool]:
     return text, concentration
 
 
-def _components(comp: Any) -> tuple[bool, bool, bool, Optional[str]]:
+def _components(comp: Any) -> tuple[bool, bool, bool, str | None]:
     """Return ``(v, s, m, material_text)``."""
     if not isinstance(comp, dict):
         return False, False, False, None
     m = comp.get("m")
-    material: Optional[str] = None
+    material: str | None = None
     if isinstance(m, str):
         material = m
     elif isinstance(m, dict):
@@ -116,8 +117,8 @@ def _components(comp: Any) -> tuple[bool, bool, bool, Optional[str]]:
 
 
 def to_spell(
-    entry: dict[str, Any], *, classes: Optional[list[str]] = None
-) -> Optional[dict[str, Any]]:
+    entry: dict[str, Any], *, classes: list[str] | None = None
+) -> dict[str, Any] | None:
     """Reshape one 5etools ``spell`` entry into ``SpellCreate`` fields, or ``None`` to skip."""
     name = entry.get("name")
     level = entry.get("level")

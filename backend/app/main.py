@@ -21,13 +21,17 @@ from app.modules.atlas.router import router as atlas_router
 from app.modules.campaign import service as campaign_service
 from app.modules.campaign.router import router as campaign_router
 from app.modules.chronicle.router import router as events_router
-from app.modules.npcs.router import router as npcs_router
 from app.modules.equipment import library_seed as equipment_library_seed
 from app.modules.equipment import library_seed_cos as equipment_library_seed_cos
 from app.modules.equipment import library_seed_phb as equipment_library_seed_phb
+
+# Imported for its import-time side effect: registers the equipment projectors. The
+# plain `import app.modules...` form would bind the name `app` to the package and
+# collide with the `app = create_app()` module attribute uvicorn resolves.
+from app.modules.equipment import projectors as _equipment_projectors  # noqa: F401
 from app.modules.equipment.router import equipment_router, items_router, library_router
-import app.modules.equipment.projectors  # noqa: F401 — registers projectors on import
 from app.modules.merchant.router import router as merchant_router
+from app.modules.npcs.router import router as npcs_router
 from app.modules.playbook.router import (
     combat_router,
     encounters_router,
