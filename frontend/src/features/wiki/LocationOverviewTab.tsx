@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import type { EntityDetail } from '../../api/client'
 import { useUpdateEntity } from '../../api/hooks'
 import { EntityImages } from './EntityDetailPage'
+import { ShopsHere } from '../merchants/ShopLinks'
+import { EncountersHere } from '../playbook/EncounterLinks'
 
 interface LocationOverviewTabProps {
   campaignId: string
@@ -48,6 +50,12 @@ export function LocationOverviewTab({ campaignId, entityId, entity }: LocationOv
           {update.isPending ? 'Saving…' : 'Save'}
         </button>
       </div>
+
+      {/* Shops with this location as their storefront */}
+      <ShopsHere campaignId={campaignId} entityId={entityId} />
+
+      {/* Encounters staged here */}
+      <EncountersHere backlinks={entity.backlinks ?? []} />
 
       {/* Snapped Images Gallery */}
       <EntityImages campaignId={campaignId} entityId={entityId} />

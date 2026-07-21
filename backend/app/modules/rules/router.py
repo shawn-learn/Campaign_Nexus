@@ -14,6 +14,7 @@ from app.modules.rules.schemas import (
     ConditionOut,
     FacetDefOut,
     ImportResult,
+    MonsterCreate,
     MonsterOut,
     RuleSystemInfo,
     StatBlockCreate,
@@ -183,6 +184,29 @@ def list_monsters(
     return [MonsterOut.model_validate(r) for r in rows]
 
 
+@monsters_router.post("", response_model=MonsterOut, status_code=status.HTTP_201_CREATED)
+def create_monster(
+    body: MonsterCreate,
+    session: Session = Depends(get_session),
+    ctx: CampaignContext = Editor,
+) -> MonsterOut:
+    """Author a new custom monster from scratch, seeded from the plugin's blank stat block."""
+    campaign = session.get(Campaign, ctx.campaign_id)
+    system_id = campaign.rule_system_id if campaign else "dnd5e"
+    if not registry.has_system(system_id):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "rule system not installed")
+    try:
+        return MonsterOut.model_validate(
+            bestiary.create_custom_monster(
+                session, ctx.campaign_id, system_id, name=body.name, doc=body.doc
+            )
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, detail={"errors": str(exc).split("; ")}
+        ) from exc
+
+
 @monsters_router.post("/import", response_model=ImportResult)
 def import_bestiary(
     system_id: str,
@@ -232,6 +256,23 @@ def get_monster(
         )
     except bestiary.MonsterNotFound as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "monster not found") from exc
+
+
+@monsters_router.delete("/{monster_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_monster(
+    monster_id: str,
+    session: Session = Depends(get_session),
+    ctx: CampaignContext = Editor,
+) -> None:
+    try:
+        bestiary.delete_monster(session, ctx.campaign_id, monster_id)
+    except bestiary.MonsterNotFound as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "monster not found") from exc
+    except bestiary.MonsterNotEditable as exc:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "a pack monster can't be deleted — make a variant instead",
+        ) from exc
 
 
 @monsters_router.post("/{monster_id}/variant", response_model=MonsterOut, status_code=201)

@@ -14,6 +14,7 @@ import {
   usePatchParty,
   useConnections,
   useCommitTravel,
+  useTravelTable,
   previewTravel,
 } from '../../api/hooks'
 import { useActiveCampaign } from '../../shell/useActiveCampaign'
@@ -23,6 +24,7 @@ import type { MapTool } from './LeafletMap'
 import { TravelPlanner, RULES_HELP, hoursMinutes } from '../playbook/TravelPlanner'
 import type { LegDraft } from '../playbook/TravelPlanner'
 import type { MapMarker, MapRegion, MapDetail, TravelPlan } from '../../api/client'
+import { convertDistance } from './units'
 
 export function MapCanvas({
   campaignId,
@@ -48,12 +50,15 @@ export function MapCanvas({
   const commitTravel = useCommitTravel(campaignId)
   const { data: connections } = useConnections(campaignId)
   const { campaign } = useActiveCampaign()
+  const { data: travelTable } = useTravelTable(campaign?.rule_system_id ?? null)
+  const travelDistanceUnit = (travelTable?.distance_unit as string) || 'mile'
 
   const handleTravel = (distance: number, travelType: string) => {
     const isForcedMarch = travelType === 'forced march'
+    const distanceInTravelUnit = convertDistance(distance, detail.scale_unit, travelDistanceUnit)
     commitTravel.mutate(
       {
-        legs: [{ distance, terrain: 'road', travel_type: travelType }],
+        legs: [{ distance: distanceInTravelUnit, terrain: 'road', travel_type: travelType }],
         forced_march: isForcedMarch,
       },
       {
@@ -111,7 +116,8 @@ export function MapCanvas({
       const px = Math.sqrt((m1.x - m2.x) ** 2 + (m1.y - m2.y) ** 2)
       const scale = detail.scale_pixels_per_unit
       if (scale && scale > 0) {
-        return { distance: Math.round((px / scale) * 10) / 10, terrain: 'road' }
+        const dist = convertDistance(px / scale, detail.scale_unit, travelDistanceUnit)
+        return { distance: Math.round(dist * 10) / 10, terrain: 'road' }
       }
       return { distance: Math.round(px), terrain: 'road' }
     }
@@ -355,6 +361,7 @@ export function MapCanvas({
                 campaignId={campaignId}
                 detail={detail}
                 draft={draft}
+                travelDistanceUnit={travelDistanceUnit}
                 onClear={() => setDraft([])}
                 onCalibrate={(pxPerUnit, unit) => {
                   updateMap.mutate(
@@ -703,6 +710,7 @@ export function RulerSidePanel({
   onClear,
   onCalibrate,
   onTravel,
+  travelDistanceUnit,
 }: {
   campaignId: string
   detail: MapDetail
@@ -710,6 +718,7 @@ export function RulerSidePanel({
   onClear: () => void
   onCalibrate: (pxPerUnit: number, unit: string) => void
   onTravel?: (distance: number, travelType: string) => void
+  travelDistanceUnit?: string
 }) {
   const [calValue, setCalValue] = useState('')
   const [calUnit, setCalUnit] = useState('mile')
@@ -735,9 +744,10 @@ export function RulerSidePanel({
   }, [hasScale])
 
   const gameDist = hasScale ? pxLength / scale : pxLength
+  const travelDist = hasScale ? convertDistance(gameDist, unit, travelDistanceUnit) : gameDist
 
   useEffect(() => {
-    if (!hasScale || gameDist <= 0) {
+    if (!hasScale || travelDist <= 0) {
       setPreviewPlan(null)
       return
     }
@@ -746,7 +756,7 @@ export function RulerSidePanel({
     let active = true
 
     previewTravel(campaignId, [{
-      distance: gameDist,
+      distance: travelDist,
       terrain: 'road',
       travel_type: travelType,
     }], isForcedMarch)
@@ -766,7 +776,7 @@ export function RulerSidePanel({
     return () => {
       active = false
     }
-  }, [campaignId, gameDist, travelType, hasScale])
+  }, [campaignId, travelDist, travelType, hasScale])
 
   const UNIT_LABELS: Record<string, string> = {
     mile: 'mi',

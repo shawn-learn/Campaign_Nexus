@@ -4,6 +4,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import {
   exportBestiary,
   importBestiary,
+  useCreateMonster,
+  useDeleteMonster,
   useFacetManifest,
   useMakeVariant,
   useMonsters,
@@ -73,6 +75,8 @@ export function BestiaryPage() {
   })
 
   const makeVariant = useMakeVariant(campaignId ?? '')
+  const createMonster = useCreateMonster(campaignId ?? '')
+  const deleteMonster = useDeleteMonster(campaignId ?? '')
   const fromPack = !!selected?.source.startsWith('content_pack:')
   // The stat block behind the selected monster — what an edit actually writes to.
   const { data: block } = useStatBlock(campaignId, editing ? selected?.stat_block_id ?? null : null)
@@ -106,6 +110,18 @@ export function BestiaryPage() {
       <div className="row" style={{ justifyContent: 'space-between' }}>
         <h2 style={{ margin: 0 }}>Bestiary</h2>
         <div className="row" style={{ gap: 6 }}>
+          <button
+            disabled={!campaignId || createMonster.isPending}
+            onClick={() =>
+              createMonster.mutate('New monster', {
+                // A blank custom monster opens straight into the editor in the detail pane —
+                // the "subsheet" — rather than a form bolted above the list.
+                onSuccess: (m) => { setSelected(m); setEditing(true) },
+              })
+            }
+          >
+            {createMonster.isPending ? 'Creating…' : 'New monster'}
+          </button>
           <button className="ghost" onClick={() => void doExport()}>Export JSON</button>
           <button className="ghost" onClick={() => void doImport()}>Import JSON</button>
         </div>
@@ -195,6 +211,19 @@ export function BestiaryPage() {
                 </button>
               ) : (
                 <button onClick={() => setEditing(true)}>Edit</button>
+              )}
+              {!editing && !fromPack && (
+                <button
+                  className="ghost"
+                  style={{ color: 'var(--danger)' }}
+                  disabled={deleteMonster.isPending}
+                  onClick={() => {
+                    if (!confirm(`Delete ${selected.name}? This can't be undone.`)) return
+                    deleteMonster.mutate(selected.id, { onSuccess: () => setSelected(null) })
+                  }}
+                >
+                  Delete
+                </button>
               )}
             </div>
             {fromPack && !editing && (

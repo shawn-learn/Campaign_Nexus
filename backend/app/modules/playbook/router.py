@@ -226,7 +226,8 @@ def create_encounter(
     return encounters.create_encounter(
         session, _campaign(session, ctx.campaign_id),
         name=body.name, terrain=body.terrain, hazards=body.hazards, tactics=body.tactics,
-        combatants=body.combatants, location_id=body.location_id, created_by=ctx.user_id,
+        combatants=body.combatants, environment=body.environment,
+        location_id=body.location_id, created_by=ctx.user_id,
     )
 
 
@@ -484,6 +485,7 @@ def _run_out(session: Session, run: CombatRun) -> CombatRunOut:
         can_undo=run.fold_cursor > 0, can_redo=run.fold_cursor < total,
         state=combat.state_of(session, run),
         combatant_blocks=combat.combatant_blocks(session, run.id),
+        combatant_environments=combat.combatant_environments(session, run.id),
         initiative_dice=combat.initiative_die(session, run),
         death_saves=DeathSaveRulesOut.model_validate(combat.death_save_rules(session, run)),
     )
@@ -594,6 +596,7 @@ def roll_death_save(
     try:
         run = combat.roll_death_save(
             session, _campaign(session, ctx.campaign_id), run_id, body.combatant_id,
+            manual_result=body.manual_result,
         )
     except combat.CombatNotFound as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "combat not found") from exc
@@ -744,7 +747,7 @@ def cancel_combat(
     session: Session = Depends(get_session),
     ctx: CampaignContext = Editor,
 ) -> None:
-    """Call the fight off — no summary, no write-back, back to exploration."""
+    """Call the fight off — no summary, no chronicle entry, back to exploration."""
     try:
         combat.cancel_combat(session, _campaign(session, ctx.campaign_id), run_id)
     except combat.CombatNotFound as exc:
@@ -931,7 +934,7 @@ def update_encounter(
         return encounters.update_encounter(
             session, _campaign(session, ctx.campaign_id), encounter_id,
             terrain=body.terrain, hazards=body.hazards, tactics=body.tactics,
-            combatants=body.combatants,
+            combatants=body.combatants, environment=body.environment,
         )
     except encounters.EncounterNotFound as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "encounter not found") from exc

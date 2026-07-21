@@ -108,6 +108,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/campaigns/{campaign_id}/search/deep": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search Entities Deep
+         * @description Ranked search with highlighted snippets of the summary/article text that matched.
+         *
+         *     ``prose_only`` ignores name and tag matches, answering "where did I write about this?"
+         */
+        get: operations["search_entities_deep_api_v1_campaigns__campaign_id__search_deep_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/campaigns/{campaign_id}/entities/{entity_id}": {
         parameters: {
             query?: never;
@@ -821,7 +843,11 @@ export interface paths {
         /** List Monsters */
         get: operations["list_monsters_api_v1_campaigns__campaign_id__monsters_get"];
         put?: never;
-        post?: never;
+        /**
+         * Create Monster
+         * @description Author a new custom monster from scratch, seeded from the plugin's blank stat block.
+         */
+        post: operations["create_monster_api_v1_campaigns__campaign_id__monsters_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -890,7 +916,8 @@ export interface paths {
         get: operations["get_monster_api_v1_campaigns__campaign_id__monsters__monster_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /** Delete Monster */
+        delete: operations["delete_monster_api_v1_campaigns__campaign_id__monsters__monster_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1321,7 +1348,7 @@ export interface paths {
         put?: never;
         /**
          * Cancel Combat
-         * @description Call the fight off — no summary, no write-back, back to exploration.
+         * @description Call the fight off — no summary, no chronicle entry, back to exploration.
          */
         post: operations["cancel_combat_api_v1_campaigns__campaign_id__combats__run_id__cancel_post"];
         delete?: never;
@@ -3041,6 +3068,13 @@ export interface components {
             combatant_blocks?: {
                 [key: string]: string;
             };
+            /**
+             * Combatant Environments
+             * @default {}
+             */
+            combatant_environments?: {
+                [key: string]: components["schemas"]["EnvironmentActionSpec"][];
+            };
             /** Initiative Dice */
             initiative_dice?: string | null;
             /**
@@ -3128,12 +3162,19 @@ export interface components {
              */
             legendary?: components["schemas"]["LegendaryActions"];
         };
-        /** CombatantSpec */
+        /**
+         * CombatantSpec
+         * @description One line on an encounter's roster: a bestiary monster *or* a campaign NPC.
+         */
         CombatantSpec: {
             /** Monster Id */
-            monster_id: string;
+            monster_id?: string | null;
             /** Monster Name */
             monster_name?: string | null;
+            /** Npc Id */
+            npc_id?: string | null;
+            /** Npc Name */
+            npc_name?: string | null;
             /**
              * Count
              * @default 1
@@ -3209,6 +3250,8 @@ export interface components {
         DeathSaveIn: {
             /** Combatant Id */
             combatant_id: string;
+            /** Manual Result */
+            manual_result?: number | null;
         };
         /**
          * DeathSaveRulesOut
@@ -3281,7 +3324,9 @@ export interface components {
         /** EncounterCombatantOut */
         EncounterCombatantOut: {
             /** Monster Id */
-            monster_id: string;
+            monster_id?: string | null;
+            /** Npc Id */
+            npc_id?: string | null;
             /** Name */
             name: string;
             /** Count */
@@ -3290,6 +3335,11 @@ export interface components {
             side: string;
             /** Resolved By */
             resolved_by?: string | null;
+            /**
+             * Has Stats
+             * @default true
+             */
+            has_stats?: boolean;
         };
         /** EncounterCreate */
         EncounterCreate: {
@@ -3306,6 +3356,11 @@ export interface components {
              * @default []
              */
             combatants?: components["schemas"]["CombatantSpec"][];
+            /**
+             * Environment
+             * @default []
+             */
+            environment?: components["schemas"]["EnvironmentSpec"][];
             /** Location Id */
             location_id?: string | null;
         };
@@ -3323,6 +3378,11 @@ export interface components {
             tactics: string | null;
             /** Combatants */
             combatants: components["schemas"]["EncounterCombatantOut"][];
+            /**
+             * Environment
+             * @default []
+             */
+            environment?: components["schemas"]["EnvironmentSpec"][];
             difficulty: components["schemas"]["DifficultyOut"];
             /** Location Id */
             location_id: string | null;
@@ -3337,6 +3397,8 @@ export interface components {
             tactics?: string | null;
             /** Combatants */
             combatants?: components["schemas"]["CombatantSpec"][] | null;
+            /** Environment */
+            environment?: components["schemas"]["EnvironmentSpec"][] | null;
         };
         /** EntityBrief */
         EntityBrief: {
@@ -3470,6 +3532,34 @@ export interface components {
              * @default false
              */
             summary_set?: boolean;
+        };
+        /** EnvironmentActionSpec */
+        EnvironmentActionSpec: {
+            /** Name */
+            name: string;
+            /**
+             * Description
+             * @default
+             */
+            description?: string;
+        };
+        /**
+         * EnvironmentSpec
+         * @description An environmental hazard/terrain effect that acts during combat but has no hit points.
+         *
+         *     Seeded into a fight as a ``kind="lair"`` combatant so it rides the initiative order and is
+         *     never "defeated"; its ``actions`` are the text the GM reads on its turn.
+         */
+        EnvironmentSpec: {
+            /** Name */
+            name: string;
+            /** Initiative */
+            initiative?: number | null;
+            /**
+             * Actions
+             * @default []
+             */
+            actions?: components["schemas"]["EnvironmentActionSpec"][];
         };
         /** EquipmentCreate */
         EquipmentCreate: {
@@ -4128,6 +4218,15 @@ export interface components {
              */
             clear_location?: boolean;
         };
+        /** MonsterCreate */
+        MonsterCreate: {
+            /** Name */
+            name: string;
+            /** Doc */
+            doc?: {
+                [key: string]: unknown;
+            } | null;
+        };
         /** MonsterFacets */
         MonsterFacets: {
             /** Facet1 Num */
@@ -4225,6 +4324,10 @@ export interface components {
             voice_notes: string | null;
             /** Knows About */
             knows_about: string[];
+            /** Stat Block Id */
+            stat_block_id?: string | null;
+            /** Stat Block Label */
+            stat_block_label?: string | null;
             /**
              * Deleted
              * @default false
@@ -4239,6 +4342,8 @@ export interface components {
             secrets?: string | null;
             /** Voice Notes */
             voice_notes?: string | null;
+            /** Stat Block Id */
+            stat_block_id?: string | null;
         };
         /** Objective */
         Objective: {
@@ -4898,6 +5003,21 @@ export interface components {
             recurrence_days?: number | null;
             /** Description */
             description?: string | null;
+        };
+        /**
+         * SearchHitOut
+         * @description A deep-search result: the entity plus the prose that matched.
+         *
+         *     Snippets carry ``[[hl]]…[[/hl]]`` markers around the matched terms. They are literal
+         *     markers rather than HTML so the client can escape the surrounding document text.
+         *     A snippet is null when that field contributed no match.
+         */
+        SearchHitOut: {
+            entity: components["schemas"]["EntityOut"];
+            /** Summary Snippet */
+            summary_snippet?: string | null;
+            /** Article Snippet */
+            article_snippet?: string | null;
         };
         /** SellbackIn */
         SellbackIn: {
@@ -5961,6 +6081,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EntityOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_entities_deep_api_v1_campaigns__campaign_id__search_deep_get: {
+        parameters: {
+            query: {
+                q: string;
+                entity_type?: string | null;
+                tag_id?: string | null;
+                prose_only?: boolean;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchHitOut"][];
                 };
             };
             /** @description Validation Error */
@@ -7698,6 +7855,41 @@ export interface operations {
             };
         };
     };
+    create_monster_api_v1_campaigns__campaign_id__monsters_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MonsterCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MonsterOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     import_bestiary_api_v1_campaigns__campaign_id__monsters_import_post: {
         parameters: {
             query: {
@@ -7823,6 +8015,36 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MonsterOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_monster_api_v1_campaigns__campaign_id__monsters__monster_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                monster_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

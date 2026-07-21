@@ -81,5 +81,11 @@ class MonsterOut(BaseModel):
     facets: MonsterFacets
 
 
+class MonsterCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    #: An optional starting document; when omitted the plugin's blank monster doc is used.
+    doc: dict[str, Any] | None = None
+
+
 class ImportResult(BaseModel):
     imported: int

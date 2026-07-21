@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from app.core.ids import new_id
 from app.modules.rules import registry
 from app.modules.rules.interface import UnknownSheetType
-from app.modules.rules.models import StatBlock
+from app.modules.rules.models import Monster, StatBlock
 
 
 class ValidationFailed(ValueError):
@@ -123,5 +123,24 @@ def update_stat_block(
     block.doc_json = json.dumps(doc)
     block.derived_json = json.dumps(derived)
     block.schema_version = registry.get_system(block.rule_system_id).version
+    if block.sheet_type == "monster":
+        _resync_monster(session, block, doc)
     session.commit()
     return _to_out_fields(block)
+
+
+def _resync_monster(session: Session, block: StatBlock, doc: dict[str, Any]) -> None:
+    """Keep the ``monster`` row in step with an edit to its stat block.
+
+    Editing a monster goes through the stat-block PUT, but a monster's *name* (the label) and
+    its *facet columns* (CR, type, …) also live on the ``monster`` row, which drives the
+    bestiary list and its filters. Without this, renaming a monster or changing its CR left the
+    list showing the stale value until the next import.
+    """
+    monster = session.scalar(select(Monster).where(Monster.stat_block_id == block.id))
+    if monster is None:
+        return
+    monster.name = block.label
+    values = registry.get_system(block.rule_system_id).monster_facets(doc)
+    for key in ("facet1_num", "facet2_num", "facet1_text", "facet2_text"):
+        setattr(monster, key, values.get(key))

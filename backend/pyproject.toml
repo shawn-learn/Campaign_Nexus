@@ -100,9 +100,14 @@ layers = [
     # flags to evaluate conditions and run consequences (FR-4).
     "story",
     # Orchestration layer: may call into the time + rules engines (rests, combat), mint
-    # entities in the wiki and read the chronicle (npcs: session spans). Independent of
-    # each other (' | ').
-    "playbook | npcs",
+    # entities in the wiki and read the chronicle (npcs: session spans).
+    #
+    # Playbook sits *above* npcs rather than beside it: an encounter's roster can hold NPCs
+    # as well as bestiary monsters, so building an encounter and seeding a combat both have
+    # to resolve an Npc to its linked stat block. Npcs depends on nothing in playbook, so
+    # the direction is one-way and acyclic.
+    "playbook",
+    "npcs",
     # Atlas (maps, markers, media) sits below playbook: the travel planner and party
     # position resolve a location entity to map coordinates
     # (playbook.travel.resolve_location_coordinates). Atlas itself depends only on

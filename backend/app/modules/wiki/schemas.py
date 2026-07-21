@@ -67,6 +67,19 @@ class EntityOut(BaseModel):
     updated_at_real: str
 
 
+class SearchHitOut(BaseModel):
+    """A deep-search result: the entity plus the prose that matched.
+
+    Snippets carry ``[[hl]]…[[/hl]]`` markers around the matched terms. They are literal
+    markers rather than HTML so the client can escape the surrounding document text.
+    A snippet is null when that field contributed no match.
+    """
+
+    entity: EntityOut
+    summary_snippet: str | None = None
+    article_snippet: str | None = None
+
+
 class PurgedEntity(BaseModel):
     """One entity that a purge destroyed — enough to report what went, nothing more."""
 

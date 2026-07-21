@@ -12,12 +12,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.modules.campaign.models import Campaign
+from app.modules.npcs.models import Npc
 from app.modules.playbook.models import Encounter, PartyMember
 from app.modules.playbook.schemas import (
     CombatantSpec,
     DifficultyOut,
     EncounterCombatantOut,
     EncounterOut,
+    EnvironmentSpec,
 )
 from app.modules.rules import registry
 from app.modules.rules.models import Monster, StatBlock
@@ -60,6 +62,39 @@ def _monster_doc(
     return monster.name, (json.loads(block.doc_json) if block else {}), resolved_by
 
 
+def _npc_doc(
+    session: Session,
+    npc_id: str,
+    *,
+    campaign_id: str | None = None,
+    npc_name: str | None = None,
+) -> tuple[str, dict[str, Any], bool, str] | None:
+    """Resolve an NPC combatant to ``(name, doc, has_stats, resolved_by)``.
+
+    Same staleness fallback as ``_monster_doc``. ``has_stats`` is False when the NPC has no
+    stat block attached: they belong to the scene, but there is nothing to fight with — the
+    roster still shows them, and combat simply doesn't seed them.
+    """
+    npc = session.get(Npc, npc_id)
+    resolved_by = "id"
+    if (npc is None or npc.campaign_id != campaign_id) and npc_name and campaign_id:
+        npc = session.scalars(
+            select(Npc)
+            .join(Entity, Entity.id == Npc.entity_id)
+            .where(Npc.campaign_id == campaign_id, Entity.name == npc_name)
+            .limit(1)
+        ).first()
+        resolved_by = "name"
+    if npc is None:
+        return None
+    entity = session.get(Entity, npc.entity_id)
+    name = entity.name if entity else "(unnamed)"
+    block = session.get(StatBlock, npc.stat_block_id) if npc.stat_block_id else None
+    if block is None:
+        return name, {}, False, resolved_by
+    return name, json.loads(block.doc_json), True, resolved_by
+
+
 def _party_docs(session: Session, campaign_id: str) -> list[dict[str, Any]]:
     rows = session.scalars(
         select(StatBlock.doc_json)
@@ -69,21 +104,36 @@ def _party_docs(session: Session, campaign_id: str) -> list[dict[str, Any]]:
     return [json.loads(d) for d in rows]
 
 
+def _resolve(
+    session: Session, spec: dict[str, Any], campaign_id: str | None
+) -> tuple[str, dict[str, Any], bool, str] | None:
+    """One roster line → ``(name, doc, has_stats, resolved_by)``, monster or NPC."""
+    if spec.get("npc_id"):
+        return _npc_doc(
+            session, spec["npc_id"],
+            campaign_id=campaign_id, npc_name=spec.get("npc_name"),
+        )
+    resolved = _monster_doc(
+        session, spec["monster_id"],
+        campaign_id=campaign_id, monster_name=spec.get("monster_name"),
+    )
+    return None if resolved is None else (resolved[0], resolved[1], True, resolved[2])
+
+
 def _combatants_out(
     session: Session, specs: list[dict[str, Any]], campaign_id: str | None = None
 ) -> list[EncounterCombatantOut]:
     out: list[EncounterCombatantOut] = []
     for spec in specs:
-        resolved = _monster_doc(
-            session, spec["monster_id"],
-            campaign_id=campaign_id, monster_name=spec.get("monster_name"),
-        )
+        resolved = _resolve(session, spec, campaign_id)
         out.append(
             EncounterCombatantOut(
-                monster_id=spec["monster_id"],
+                monster_id=spec.get("monster_id"),
+                npc_id=spec.get("npc_id"),
                 name=resolved[0] if resolved else "(missing)",
                 count=int(spec.get("count", 1)), side=spec.get("side", "foe"),
-                resolved_by=resolved[2] if resolved else None,
+                resolved_by=resolved[3] if resolved else None,
+                has_stats=resolved[2] if resolved else False,
             )
         )
     return out
@@ -98,11 +148,10 @@ def _difficulty(
     for spec in specs:
         if spec.get("side", "foe") != "foe":
             continue
-        resolved = _monster_doc(
-            session, spec["monster_id"],
-            campaign_id=campaign.id, monster_name=spec.get("monster_name"),
-        )
-        if resolved:
+        resolved = _resolve(session, spec, campaign.id)
+        # A statless NPC prices at nothing, so it would only add a zero — and asking the
+        # plugin to rate an empty document is asking it to guess.
+        if resolved and resolved[2]:
             foes.append((resolved[1], int(spec.get("count", 1))))
     report = system.encounter_difficulty(party, foes)
     return DifficultyOut(**report)
@@ -126,6 +175,7 @@ def to_out(session: Session, campaign: Campaign, encounter: Encounter) -> Encoun
         hazards=encounter.hazards,
         tactics=encounter.tactics,
         combatants=_combatants_out(session, specs, campaign.id),
+        environment=[EnvironmentSpec.model_validate(e) for e in json.loads(encounter.environment_json)],
         difficulty=_difficulty(session, campaign, specs),
         location_id=_location_id(session, encounter.entity_id),
     )
@@ -140,6 +190,7 @@ def create_encounter(
     hazards: str | None,
     tactics: str | None,
     combatants: list[CombatantSpec],
+    environment: list[EnvironmentSpec] | None = None,
     location_id: str | None,
     created_by: str,
 ) -> EncounterOut:
@@ -154,6 +205,7 @@ def create_encounter(
         hazards=hazards,
         tactics=tactics,
         combatants_json=json.dumps([c.model_dump() for c in combatants]),
+        environment_json=json.dumps([e.model_dump() for e in (environment or [])]),
     )
     session.add(encounter)
     session.commit()
@@ -199,6 +251,7 @@ def update_encounter(
     hazards: str | None,
     tactics: str | None,
     combatants: list[CombatantSpec] | None,
+    environment: list[EnvironmentSpec] | None = None,
 ) -> EncounterOut:
     encounter = _require(session, campaign.id, encounter_id)
     if terrain is not None:
@@ -209,5 +262,7 @@ def update_encounter(
         encounter.tactics = tactics
     if combatants is not None:
         encounter.combatants_json = json.dumps([c.model_dump() for c in combatants])
+    if environment is not None:
+        encounter.environment_json = json.dumps([e.model_dump() for e in environment])
     session.commit()
     return to_out(session, campaign, encounter)

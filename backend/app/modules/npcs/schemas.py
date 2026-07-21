@@ -18,6 +18,10 @@ class NpcOut(BaseModel):
     secrets: str | None
     voice_notes: str | None
     knows_about: list[str]
+    #: The NPC's combat sheet, when one has been attached. Without it the NPC can still sit
+    #: on an encounter's roster, but has no hit points to bring to a fight.
+    stat_block_id: str | None = None
+    stat_block_label: str | None = None
     #: True when the underlying wiki entity is soft-deleted (only listed with include_deleted).
     deleted: bool = False
 
@@ -35,6 +39,9 @@ class NpcUpdate(BaseModel):
     goals: str | None = None
     secrets: str | None = None
     voice_notes: str | None = None
+    #: Attach (or, sent as null, detach) the NPC's combat sheet. Patched with
+    #: ``exclude_unset``, so omitting it leaves the current link alone.
+    stat_block_id: str | None = None
 
 
 class RelocateIn(BaseModel):

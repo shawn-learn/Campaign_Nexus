@@ -101,6 +101,8 @@ export function CombatPage() {
   const canUndo = run.data?.can_undo ?? false
   const canRedo = run.data?.can_redo ?? false
   const blocks = run.data?.combatant_blocks ?? {}
+  // Environmental "lair" combatants carry their action text here instead of a stat block.
+  const environments = run.data?.combatant_environments ?? {}
   // Whether this system has death saves at all, and what settles one. Nimble says no, and
   // the row simply never appears.
   const deathRules = run.data?.death_saves ?? { supported: false }
@@ -277,6 +279,7 @@ export function CombatPage() {
   const current = currentId
   const sel = selected ? state.combatants[selected] : null
   const selBlockId = selected ? blocks[selected] : undefined
+  const selEnv = selected ? environments[selected] : undefined
   // A failed action has already rolled the tracker back to the server's state; say so,
   // otherwise the GM just sees their damage silently undo itself.
   const actionError = action.isError ? action.error : undo.isError ? undo.error : redo.isError ? redo.error : null
@@ -463,7 +466,19 @@ export function CombatPage() {
               <CombatantStatBlock campaignId={campaignId} systemId={systemId} blockId={selBlockId} />
             </div>
           )}
-          {sel && !selBlockId && (
+          {sel && selEnv && selEnv.length > 0 && (
+            <div className="card">
+              <h4 style={{ marginTop: 0 }}>Environmental actions</h4>
+              <ul className="roster">
+                {selEnv.map((a, i) => (
+                  <li key={i} style={{ display: 'block' }}>
+                    <b>{a.name}</b>{a.description ? ` — ${a.description}` : ''}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {sel && !selBlockId && !selEnv && (
             <p className="muted" style={{ fontSize: 12 }}>No stat block linked to {sel.name}.</p>
           )}
         </div>
@@ -495,11 +510,21 @@ function DeathSaveRow({
   rules: DeathSaveRules
 }) {
   const roll = useRollDeathSave(campaignId, runId)
+  const [manual, setManual] = useState('')
   const needSuccess = rules.successes ?? 3
   const needFail = rules.failures ?? 3
   const { successes, failures } = combatant.death_saves
   const stable = successes >= needSuccess
   const dead = failures >= needFail
+
+  const manualValue = Number(manual)
+  const manualValid = manual !== '' && Number.isInteger(manualValue) && manualValue >= 1 && manualValue <= 20
+
+  const submitManual = () => {
+    if (!manualValid) return
+    roll.mutate({ combatantId: combatant.id, manualResult: manualValue })
+    setManual('')
+  }
 
   return (
     <div className="death-saves">
@@ -517,13 +542,31 @@ function DeathSaveRow({
         <Pips filled={failures} of={needFail} kind="bad" />
       </div>
       {!stable && !dead && (
-        <button
-          style={{ marginTop: 6 }}
-          disabled={roll.isPending}
-          onClick={() => roll.mutate(combatant.id)}
-        >
-          {roll.isPending ? 'Rolling…' : `Roll ${rules.dice} vs DC ${rules.dc}`}
-        </button>
+        <>
+          <button
+            style={{ marginTop: 6 }}
+            disabled={roll.isPending}
+            onClick={() => roll.mutate(combatant.id)}
+          >
+            {roll.isPending ? 'Rolling…' : `Roll ${rules.dice} vs DC ${rules.dc}`}
+          </button>
+          <div className="row" style={{ marginTop: 6, gap: 4, alignItems: 'center' }}>
+            <span className="muted" style={{ fontSize: 12 }}>or enter a physical roll</span>
+            <input
+              type="number"
+              min={1}
+              max={20}
+              value={manual}
+              placeholder="d20"
+              style={{ width: 56 }}
+              onChange={(e) => setManual(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && submitManual()}
+            />
+            <button disabled={!manualValid || roll.isPending} onClick={submitManual}>
+              Use
+            </button>
+          </div>
+        </>
       )}
     </div>
   )

@@ -45,7 +45,7 @@ The primary quest items do not have fixed locations. Their placement is determin
 * **Elixir of Health (x2) & Potions of Healing (x3):** Hidden inside Area N2h, Blue Water Inn.
 * **Magic Mirror of Summon Assassin:** Burgomaster's Mansion, Closet (Area N3p).
 * **Victor's Spellbook:** Burgomaster's Mansion, Attic (Area N3t).
-* **Ring of Warmth:** Carried by Kasimir Ismarkov at the Vistani Camp (Area N9a).
+* **Ring of Warmth:** Carried by Kasimir Velikov at the Vistani Camp (Area N9a).
 * **Kasimir's Spellbook:** A leather-bound book kept inside Kasimir's hovel (Area N9a), in the dusk elf encampment southwest of Vallaki. Contains his prepared mage spells (Appendix D / MM base template) plus the extras named in his hovel text:
   * *Cantrips:* fire bolt, light, mage hand, prestidigitation (errata removed ray of frost)
   * *1st:* arcane lock, comprehend languages, detect magic, identify, mage armor, magic missile, shield

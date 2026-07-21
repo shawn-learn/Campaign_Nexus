@@ -1,26 +1,20 @@
-import { useNavigate } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import {
   useEncounter,
   useEncounterCombats,
   useMonsters,
   useStartCombat,
 } from '../../api/hooks'
+import { crLabel } from './CreaturePicker'
 
 const DIFF_CLASS: Record<string, string> = {
   trivial: 'diff-trivial', easy: 'diff-easy', medium: 'diff-medium',
   hard: 'diff-hard', deadly: 'diff-deadly',
 }
 
-function crLabel(cr: number | null | undefined): string {
-  if (cr === 0.125) return '1/8'
-  if (cr === 0.25) return '1/4'
-  if (cr === 0.5) return '1/2'
-  return cr == null ? '?' : String(cr)
-}
-
 // Shown on an `encounter` entity's page: makes the structured encounter data visible (its
-// monster roster, terrain, tactics, difficulty) and wires it to the combat tracker — start a
-// new combat or jump to one already running from this encounter.
+// roster, terrain, tactics, difficulty) and wires it to the combat tracker — start a new
+// combat or jump to one already running. Editing is its own page (EncounterEditorPage).
 export function EncounterPanel({
   campaignId,
   entityId,
@@ -61,23 +55,34 @@ export function EncounterPanel({
               {encounter.difficulty.adjusted_xp != null && ` · ${encounter.difficulty.adjusted_xp} XP`}
             </span>
           )}
+          <Link to="/encounters/$entityId/edit" params={{ entityId }} className="ghost"
+                style={{ padding: '6px 10px' }}>
+            Edit
+          </Link>
           <button disabled={startCombat.isPending} onClick={start}>
             {startCombat.isPending ? 'Starting…' : 'Start combat'}
           </button>
         </div>
       </div>
 
-      {/* Monster roster preview */}
       {encounter.combatants.length === 0 ? (
-        <p className="muted">No monsters in this encounter yet — add some on the Encounters page.</p>
+        <p className="muted">Nothing in this encounter yet — press Edit to add some.</p>
       ) : (
         <ul className="roster">
           {encounter.combatants.map((c) => (
-            <li key={c.monster_id} className="row" style={{ gap: 8 }}>
+            <li key={c.npc_id ?? c.monster_id} className="row" style={{ gap: 8 }}>
               <span className="roster-count">{c.count}×</span>
               <span style={{ flex: 1 }}>{c.name}</span>
               {c.side === 'ally' && <span className="tag">ally</span>}
-              <span className="badge">CR {crLabel(crOf(c.monster_id))}</span>
+              {c.npc_id ? (
+                // An NPC with no sheet stays on the roster but never reaches the order —
+                // worth saying here, since the combat tracker simply won't show them.
+                <span className={'badge' + (c.has_stats ? '' : ' diff-hard')}>
+                  {c.has_stats ? 'NPC' : 'NPC · no sheet'}
+                </span>
+              ) : (
+                <span className="badge">CR {crLabel(crOf(c.monster_id!))}</span>
+              )}
             </li>
           ))}
         </ul>
@@ -91,6 +96,29 @@ export function EncounterPanel({
           {encounter.terrain && <p style={{ margin: '2px 0' }}><b>Terrain:</b> {encounter.terrain}</p>}
           {encounter.hazards && <p style={{ margin: '2px 0' }}><b>Hazards:</b> {encounter.hazards}</p>}
           {encounter.tactics && <p style={{ margin: '2px 0' }}><b>Tactics:</b> {encounter.tactics}</p>}
+        </div>
+      )}
+
+      {(encounter.environment?.length ?? 0) > 0 && (
+        <div style={{ marginTop: 8 }}>
+          <h4 style={{ margin: '0 0 4px' }}>Environmental actions</h4>
+          <ul className="roster">
+            {encounter.environment!.map((e, i) => (
+              <li key={i} style={{ display: 'block' }}>
+                <b>{e.name}</b>
+                {e.initiative != null && <span className="muted"> · init {e.initiative}</span>}
+                {(e.actions?.length ?? 0) > 0 && (
+                  <ul className="muted" style={{ fontSize: 12, margin: '2px 0 0 16px' }}>
+                    {e.actions!.map((a, n) => (
+                      <li key={n}>
+                        <b>{a.name}</b>{a.description ? ` — ${a.description}` : ''}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

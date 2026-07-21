@@ -8,6 +8,7 @@ import {
   useRecordInteraction,
 } from '../../api/hooks'
 import { EntityImages } from '../wiki/EntityDetailPage'
+import { ShopsKept } from '../merchants/ShopLinks'
 
 const STATUSES = ['alive', 'dead', 'missing', 'unknown', 'retired'] as const
 
@@ -113,6 +114,9 @@ export function NpcOverviewTab({ campaignId, entityId, entity, npc }: NpcOvervie
           {update.isPending ? 'Saving…' : 'Save'}
         </button>
       </div>
+
+      {/* Shops this NPC runs */}
+      <ShopsKept campaignId={campaignId} entityId={entityId} />
 
       {/* Images section */}
       <EntityImages campaignId={campaignId} entityId={entityId} />

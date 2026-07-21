@@ -16,6 +16,7 @@ import type {
 import type { components } from './schema'
 
 type SkillChallengeCreate = components['schemas']['SkillChallengeCreate']
+type SkillChallengeUpdate = components['schemas']['SkillChallengeUpdate']
 type RecordCheckIn = components['schemas']['RecordCheckIn']
 
 function unwrap<T>(result: { data?: T; error?: unknown }, msg: string): T {
@@ -70,6 +71,33 @@ export function useEntities(campaignId: string | null, filters: EntityFilters = 
           params: { path: { campaign_id: campaignId! }, query: filters },
         }),
         'load entities',
+      ),
+  })
+}
+
+export type DeepSearchFilters = {
+  entity_type?: string
+  tag_id?: string
+  prose_only?: boolean
+  limit?: number
+}
+
+// Ranked search that returns highlighted snippets of the summary/article prose that
+// matched — the Search page. Disabled on a blank query so it doesn't fetch on mount.
+export function useDeepSearch(
+  campaignId: string | null,
+  q: string,
+  filters: DeepSearchFilters = {},
+) {
+  return useQuery({
+    enabled: !!campaignId && q.trim().length > 0,
+    queryKey: ['deep-search', campaignId, q, filters],
+    queryFn: async () =>
+      unwrap(
+        await api.GET('/api/v1/campaigns/{campaign_id}/search/deep', {
+          params: { path: { campaign_id: campaignId! }, query: { q, ...filters } },
+        }),
+        'search',
       ),
   })
 }
@@ -823,14 +851,17 @@ export function useAddCombatant(campaignId: string, runId: string | null) {
 export function useRollDeathSave(campaignId: string, runId: string | null) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (combatantId: string) =>
-      unwrap(
+    mutationFn: async (args: string | { combatantId: string; manualResult: number }) => {
+      const { combatantId, manualResult } =
+        typeof args === 'string' ? { combatantId: args, manualResult: undefined } : args
+      return unwrap(
         await api.POST('/api/v1/campaigns/{campaign_id}/combats/{run_id}/death-save', {
           params: { path: { campaign_id: campaignId, run_id: runId! } },
-          body: { combatant_id: combatantId },
+          body: { combatant_id: combatantId, manual_result: manualResult },
         }),
         'roll death save',
-      ),
+      )
+    },
     onSuccess: (run) => {
       qc.setQueryData(combatKey(campaignId, runId), run)
       void qc.invalidateQueries({ queryKey: ['combat-rolls', campaignId, runId] })
@@ -1047,10 +1078,27 @@ export function useEncounters(campaignId: string | null) {
   })
 }
 
+// One roster line: a bestiary monster or a campaign NPC, never both.
 interface CombatantSpec {
-  monster_id: string
+  monster_id?: string | null
+  //: Fallback identity, so a bestiary re-import that renumbers monster IDs degrades to a
+  //: resolvable name instead of "(missing)". Send it whenever it is known.
+  monster_name?: string | null
+  npc_id?: string | null
+  npc_name?: string | null
   count: number
   side?: string
+}
+
+export interface EnvironmentActionSpec {
+  name: string
+  description?: string
+}
+
+export interface EnvironmentSpec {
+  name: string
+  initiative?: number | null
+  actions?: EnvironmentActionSpec[]
 }
 
 export function useCreateEncounter(campaignId: string) {
@@ -1059,7 +1107,10 @@ export function useCreateEncounter(campaignId: string) {
     mutationFn: async (body: {
       name: string
       terrain?: string | null
+      hazards?: string | null
+      tactics?: string | null
       combatants: CombatantSpec[]
+      environment?: EnvironmentSpec[]
       location_id?: string | null
     }) =>
       unwrap(
@@ -1072,6 +1123,33 @@ export function useCreateEncounter(campaignId: string) {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['encounters', campaignId] })
       void qc.invalidateQueries({ queryKey: ['entity', campaignId] })
+    },
+  })
+}
+
+// Edits the structured half of an encounter (terrain/hazards/tactics/roster). Its name,
+// summary and location link live on the underlying entity — those go through
+// `useUpdateEntity`, so this deliberately has no `name` field.
+export function useUpdateEncounter(campaignId: string, encounterId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: {
+      terrain?: string | null
+      hazards?: string | null
+      tactics?: string | null
+      combatants?: CombatantSpec[]
+      environment?: EnvironmentSpec[]
+    }) =>
+      unwrap(
+        await api.PATCH('/api/v1/campaigns/{campaign_id}/encounters/{encounter_id}', {
+          params: { path: { campaign_id: campaignId, encounter_id: encounterId } },
+          body,
+        }),
+        'update encounter',
+      ),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['encounter', campaignId, encounterId] })
+      void qc.invalidateQueries({ queryKey: ['encounters', campaignId] })
     },
   })
 }
@@ -1133,6 +1211,9 @@ interface MonsterFilters {
   facet1_num_gte?: number
   facet1_num_lte?: number
   facet1_text?: string
+  //: The server caps the list (default 200) and has no offset — raising this is how a
+  //: picker reaches past the cap in a campaign with a large bestiary.
+  limit?: number
 }
 
 export function useMonsters(campaignId: string | null, filters: MonsterFilters = {}) {
@@ -1160,6 +1241,35 @@ export function useFacetManifest(systemId: string | null) {
         }),
         'load facets',
       ),
+  })
+}
+
+export function useCreateMonster(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (name: string) =>
+      unwrap(
+        await api.POST('/api/v1/campaigns/{campaign_id}/monsters', {
+          params: { path: { campaign_id: campaignId } },
+          body: { name },
+        }),
+        'create monster',
+      ),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['monsters', campaignId] }),
+  })
+}
+
+export function useDeleteMonster(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (monsterId: string) => {
+      const { error } = await api.DELETE(
+        '/api/v1/campaigns/{campaign_id}/monsters/{monster_id}',
+        { params: { path: { campaign_id: campaignId, monster_id: monsterId } } },
+      )
+      if (error) throw new Error('delete monster')
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['monsters', campaignId] }),
   })
 }
 
@@ -1951,7 +2061,8 @@ export function useCreateNpc(campaignId: string) {
   })
 }
 
-// GM notes: goals / secrets / voice_notes. Backend PATCH /npcs/{npc_id}.
+// GM notes (goals / secrets / voice_notes) and the NPC's combat sheet link.
+// Backend PATCH /npcs/{npc_id}.
 export function useUpdateNpc(campaignId: string) {
   const qc = useQueryClient()
   return useMutation({
@@ -1960,6 +2071,7 @@ export function useUpdateNpc(campaignId: string) {
       goals?: string | null
       secrets?: string | null
       voice_notes?: string | null
+      stat_block_id?: string | null
     }) => {
       const { npcId, ...body } = vars
       return unwrap(
@@ -2297,6 +2409,42 @@ export function useSkillChallenges(campaignId: string | null) {
         }),
         'load skill challenges',
       ),
+  })
+}
+
+// A skill challenge's id *is* its wiki entity id, so this doubles as "the challenge
+// for this entity".
+export function useSkillChallenge(campaignId: string | null, challengeId: string | null) {
+  return useQuery({
+    enabled: !!campaignId && !!challengeId,
+    queryKey: ['skill-challenge', campaignId, challengeId],
+    queryFn: async () =>
+      unwrap(
+        await api.GET('/api/v1/campaigns/{campaign_id}/skill-challenges/{challenge_id}', {
+          params: { path: { campaign_id: campaignId!, challenge_id: challengeId! } },
+        }),
+        'load skill challenge',
+      ),
+  })
+}
+
+export function useUpdateSkillChallenge(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (vars: { challengeId: string } & SkillChallengeUpdate) => {
+      const { challengeId, ...body } = vars
+      return unwrap(
+        await api.PATCH('/api/v1/campaigns/{campaign_id}/skill-challenges/{challenge_id}', {
+          params: { path: { campaign_id: campaignId, challenge_id: challengeId } },
+          body,
+        }),
+        'update skill challenge',
+      )
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['skill-challenges', campaignId] })
+      void qc.invalidateQueries({ queryKey: ['skill-challenge', campaignId] })
+    },
   })
 }
 
@@ -2764,6 +2912,7 @@ export type SellbackResult = components['schemas']['SellbackResult']
 
 function invalidateMerchants(qc: ReturnType<typeof useQueryClient>, campaignId: string) {
   void qc.invalidateQueries({ queryKey: ['merchants', campaignId] })
+  void qc.invalidateQueries({ queryKey: ['merchant', campaignId] })
   void qc.invalidateQueries({ queryKey: ['merchant-stock', campaignId] })
 }
 
@@ -2786,6 +2935,21 @@ export function useMerchants(campaignId: string | null) {
           params: { path: { campaign_id: campaignId! } },
         }),
         'load merchants',
+      ),
+  })
+}
+
+// A merchant's id *is* its wiki entity id, so this doubles as "the shop for this entity".
+export function useMerchant(campaignId: string | null, merchantId: string | null) {
+  return useQuery({
+    enabled: !!campaignId && !!merchantId,
+    queryKey: ['merchant', campaignId, merchantId],
+    queryFn: async () =>
+      unwrap(
+        await api.GET('/api/v1/campaigns/{campaign_id}/merchants/{merchant_id}', {
+          params: { path: { campaign_id: campaignId!, merchant_id: merchantId! } },
+        }),
+        'load merchant',
       ),
   })
 }

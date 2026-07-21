@@ -152,6 +152,110 @@ def test_party_hp_is_written_back_when_combat_ends(client: TestClient) -> None:
     assert member["status"]["current_hit_points"] == 27
 
 
+def _pc_in_combat(client: TestClient, cid: str) -> tuple[str, str]:
+    """Add a 40 hp PC to the party, start a fight, and return (run_id, combatant_id)."""
+    pc = client.post(
+        f"/api/v1/campaigns/{cid}/stat-blocks",
+        json={"rule_system_id": "dnd5e", "sheet_type": "pc", "label": "Serah",
+              "doc": {"level": 5, "max_hit_points": 40, "armor_class": 16,
+                      "abilities": {"str": 10, "dex": 14, "con": 12, "int": 10,
+                                    "wis": 10, "cha": 10}}},
+    ).json()["id"]
+    client.post(f"/api/v1/campaigns/{cid}/party/members", json={"stat_block_id": pc})
+    run_id = _start_from_two_goblins(client, cid)
+    run = client.get(f"/api/v1/campaigns/{cid}/combats/{run_id}").json()
+    serah = next(c for c in run["state"]["combatants"].values() if c["name"] == "Serah")
+    return run_id, serah["id"]
+
+
+def _party_hp(client: TestClient, cid: str) -> int:
+    return int(client.get(f"/api/v1/campaigns/{cid}/party").json()["members"][0]["hp"])
+
+
+def test_party_hp_tracks_damage_mid_combat(client: TestClient) -> None:
+    """The sheet must not lag the board: HP lands before the fight is over.
+
+    Write-back used to happen only in ``end_combat``, so a GM checking the party sheet
+    mid-fight saw everyone at full health no matter how badly they were losing.
+    """
+    cid = _demo(client)
+    run_id, serah_id = _pc_in_combat(client, cid)
+
+    client.post(
+        f"/api/v1/campaigns/{cid}/combats/{run_id}/actions",
+        json={"action_type": "damage", "payload": {"id": serah_id, "amount": 13}},
+    )
+    assert _party_hp(client, cid) == 27  # no /end call
+
+    client.post(
+        f"/api/v1/campaigns/{cid}/combats/{run_id}/actions",
+        json={"action_type": "heal", "payload": {"id": serah_id, "amount": 5}},
+    )
+    assert _party_hp(client, cid) == 32
+
+
+def test_undo_and_redo_move_party_hp(client: TestClient) -> None:
+    """Undo is a cursor move, and the sheet follows the cursor."""
+    cid = _demo(client)
+    run_id, serah_id = _pc_in_combat(client, cid)
+
+    client.post(
+        f"/api/v1/campaigns/{cid}/combats/{run_id}/actions",
+        json={"action_type": "damage", "payload": {"id": serah_id, "amount": 13}},
+    )
+    assert _party_hp(client, cid) == 27
+
+    client.post(f"/api/v1/campaigns/{cid}/combats/{run_id}/undo")
+    assert _party_hp(client, cid) == 40
+
+    client.post(f"/api/v1/campaigns/{cid}/combats/{run_id}/redo")
+    assert _party_hp(client, cid) == 27
+
+
+def test_cancelled_combat_keeps_party_hp(client: TestClient) -> None:
+    """Calling the fight off does not call off the damage already taken.
+
+    ``cancel_combat`` skipped the write-back entirely, so abandoning a run silently healed
+    every PC back to where they started it.
+    """
+    cid = _demo(client)
+    run_id, serah_id = _pc_in_combat(client, cid)
+
+    client.post(
+        f"/api/v1/campaigns/{cid}/combats/{run_id}/actions",
+        json={"action_type": "damage", "payload": {"id": serah_id, "amount": 13}},
+    )
+    resp = client.post(f"/api/v1/campaigns/{cid}/combats/{run_id}/cancel")
+    assert resp.status_code == 204, resp.text
+    assert _party_hp(client, cid) == 27
+
+
+def test_untouched_run_does_not_reset_party_hp(client: TestClient) -> None:
+    """A run that never landed a blow has no claim on the party's hp.
+
+    Nothing to say is not the same as everyone at full. More than one run can sit open at
+    once, and a second one still holding its seeded numbers used to heal the party back to
+    full on its way out — wiping the damage the real fight had just recorded.
+    """
+    cid = _demo(client)
+    run_id, serah_id = _pc_in_combat(client, cid)
+    client.post(
+        f"/api/v1/campaigns/{cid}/combats/{run_id}/actions",
+        json={"action_type": "damage", "payload": {"id": serah_id, "amount": 13}},
+    )
+    assert _party_hp(client, cid) == 27
+
+    # A second run opens alongside the first and is called off without a blow struck.
+    stale = client.post(f"/api/v1/campaigns/{cid}/combats", json={}).json()["run_id"]
+    client.post(f"/api/v1/campaigns/{cid}/combats/{stale}/cancel")
+    assert _party_hp(client, cid) == 27
+
+    # Same when it is played out to the end rather than cancelled.
+    stale2 = client.post(f"/api/v1/campaigns/{cid}/combats", json={}).json()["run_id"]
+    client.post(f"/api/v1/campaigns/{cid}/combats/{stale2}/end")
+    assert _party_hp(client, cid) == 27
+
+
 # --- legendary + lair -------------------------------------------------------
 _STRAHD = {
     "size": "Medium", "type": "undead", "armor_class": 16, "hit_points": 144,
@@ -345,6 +449,36 @@ def test_hitting_someone_already_down_is_an_automatic_failure(client: TestClient
         json={"action_type": "damage", "payload": {"id": serah, "amount": 3}},
     ).json()
     assert out["state"]["combatants"][serah]["death_saves"]["failures"] == 1
+
+
+def test_a_manual_death_save_uses_the_physical_die_instead_of_the_rng(
+    client: TestClient,
+) -> None:
+    """A DM who rolled at the table types the face in — same DC and nat-20/1 rules apply."""
+    cid = _demo(client)
+    run_id, serah = _downed_pc(client, cid)
+
+    out = client.post(
+        f"/api/v1/campaigns/{cid}/combats/{run_id}/death-save",
+        json={"combatant_id": serah, "manual_result": 20},
+    )
+    assert out.status_code == 200, out.text
+    c = out.json()["state"]["combatants"][serah]
+    assert c["hp"] == 1 and c["defeated"] is False  # a nat 20 revives, same as a rolled one
+
+    rolls = client.get(f"/api/v1/campaigns/{cid}/combats/{run_id}/rolls").json()
+    roll = next(r for r in rolls if r["kind"] == "death_save")
+    assert roll["outcome"] == "crit_success" and roll["total"] == 20
+
+
+def test_a_manual_death_save_result_out_of_range_is_rejected(client: TestClient) -> None:
+    cid = _demo(client)
+    run_id, serah = _downed_pc(client, cid)
+    out = client.post(
+        f"/api/v1/campaigns/{cid}/combats/{run_id}/death-save",
+        json={"combatant_id": serah, "manual_result": 21},
+    )
+    assert out.status_code == 422
 
 
 def test_a_system_without_death_saves_refuses_to_roll_one(client: TestClient) -> None:
@@ -912,6 +1046,37 @@ def test_cancel_combat_rewinds_and_records_nothing(client: TestClient) -> None:
     # Idempotent — a second cancel can't rewind anything further.
     assert client.post(f"/api/v1/campaigns/{cid}/combats/{run_id}/cancel").status_code == 204
     assert client.get(f"/api/v1/campaigns/{cid}/clock").json()["time_game"] == before
+
+
+def test_a_foe_cleared_off_the_board_still_counts_as_defeated(client: TestClient) -> None:
+    """Tidying a corpse away mid-fight must not erase it from the summary."""
+    cid = _demo(client)
+    run_id = _start_from_two_goblins(client, cid)
+    run = client.get(f"/api/v1/campaigns/{cid}/combats/{run_id}").json()
+    gid = run["state"]["order"][0]
+    name = run["state"]["combatants"][gid]["name"]
+
+    client.post(f"/api/v1/campaigns/{cid}/combats/{run_id}/actions",
+                json={"action_type": "damage", "payload": {"id": gid, "amount": 99}})
+    client.post(f"/api/v1/campaigns/{cid}/combats/{run_id}/actions",
+                json={"action_type": "remove_combatant", "payload": {"id": gid}})
+
+    summary = client.post(f"/api/v1/campaigns/{cid}/combats/{run_id}/end").json()
+    assert summary["defeated"] == [name]
+
+
+def test_a_foe_removed_while_still_standing_is_not_a_casualty(client: TestClient) -> None:
+    """Removal is not death — a monster pulled off the board unharmed merely fled."""
+    cid = _demo(client)
+    run_id = _start_from_two_goblins(client, cid)
+    run = client.get(f"/api/v1/campaigns/{cid}/combats/{run_id}").json()
+    gid = run["state"]["order"][0]
+
+    client.post(f"/api/v1/campaigns/{cid}/combats/{run_id}/actions",
+                json={"action_type": "remove_combatant", "payload": {"id": gid}})
+
+    summary = client.post(f"/api/v1/campaigns/{cid}/combats/{run_id}/end").json()
+    assert summary["defeated"] == []
 
 
 def test_end_combat_advances_clock_and_logs(client: TestClient) -> None:

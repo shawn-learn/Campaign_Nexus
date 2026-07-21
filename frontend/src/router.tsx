@@ -7,6 +7,7 @@ import { Layout } from './shell/Layout'
 import { DashboardPage } from './features/dashboard/DashboardPage'
 import { EntitiesPage } from './features/wiki/EntitiesPage'
 import { EntityDetailPage } from './features/wiki/EntityDetailPage'
+import { SearchPage } from './features/wiki/SearchPage'
 import { ScheduledEventsPage } from './features/time/ScheduledEventsPage'
 import { TimelinePage } from './features/chronicle/TimelinePage'
 import { SessionsPage } from './features/chronicle/SessionsPage'
@@ -14,6 +15,7 @@ import { SessionsPage } from './features/chronicle/SessionsPage'
 import { BestiaryPage } from './features/rules/BestiaryPage'
 import { PartyPage } from './features/playbook/PartyPage'
 import { EncountersPage } from './features/playbook/EncountersPage'
+import { EncounterEditorPage } from './features/playbook/EncounterEditorPage'
 import { SkillChallengesPage } from './features/playbook/SkillChallengesPage'
 import { CombatPage } from './features/playbook/CombatPage'
 import { RandomTablesPage } from './features/playbook/RandomTablesPage'
@@ -94,6 +96,20 @@ const encountersRoute = createRoute({
   component: EncountersPage,
 })
 
+// Building and editing an encounter are the same form (EncounterEditorPage); the presence
+// of $entityId is what tells them apart.
+const encounterNewRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/encounters/new',
+  component: EncounterEditorPage,
+})
+
+const encounterEditRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/encounters/$entityId/edit',
+  component: EncounterEditorPage,
+})
+
 const skillChallengesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/skill-challenges',
@@ -158,6 +174,12 @@ const spellsRoute = createRoute({
   component: SpellsPage,
 })
 
+const searchRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/search',
+  component: SearchPage,
+})
+
 const dataRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/data',
@@ -175,6 +197,8 @@ const routeTree = rootRoute.addChildren([
   bestiaryRoute,
   partyRoute,
   encountersRoute,
+  encounterNewRoute,
+  encounterEditRoute,
   skillChallengesRoute,
   combatRoute,
   randomTablesRoute,
@@ -185,6 +209,7 @@ const routeTree = rootRoute.addChildren([
   equipmentRoute,
   merchantsRoute,
   spellsRoute,
+  searchRoute,
   dataRoute,
 ])
 

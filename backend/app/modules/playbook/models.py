@@ -66,6 +66,10 @@ class Encounter(Base):
     tactics: Mapped[str | None] = mapped_column(Text, nullable=True)
     # [{"monster_id","count","side"}]
     combatants_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    # Environmental actions: hazards/terrain effects that ride the initiative order as
+    # hit-point-less "lair" combatants so the GM has the text in front of them mid-fight.
+    # [{"name","initiative"|null,"actions":[{"name","description"}]}]
+    environment_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
 
 
 class SkillChallenge(Base):

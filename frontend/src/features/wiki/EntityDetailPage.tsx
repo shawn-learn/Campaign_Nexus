@@ -13,6 +13,8 @@ import {
   useUpdateEntity,
   useUploadEntityMedia,
   useNpc,
+  useMerchant,
+  useSkillChallenge,
 } from '../../api/hooks'
 import type { ReferencesOut } from '../../api/client'
 import { useActiveCampaign } from '../../shell/useActiveCampaign'
@@ -30,6 +32,12 @@ import { NpcSheetTab } from '../npcs/NpcSheetTab'
 import { LocationOverviewTab } from './LocationOverviewTab'
 import { LocationArticleTab } from './LocationArticleTab'
 import { LocationMapTab } from './LocationMapTab'
+import { MerchantOverviewTab } from '../merchants/MerchantOverviewTab'
+import { BuyTab, SellTab, ManageTab } from '../merchants/ShopTabs'
+import {
+  SkillChallengeOverviewTab,
+  SkillChallengeRunTab,
+} from '../playbook/SkillChallengeTabs'
 
 // Entity detail: rename, edit summary, tag/untag, soft-delete/restore.
 export function EntityDetailPage() {
@@ -45,6 +53,15 @@ export function EntityDetailPage() {
   const tag = useTagEntity(campaignId ?? '', entityId)
   const untag = useUntagEntity(campaignId ?? '', entityId)
   const { data: npc } = useNpc(campaignId, entity?.entity_type === 'npc' ? entityId : null)
+  // A merchant's id *is* its entity id, so the shop record loads straight from entityId.
+  const { data: merchant } = useMerchant(
+    campaignId,
+    entity?.entity_type === 'merchant' ? entityId : null,
+  )
+  const { data: skillChallenge } = useSkillChallenge(
+    campaignId,
+    entity?.entity_type === 'skill_challenge' ? entityId : null,
+  )
 
   const [name, setName] = useState('')
   const [summary, setSummary] = useState('')
@@ -189,6 +206,88 @@ export function EntityDetailPage() {
                 entityId={entityId}
               />
             )}
+          </TabPanel>
+        </Tabs>
+      ) : entity.entity_type === 'skill_challenge' && skillChallenge ? (
+        <Tabs
+          tabs={[
+            { id: 'overview', label: 'Overview' },
+            { id: 'article', label: 'Article' },
+            { id: 'run', label: 'Run' },
+          ]}
+          activeTab={activeTab}
+          onChange={setActiveTab}
+        >
+          <TabPanel id="overview" activeTab={activeTab}>
+            {campaignId && (
+              <SkillChallengeOverviewTab
+                campaignId={campaignId}
+                entityId={entityId}
+                entity={entity}
+                challenge={skillChallenge}
+              />
+            )}
+          </TabPanel>
+          <TabPanel id="article" activeTab={activeTab}>
+            {campaignId && (
+              <LocationArticleTab
+                campaignId={campaignId}
+                entityId={entityId}
+                entity={entity}
+              />
+            )}
+          </TabPanel>
+          <TabPanel id="run" activeTab={activeTab}>
+            {campaignId && (
+              <SkillChallengeRunTab campaignId={campaignId} challenge={skillChallenge} />
+            )}
+          </TabPanel>
+        </Tabs>
+      ) : entity.entity_type === 'merchant' && merchant ? (
+        <Tabs
+          tabs={[
+            { id: 'overview', label: 'Overview' },
+            { id: 'article', label: 'Article' },
+            { id: 'buy', label: 'Buy' },
+            { id: 'sell', label: 'Sell' },
+            { id: 'stock', label: 'Stock' },
+          ]}
+          activeTab={activeTab}
+          onChange={setActiveTab}
+        >
+          <TabPanel id="overview" activeTab={activeTab}>
+            {campaignId && (
+              <MerchantOverviewTab
+                campaignId={campaignId}
+                entityId={entityId}
+                merchant={merchant}
+              />
+            )}
+          </TabPanel>
+          <TabPanel id="article" activeTab={activeTab}>
+            {/* LocationArticleTab is generic — article, relations, links, tags. */}
+            {campaignId && (
+              <LocationArticleTab
+                campaignId={campaignId}
+                entityId={entityId}
+                entity={entity}
+              />
+            )}
+          </TabPanel>
+          <TabPanel id="buy" activeTab={activeTab}>
+            {campaignId && <BuyTab campaignId={campaignId} merchantId={entityId} />}
+          </TabPanel>
+          <TabPanel id="sell" activeTab={activeTab}>
+            {campaignId && (
+              <SellTab
+                campaignId={campaignId}
+                merchantId={entityId}
+                buyback={merchant.buyback_pct}
+              />
+            )}
+          </TabPanel>
+          <TabPanel id="stock" activeTab={activeTab}>
+            {campaignId && <ManageTab campaignId={campaignId} merchantId={entityId} />}
           </TabPanel>
         </Tabs>
       ) : entity.entity_type === 'npc' && npc ? (
@@ -380,12 +479,16 @@ export function EntityImages({ campaignId, entityId }: { campaignId: string; ent
         <p className="muted">No images yet.</p>
       ) : (
         <div className="entity-gallery">
-          {images!.map((img) => (
+          {images!.map((img) => {
+            const src = `/api/v1/campaigns/${campaignId}/entities/${entityId}/media/${img.id}/image`
+            return (
             <figure key={img.id} className="entity-gallery-item">
               <img
-                src={`/api/v1/campaigns/${campaignId}/entities/${entityId}/media/${img.id}/image`}
+                src={src}
                 alt={img.caption ?? img.filename}
                 loading="lazy"
+                title="Double-click to open full size in a new tab"
+                onDoubleClick={() => window.open(src, '_blank', 'noopener,noreferrer')}
               />
               <button
                 className="tag-x gallery-del"
@@ -396,7 +499,8 @@ export function EntityImages({ campaignId, entityId }: { campaignId: string; ent
               </button>
               {img.caption && <figcaption className="muted">{img.caption}</figcaption>}
             </figure>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>

@@ -139,6 +139,20 @@ ul.entities li {
 ul.entities li.deleted { opacity: 0.55; }
 ul.entities li a { font-weight: 600; }
 
+/* Deep search results — snippets of the prose that matched, with terms highlighted. */
+.search-snippet {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
+}
+.search-snippet mark {
+  background: rgba(200, 162, 74, 0.28);
+  color: var(--accent);
+  border-radius: 3px;
+  padding: 0 2px;
+}
+
 /* Tags */
 .tag {
   display: inline-flex;
@@ -184,6 +198,8 @@ textarea { font: inherit; background: var(--panel-2); color: var(--text);
   border-radius: 8px;
   border: 1px solid var(--border);
   display: block;
+  /* Thumbnails are cropped (object-fit: cover) — double-click opens the full image. */
+  cursor: zoom-in;
 }
 .entity-gallery-item figcaption { font-size: 12px; margin-top: 4px; }
 .gallery-del {
@@ -207,6 +223,10 @@ textarea { font: inherit; background: var(--panel-2); color: var(--text);
 .article { margin-bottom: 16px; }
 .article-toolbar { display: flex; justify-content: space-between; align-items: baseline;
   margin-bottom: 6px; font-size: 13px; }
+.article-format { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-bottom: 6px; }
+.article-format button { font-size: 12px; padding: 2px 8px; min-width: 28px; }
+.article-format button.active { background: var(--accent, #4a5568); color: #fff; }
+.article-format-hint { font-size: 11px; margin-left: 4px; }
 .article-body {
   background: var(--panel);
   border: 1px solid var(--border);
@@ -223,6 +243,29 @@ textarea { font: inherit; background: var(--panel-2); color: var(--text);
   height: 0;
   pointer-events: none;
 }
+.article-body .ProseMirror blockquote {
+  position: relative;
+  margin: 12px 0;
+  padding: 10px 14px 10px 16px;
+  border-left: 4px solid var(--accent, #4a5568);
+  background: var(--panel-2);
+  border-radius: 0 6px 6px 0;
+  font-style: italic;
+}
+.article-body .ProseMirror blockquote::before {
+  content: 'Read aloud';
+  display: block;
+  margin-bottom: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  font-style: normal;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent, #4a5568);
+}
+.article-body .ProseMirror blockquote p { margin: 0 0 4px; }
+.article-body .ProseMirror blockquote p:last-child { margin-bottom: 0; }
+
 .mention {
   color: var(--accent);
   background: var(--panel-2);
@@ -384,7 +427,7 @@ textarea { font: inherit; background: var(--panel-2); color: var(--text);
   top: 0;
   right: 0;
   height: 100vh;
-  width: min(380px, 90vw);
+  width: min(520px, 92vw);
   background: var(--panel);
   border-left: 1px solid var(--border);
   box-shadow: -12px 0 40px rgba(0, 0, 0, 0.5);
@@ -395,6 +438,17 @@ textarea { font: inherit; background: var(--panel-2); color: var(--text);
 .peek-head { display: flex; justify-content: flex-end; }
 .peek h3 { margin: 4px 0 8px; }
 .peek-counts { font-size: 13px; margin: 12px 0; }
+.peek-section { margin: 14px 0; }
+.peek-section h4 { margin: 0 0 6px; font-size: 13px; text-transform: uppercase;
+  letter-spacing: 0.04em; color: var(--muted); }
+.peek-links { list-style: none; margin: 0; padding: 0; }
+.peek-links li { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
+/* Thumbnail strip; double-click opens the full image (see EntityImages). */
+.peek-gallery { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.peek-gallery img { width: 84px; height: 84px; object-fit: cover; border-radius: 8px;
+  border: 1px solid var(--border); cursor: zoom-in; }
+/* The peek's article is read-only — drop the editor chrome. */
+.peek .article-body { border: none; padding: 0; min-height: 0; }
 
 /* Nav browse group */
 .nav-group { margin: 16px 10px 4px; font-size: 11px; text-transform: uppercase;
@@ -493,6 +547,11 @@ ul.relations li:last-child { border-bottom: none; }
   padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; }
 .pick-row.picked { border-color: var(--accent); }
 .pick-row button { padding: 2px 8px; }
+/* The encounter picker's results are buttons (the whole row adds the creature), so they
+   have to shed the accent fill every other button carries. */
+button.pick-row { background: transparent; color: var(--text); width: 100%;
+  text-align: left; font: inherit; gap: 8px; }
+button.pick-row:hover { border-color: var(--accent); }
 
 /* Classic 5e stat block */
 /* Random table rows + roll result */

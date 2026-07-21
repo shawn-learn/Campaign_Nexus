@@ -17,6 +17,10 @@ class MonsterNotFound(LookupError):
     pass
 
 
+class MonsterNotEditable(ValueError):
+    """A pack-owned monster can't be deleted — the pack owns it (use a variant instead)."""
+
+
 def _facets(system_id: str, doc: dict[str, Any]) -> dict[str, Any]:
     values = registry.get_system(system_id).monster_facets(doc)
     return {
@@ -131,6 +135,52 @@ def import_content_packs(session: Session, campaign_id: str, system_id: str) -> 
                 changed += 1
     session.commit()
     return changed
+
+
+def create_custom_monster(
+    session: Session,
+    campaign_id: str,
+    system_id: str,
+    *,
+    name: str,
+    doc: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Create a blank custom monster (``source="custom"``) to author from scratch.
+
+    The starting document is the plugin's own ``blank_doc`` (already schema-valid) unless the
+    caller supplies one, so a freshly created monster saves and edits like any other.
+    """
+    system = registry.get_system(system_id)
+    base = system.blank_doc("monster")
+    if doc:
+        base = {**base, **doc}
+    errors = system.validate("monster", base)
+    if errors:
+        raise ValueError("; ".join(errors))
+    monster = _create_monster(
+        session, campaign_id, system_id, name, base, source="custom",
+    )
+    session.commit()
+    return _to_out(session, monster)
+
+
+def delete_monster(session: Session, campaign_id: str, monster_id: str) -> None:
+    """Delete a GM-authored monster (custom or imported) and the stat block behind it.
+
+    Pack-owned monsters are the pack's, not the GM's — deleting one would just be undone by the
+    next content import, so it's refused (``MonsterNotEditable``); the GM makes a variant to own
+    a copy instead.
+    """
+    monster = session.get(Monster, monster_id)
+    if monster is None or monster.campaign_id != campaign_id:
+        raise MonsterNotFound(monster_id)
+    if monster.source.startswith("content_pack:"):
+        raise MonsterNotEditable(monster_id)
+    block = session.get(StatBlock, monster.stat_block_id)
+    session.delete(monster)
+    if block is not None:
+        session.delete(block)
+    session.commit()
 
 
 def make_variant(session: Session, campaign_id: str, monster_id: str) -> dict[str, Any]:

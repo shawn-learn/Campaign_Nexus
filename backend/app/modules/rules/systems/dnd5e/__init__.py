@@ -450,12 +450,45 @@ _MONSTER_LAYOUT: LayoutSpec = {
         {
             "title": "Actions",
             "fields": [
+                {"key": "multiattack.description", "label": "Multiattack", "role": "paragraph"},
                 {"key": "actions", "label": "Attacks", "role": "attack-list",
                  "keys": list(_ABILITIES)},
                 {"key": "bonus_actions", "label": "Bonus Actions", "role": "attack-list",
                  "keys": list(_ABILITIES)},
                 {"key": "reactions", "label": "Reactions", "role": "attack-list",
                  "keys": list(_ABILITIES)},
+            ],
+        },
+        {
+            "title": "Legendary Actions",
+            "fields": [
+                {"key": "legendary_actions.count", "label": "Actions per round",
+                 "role": "number"},
+                {"key": "legendary_actions.description", "label": "Description",
+                 "role": "paragraph"},
+                {"key": "legendary_actions.options", "label": "Options", "role": "attack-list",
+                 "keys": list(_ABILITIES)},
+            ],
+        },
+        {
+            "title": "Lair Actions",
+            "fields": [
+                {"key": "lair_actions.initiative", "label": "Initiative count",
+                 "role": "number"},
+                {"key": "lair_actions.description", "label": "Description",
+                 "role": "paragraph"},
+                {"key": "lair_actions.options", "label": "Options",
+                 "role": "named-entry-list"},
+            ],
+        },
+        {
+            "title": "Regional Effects",
+            "fields": [
+                {"key": "regional_effects.description", "label": "Description",
+                 "role": "paragraph"},
+                {"key": "regional_effects.effects", "label": "Effects",
+                 "role": "named-entry-list"},
+                {"key": "regional_effects.fades", "label": "Fades when", "role": "text"},
             ],
         },
     ]
@@ -541,6 +574,22 @@ class Dnd5eSystem(BaseRuleSystem):
     def render_layout(self, sheet_type: str) -> LayoutSpec:
         self.sheet_schema(sheet_type)
         return _MONSTER_LAYOUT if sheet_type == "monster" else _CHARACTER_LAYOUT
+
+    def blank_doc(self, sheet_type: str) -> Document:
+        """A minimal doc that already satisfies the schema's ``required`` fields, so a newly
+        created sheet is valid before the GM edits it — they change the numbers, not fill a
+        blank form that refuses to save."""
+        self.sheet_schema(sheet_type)
+        if sheet_type == "monster":
+            return {
+                "size": "Medium", "type": "humanoid", "armor_class": 10,
+                "hit_points": 1, "challenge_rating": 0,
+                "abilities": dict.fromkeys(_ABILITIES, 10),
+            }
+        return {
+            "level": 1, "armor_class": 10, "max_hit_points": 1,
+            "abilities": dict.fromkeys(_ABILITIES, 10),
+        }
 
     def conditions(self) -> list[ConditionDef]:
         return _CONDITIONS

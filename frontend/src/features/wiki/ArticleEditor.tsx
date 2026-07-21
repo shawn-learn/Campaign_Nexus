@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { EditorContent, useEditor } from '@tiptap/react'
-import type { Content, JSONContent } from '@tiptap/react'
+import type { Content, Editor, JSONContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Mention from '@tiptap/extension-mention'
 import { useQueryClient } from '@tanstack/react-query'
@@ -101,6 +101,8 @@ export function ArticleEditor({ campaignId, entityId, initial, onNavigate }: Pro
         </span>
       </div>
 
+      {editor && <FormatBar editor={editor} />}
+
       {showHistory && (
         <div className="card article-history">
           {(snapshots ?? []).length === 0 && (
@@ -133,6 +135,50 @@ export function ArticleEditor({ campaignId, entityId, initial, onNavigate }: Pro
       )}
 
       <EditorContent editor={editor} className="article-body" />
+    </div>
+  )
+}
+
+// Basic block/inline formatting. The code-block toggle matters most: pasted markdown
+// can land as one big code block, and @mentions can't be inserted inside one — without
+// a way to toggle it off the article is stuck with no linking.
+function FormatBar({ editor }: { editor: Editor }) {
+  const chain = () => editor.chain().focus()
+  const buttons: { label: string; title: string; active: string | [string, object]; run: () => void }[] = [
+    { label: 'B', title: 'Bold', active: 'bold', run: () => chain().toggleBold().run() },
+    { label: 'I', title: 'Italic', active: 'italic', run: () => chain().toggleItalic().run() },
+    { label: 'H2', title: 'Heading', active: ['heading', { level: 2 }], run: () => chain().toggleHeading({ level: 2 }).run() },
+    { label: 'H3', title: 'Subheading', active: ['heading', { level: 3 }], run: () => chain().toggleHeading({ level: 3 }).run() },
+    { label: '• List', title: 'Bullet list', active: 'bulletList', run: () => chain().toggleBulletList().run() },
+    { label: '1. List', title: 'Numbered list', active: 'orderedList', run: () => chain().toggleOrderedList().run() },
+    { label: '❝', title: 'Blockquote', active: 'blockquote', run: () => chain().toggleBlockquote().run() },
+    { label: '{ }', title: 'Code block — toggle off to allow @mentions', active: 'codeBlock', run: () => chain().toggleCodeBlock().run() },
+  ]
+
+  return (
+    <div className="article-format">
+      {buttons.map((b) => {
+        const isActive = Array.isArray(b.active)
+          ? editor.isActive(b.active[0], b.active[1])
+          : editor.isActive(b.active)
+        return (
+          <button
+            key={b.label}
+            type="button"
+            title={b.title}
+            aria-pressed={isActive}
+            className={'ghost' + (isActive ? ' active' : '')}
+            onClick={b.run}
+          >
+            {b.label}
+          </button>
+        )
+      })}
+      {editor.isActive('codeBlock') && (
+        <span className="muted article-format-hint">
+          @mentions don't work inside a code block — toggle <code>{'{ }'}</code> off to link entities.
+        </span>
+      )}
     </div>
   )
 }

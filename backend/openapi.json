@@ -430,6 +430,114 @@
         }
       }
     },
+    "/api/v1/campaigns/{campaign_id}/search/deep": {
+      "get": {
+        "tags": [
+          "wiki"
+        ],
+        "summary": "Search Entities Deep",
+        "description": "Ranked search with highlighted snippets of the summary/article text that matched.\n\n``prose_only`` ignores name and tag matches, answering \"where did I write about this?\"",
+        "operationId": "search_entities_deep_api_v1_campaigns__campaign_id__search_deep_get",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Q"
+            }
+          },
+          {
+            "name": "entity_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Entity Type"
+            }
+          },
+          {
+            "name": "tag_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tag Id"
+            }
+          },
+          {
+            "name": "prose_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Prose Only"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 25,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SearchHitOut"
+                  },
+                  "title": "Response Search Entities Deep Api V1 Campaigns  Campaign Id  Search Deep Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/campaigns/{campaign_id}/entities/{entity_id}": {
       "get": {
         "tags": [
@@ -3263,6 +3371,57 @@
             }
           }
         }
+      },
+      "post": {
+        "tags": [
+          "rules"
+        ],
+        "summary": "Create Monster",
+        "description": "Author a new custom monster from scratch, seeded from the plugin's blank stat block.",
+        "operationId": "create_monster_api_v1_campaigns__campaign_id__monsters_post",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MonsterCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonsterOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/campaigns/{campaign_id}/monsters/import": {
@@ -3453,6 +3612,48 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "rules"
+        ],
+        "summary": "Delete Monster",
+        "operationId": "delete_monster_api_v1_campaigns__campaign_id__monsters__monster_id__delete",
+        "parameters": [
+          {
+            "name": "monster_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Monster Id"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
           },
           "422": {
             "description": "Validation Error",
@@ -4986,7 +5187,7 @@
           "combat"
         ],
         "summary": "Cancel Combat",
-        "description": "Call the fight off \u2014 no summary, no write-back, back to exploration.",
+        "description": "Call the fight off \u2014 no summary, no chronicle entry, back to exploration.",
         "operationId": "cancel_combat_api_v1_campaigns__campaign_id__combats__run_id__cancel_post",
         "parameters": [
           {
@@ -11889,6 +12090,17 @@
             "title": "Combatant Blocks",
             "default": {}
           },
+          "combatant_environments": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/components/schemas/EnvironmentActionSpec"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Combatant Environments",
+            "default": {}
+          },
           "initiative_dice": {
             "anyOf": [
               {
@@ -12074,7 +12286,14 @@
       "CombatantSpec": {
         "properties": {
           "monster_id": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Monster Id"
           },
           "monster_name": {
@@ -12087,6 +12306,28 @@
               }
             ],
             "title": "Monster Name"
+          },
+          "npc_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Npc Id"
+          },
+          "npc_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Npc Name"
           },
           "count": {
             "type": "integer",
@@ -12102,10 +12343,8 @@
           }
         },
         "type": "object",
-        "required": [
-          "monster_id"
-        ],
-        "title": "CombatantSpec"
+        "title": "CombatantSpec",
+        "description": "One line on an encounter's roster: a bestiary monster *or* a campaign NPC."
       },
       "ConditionCheck": {
         "properties": {
@@ -12316,6 +12555,19 @@
           "combatant_id": {
             "type": "string",
             "title": "Combatant Id"
+          },
+          "manual_result": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 20.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manual Result"
           }
         },
         "type": "object",
@@ -12511,8 +12763,26 @@
       "EncounterCombatantOut": {
         "properties": {
           "monster_id": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Monster Id"
+          },
+          "npc_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Npc Id"
           },
           "name": {
             "type": "string",
@@ -12536,11 +12806,15 @@
               }
             ],
             "title": "Resolved By"
+          },
+          "has_stats": {
+            "type": "boolean",
+            "title": "Has Stats",
+            "default": true
           }
         },
         "type": "object",
         "required": [
-          "monster_id",
           "name",
           "count",
           "side"
@@ -12594,6 +12868,14 @@
             },
             "type": "array",
             "title": "Combatants",
+            "default": []
+          },
+          "environment": {
+            "items": {
+              "$ref": "#/components/schemas/EnvironmentSpec"
+            },
+            "type": "array",
+            "title": "Environment",
             "default": []
           },
           "location_id": {
@@ -12663,6 +12945,14 @@
             },
             "type": "array",
             "title": "Combatants"
+          },
+          "environment": {
+            "items": {
+              "$ref": "#/components/schemas/EnvironmentSpec"
+            },
+            "type": "array",
+            "title": "Environment",
+            "default": []
           },
           "difficulty": {
             "$ref": "#/components/schemas/DifficultyOut"
@@ -12740,6 +13030,20 @@
               }
             ],
             "title": "Combatants"
+          },
+          "environment": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/EnvironmentSpec"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Environment"
           }
         },
         "type": "object",
@@ -13051,6 +13355,61 @@
         "type": "object",
         "title": "EntityUpdate",
         "description": "Partial update. Unset fields are left unchanged; ``summary=None`` clears it."
+      },
+      "EnvironmentActionSpec": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "EnvironmentActionSpec"
+      },
+      "EnvironmentSpec": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "initiative": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Initiative"
+          },
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/EnvironmentActionSpec"
+            },
+            "type": "array",
+            "title": "Actions",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "EnvironmentSpec",
+        "description": "An environmental hazard/terrain effect that acts during combat but has no hit points.\n\nSeeded into a fight as a ``kind=\"lair\"`` combatant so it rides the initiative order and is\nnever \"defeated\"; its ``actions`` are the text the GM reads on its turn."
       },
       "EquipmentCreate": {
         "properties": {
@@ -15332,6 +15691,33 @@
         "type": "object",
         "title": "MerchantUpdate"
       },
+      "MonsterCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "doc": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doc"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "MonsterCreate"
+      },
       "MonsterFacets": {
         "properties": {
           "facet1_num": {
@@ -15656,6 +16042,28 @@
             "type": "array",
             "title": "Knows About"
           },
+          "stat_block_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stat Block Id"
+          },
+          "stat_block_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stat Block Label"
+          },
           "deleted": {
             "type": "boolean",
             "title": "Deleted",
@@ -15713,6 +16121,17 @@
               }
             ],
             "title": "Voice Notes"
+          },
+          "stat_block_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stat Block Id"
           }
         },
         "type": "object",
@@ -17708,6 +18127,41 @@
         },
         "type": "object",
         "title": "ScheduledEventUpdate"
+      },
+      "SearchHitOut": {
+        "properties": {
+          "entity": {
+            "$ref": "#/components/schemas/EntityOut"
+          },
+          "summary_snippet": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary Snippet"
+          },
+          "article_snippet": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Article Snippet"
+          }
+        },
+        "type": "object",
+        "required": [
+          "entity"
+        ],
+        "title": "SearchHitOut",
+        "description": "A deep-search result: the entity plus the prose that matched.\n\nSnippets carry ``[[hl]]\u2026[[/hl]]`` markers around the matched terms. They are literal\nmarkers rather than HTML so the client can escape the surrounding document text.\nA snippet is null when that field contributed no match."
       },
       "SellbackIn": {
         "properties": {

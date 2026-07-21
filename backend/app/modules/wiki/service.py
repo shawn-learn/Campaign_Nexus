@@ -24,6 +24,7 @@ from app.modules.wiki.schemas import (
     EntityUpdate,
     LinkRef,
     LinkTypeOut,
+    SearchHitOut,
     TagOut,
 )
 
@@ -197,6 +198,39 @@ def full_text_search(
         e.id: e for e in session.scalars(select(Entity).where(Entity.id.in_(ids)))
     }
     return [by_id[i] for i in ids if i in by_id]  # preserve rank order
+
+
+def deep_search(
+    session: Session,
+    campaign_id: str,
+    query: str,
+    *,
+    entity_type: str | None = None,
+    tag_id: str | None = None,
+    prose_only: bool = False,
+    limit: int = 25,
+) -> list[SearchHitOut]:
+    """Ranked search returning each entity together with the prose that matched."""
+    hits = search.search_entity_hits(
+        session, campaign_id, query,
+        entity_type=entity_type, tag_id=tag_id, prose_only=prose_only, limit=limit,
+    )
+    if not hits:
+        return []
+    by_id = {
+        e.id: e for e in session.scalars(
+            select(Entity).where(Entity.id.in_([h.entity_id for h in hits]))
+        )
+    }
+    return [
+        SearchHitOut(
+            entity=to_out(session, by_id[h.entity_id]),
+            summary_snippet=h.summary_snippet,
+            article_snippet=h.article_snippet,
+        )
+        for h in hits
+        if h.entity_id in by_id  # preserve rank order
+    ]
 
 
 # --------------------------------------------------------------------------- #

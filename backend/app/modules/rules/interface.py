@@ -46,7 +46,7 @@ DIFFICULTY_TIERS = ("trivial", "easy", "normal", "hard", "very_hard", "nearly_im
 # Display roles the generic renderer understands.
 FIELD_ROLES = (
     "text", "paragraph", "number", "boolean", "ability-array", "dice", "trait-list",
-    "attack-list",
+    "attack-list", "named-entry-list",
 )
 
 # What a creature can do on its turn, *resolved*: every number already summed, every damage
@@ -78,6 +78,7 @@ class RuleSystem(Protocol):
 
     def sheet_types(self) -> list[str]: ...
     def sheet_schema(self, sheet_type: str) -> JsonSchema: ...
+    def blank_doc(self, sheet_type: str) -> Document: ...
     def validate(self, sheet_type: str, doc: Document) -> list[str]: ...
     def derive(self, sheet_type: str, doc: Document) -> dict[str, Any]: ...
     def render_layout(self, sheet_type: str) -> LayoutSpec: ...
@@ -144,6 +145,16 @@ class BaseRuleSystem:
         if sheet_type not in self._schemas:
             raise UnknownSheetType(sheet_type)
         return self._schemas[sheet_type]
+
+    def blank_doc(self, sheet_type: str) -> Document:
+        """A minimal *valid* starting document for authoring a new sheet from scratch.
+
+        The default is an empty object; a system whose schema has required fields overrides
+        this so a freshly created sheet passes ``validate`` before the GM has typed anything.
+        """
+        if sheet_type not in self._schemas:
+            raise UnknownSheetType(sheet_type)
+        return {}
 
     def validate(self, sheet_type: str, doc: Document) -> list[str]:
         # Imported lazily so the dependency stays inside the rules module.

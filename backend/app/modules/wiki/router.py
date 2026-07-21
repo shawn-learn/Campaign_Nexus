@@ -19,6 +19,7 @@ from app.modules.wiki.schemas import (
     PurgedEntity,
     PurgeResult,
     ReferencesOut,
+    SearchHitOut,
     TagCreate,
     TagOut,
 )
@@ -69,6 +70,27 @@ def search_entities(
         entity_type=entity_type, tag_id=tag_id, limit=min(limit, 50),
     )
     return [service.to_out(session, e) for e in hits]
+
+
+@router.get("/search/deep", response_model=list[SearchHitOut])
+def search_entities_deep(
+    q: str,
+    entity_type: str | None = None,
+    tag_id: str | None = None,
+    prose_only: bool = False,
+    limit: int = 25,
+    session: Session = Depends(get_session),
+    ctx: CampaignContext = Viewer,
+) -> list[SearchHitOut]:
+    """Ranked search with highlighted snippets of the summary/article text that matched.
+
+    ``prose_only`` ignores name and tag matches, answering "where did I write about this?"
+    """
+    return service.deep_search(
+        session, ctx.campaign_id, q,
+        entity_type=entity_type, tag_id=tag_id,
+        prose_only=prose_only, limit=min(limit, 100),
+    )
 
 
 @router.post("/entities", response_model=EntityOut, status_code=status.HTTP_201_CREATED)

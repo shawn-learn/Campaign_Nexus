@@ -111,6 +111,8 @@ def update_npc(
         return service.update_npc(session, ctx.campaign_id, npc_id, body)
     except service.NpcNotFound as exc:
         raise _404(exc) from exc
+    except service.NpcError as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
 
 
 @router.post("/{npc_id}/relocate", response_model=NpcOut)

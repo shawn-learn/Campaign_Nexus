@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.modules.playbook.combat_reducer import ActionType
 from app.modules.time.schemas import ClockOut, FiredEvent
@@ -144,13 +144,44 @@ class TravelResult(BaseModel):
 
 
 class CombatantSpec(BaseModel):
-    monster_id: str
+    """One line on an encounter's roster: a bestiary monster *or* a campaign NPC."""
+
+    monster_id: str | None = None
     #: Fallback identity. ``monster_id`` is not a foreign key, so a bestiary re-import that
     #: recreates rows under new IDs orphans every combatant referencing them. Recording the
     #: name lets the encounter degrade to a resolvable creature instead of "(missing)".
     monster_name: str | None = None
+    #: An NPC from the campaign roster. Brings hit points only if a stat block is attached
+    #: to it; without one it stays on the roster but never joins the fight.
+    npc_id: str | None = None
+    #: Same staleness fallback as ``monster_name``.
+    npc_name: str | None = None
     count: int = Field(default=1, ge=1)
     side: str = Field(default="foe", pattern="^(foe|ally)$")
+
+    @model_validator(mode="after")
+    def _exactly_one_source(self) -> CombatantSpec:
+        if bool(self.monster_id) == bool(self.npc_id):
+            raise ValueError("a combatant needs exactly one of monster_id or npc_id")
+        return self
+
+
+class EnvironmentActionSpec(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    description: str = ""
+
+
+class EnvironmentSpec(BaseModel):
+    """An environmental hazard/terrain effect that acts during combat but has no hit points.
+
+    Seeded into a fight as a ``kind="lair"`` combatant so it rides the initiative order and is
+    never "defeated"; its ``actions`` are the text the GM reads on its turn.
+    """
+
+    name: str = Field(min_length=1, max_length=200)
+    #: The initiative count it acts on; ``None`` falls back to the system's lair initiative.
+    initiative: int | None = None
+    actions: list[EnvironmentActionSpec] = []
 
 
 class EncounterCreate(BaseModel):
@@ -159,6 +190,7 @@ class EncounterCreate(BaseModel):
     hazards: str | None = None
     tactics: str | None = None
     combatants: list[CombatantSpec] = []
+    environment: list[EnvironmentSpec] = []
     location_id: str | None = None  # optional 'located_at' link
 
 
@@ -167,16 +199,21 @@ class EncounterUpdate(BaseModel):
     hazards: str | None = None
     tactics: str | None = None
     combatants: list[CombatantSpec] | None = None
+    environment: list[EnvironmentSpec] | None = None
 
 
 class EncounterCombatantOut(BaseModel):
-    monster_id: str
+    monster_id: str | None = None
+    npc_id: str | None = None
     name: str
     count: int
     side: str
-    #: How the monster row was found: by ``monster_id``, by the ``monster_name`` fallback
-    #: (the stored ID is stale), or ``None`` when it could not be resolved at all.
+    #: How the row was found: by its ID, by the recorded-name fallback (the stored ID is
+    #: stale), or ``None`` when it could not be resolved at all.
     resolved_by: str | None = None
+    #: False for an NPC with no stat block attached — on the roster for the scene, but with
+    #: nothing to bring to the initiative order.
+    has_stats: bool = True
 
 
 class DifficultyOut(BaseModel):
@@ -195,6 +232,7 @@ class EncounterOut(BaseModel):
     hazards: str | None
     tactics: str | None
     combatants: list[EncounterCombatantOut]
+    environment: list[EnvironmentSpec] = []
     difficulty: DifficultyOut
     location_id: str | None
 
@@ -424,6 +462,10 @@ class CombatRunOut(BaseModel):
     state: CombatState
     #: combatant id → stat-block id, so the UI can show a combatant's full stat block.
     combatant_blocks: dict[str, str] = {}
+    #: combatant id → its environmental actions, for the hit-point-less "lair" entries seeded
+    #: from an encounter's environment. Read from the add_combatant log (like combatant_blocks),
+    #: so it survives undo/redo, and the tracker can show the GM the effect text on its turn.
+    combatant_environments: dict[str, list[EnvironmentActionSpec]] = {}
     #: The die this system rolls for order ("1d20"), or None if it doesn't roll at all —
     #: the tracker uses it to decide whether offering a roll would even be honest.
     initiative_dice: str | None = None
@@ -469,6 +511,9 @@ class RollInitiativeIn(BaseModel):
 
 class DeathSaveIn(BaseModel):
     combatant_id: str
+    #: The face the DM read off a physical die, if they rolled it at the table instead of
+    #: letting the app roll. When set, this stands in for the app's own d20 (1-20).
+    manual_result: int | None = Field(default=None, ge=1, le=20)
 
 
 class AddCombatantIn(BaseModel):

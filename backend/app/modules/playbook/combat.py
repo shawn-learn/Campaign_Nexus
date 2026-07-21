@@ -20,6 +20,7 @@ from app.core.clock import now_real_iso
 from app.core.ids import new_id
 from app.core.pipeline import command_tx
 from app.modules.campaign.models import Campaign
+from app.modules.npcs.models import Npc
 from app.modules.playbook import combat_reducer
 from app.modules.playbook.models import (
     CombatAction,
@@ -32,6 +33,7 @@ from app.modules.playbook.schemas import CombatState, CombatSummary
 from app.modules.rules import registry
 from app.modules.rules.models import Monster, StatBlock
 from app.modules.time import service as time_service
+from app.modules.wiki.models import Entity
 
 # A run in one of these is still in play — it holds the campaign in combat mode, and the
 # tracker should resume it. `setup` is rolling initiative; `active` is a fight underway.
@@ -39,6 +41,9 @@ OPEN_STATUSES = frozenset({"setup", "active"})
 # A run in one of these is done with: no more actions, no more undo/redo. `completed` is a
 # fight that was played to its end; `abandoned` is one the GM called off (see cancel_combat).
 CLOSED_STATUSES = frozenset({"completed", "abandoned"})
+# Action types that move a combatant's hp, and so make a run's fold worth writing to the
+# party sheet. `set_temp_hp` is absent on purpose: temp hp is not written back.
+HP_ACTIONS = frozenset({"damage", "heal", "death_save"})
 
 
 class CombatNotFound(LookupError):
@@ -87,6 +92,32 @@ def _require(session: Session, campaign_id: str, run_id: str) -> CombatRun:
     return run
 
 
+def _roster_source(
+    session: Session, campaign_id: str, spec: dict[str, Any]
+) -> tuple[str, StatBlock] | None:
+    """A roster line → ``(name, stat block)``, or None for anything that can't fight.
+
+    An NPC with no stat block attached is on the roster for the scene but has no hit points
+    to bring, so it drops out here exactly like a monster whose id no longer resolves.
+    """
+    if spec.get("npc_id"):
+        npc = session.get(Npc, spec["npc_id"])
+        if npc is None or npc.campaign_id != campaign_id or not npc.stat_block_id:
+            return None
+        block = session.get(StatBlock, npc.stat_block_id)
+        entity = session.get(Entity, npc.entity_id)
+        if block is None or entity is None:
+            return None
+        return entity.name, block
+    monster = session.get(Monster, spec.get("monster_id"))
+    if monster is None:
+        return None
+    block = session.get(StatBlock, monster.stat_block_id)
+    if block is None:
+        return None
+    return monster.name, block
+
+
 def _seed_actions(
     session: Session, campaign: Campaign, encounter_id: str | None
 ) -> list[dict[str, Any]]:
@@ -103,17 +134,15 @@ def _seed_actions(
         encounter = session.get(Encounter, encounter_id)
         if encounter is not None:
             for spec in json.loads(encounter.combatants_json):
-                monster = session.get(Monster, spec["monster_id"])
-                if monster is None:
+                source = _roster_source(session, campaign.id, spec)
+                if source is None:
                     continue
-                block = session.get(StatBlock, monster.stat_block_id)
-                doc = json.loads(block.doc_json) if block else {}
-                profile = system.combat_profile(
-                    block.sheet_type if block else "monster", doc
-                )
+                name, block = source
+                doc = json.loads(block.doc_json)
+                profile = system.combat_profile(block.sheet_type, doc)
                 count = int(spec.get("count", 1))
                 for n in range(count):
-                    label = f"{monster.name} {n + 1}" if count > 1 else monster.name
+                    label = f"{name} {n + 1}" if count > 1 else name
                     seed.append({
                         "type": "add_combatant", "id": new_id(), "name": label,
                         "side": spec.get("side", "foe"), "max_hp": profile["max_hp"],
@@ -122,11 +151,33 @@ def _seed_actions(
                         # Carried for the UI's stat-block panel, the initiative roll and
                         # attack resolution; the reducer ignores all three, so the folded
                         # state and its golden fixtures are unaffected.
-                        "stat_block_id": block.id if block else None,
+                        "stat_block_id": block.id,
                         "initiative_dice": profile["initiative_dice"],
                         "ac": profile["ac"],
                         "legendary_max": profile["legendary"],
                     })
+
+            # Environmental actions ride the order as hit-point-less lairs. The initiative
+            # count is the entry's, or the system's own lair count when it doesn't say — asked
+            # through combat_profile so the playbook stays ignorant of 5e's "20" (docs/04 §6.8).
+            environment = json.loads(getattr(encounter, "environment_json", "[]") or "[]")
+            lair_default = system.combat_profile(
+                "monster", {"lair_actions": {"options": []}}
+            ).get("lair_initiative")
+            for env in environment:
+                init = env.get("initiative")
+                if init is None:
+                    init = lair_default
+                seed.append({
+                    "type": "add_combatant", "id": new_id(), "name": env["name"],
+                    "side": "foe", "kind": "lair", "max_hp": 0, "hp": 0,
+                    "initiative": int(init) if init is not None else 0,
+                    "initiative_tiebreak": 0, "stat_block_id": None,
+                    "initiative_dice": None, "ac": None, "legendary_max": 0,
+                    # Carried for the tracker's rail (like stat_block_id): the reducer ignores
+                    # it, so the folded state and its golden fixtures are unaffected.
+                    "environment_actions": env.get("actions", []),
+                })
 
     # Party PCs join as allies with their live HP.
     members = session.scalars(
@@ -135,10 +186,10 @@ def _seed_actions(
         .where(StatBlock.campaign_id == campaign.id, PartyMember.active)
     )
     for member in members:
-        block = session.get(StatBlock, member.stat_block_id)
-        doc = json.loads(block.doc_json) if block else {}
+        pc_block = session.get(StatBlock, member.stat_block_id)
+        doc = json.loads(pc_block.doc_json) if pc_block else {}
         status = json.loads(member.status_json)
-        profile = system.combat_profile(block.sheet_type if block else "pc", doc, status)
+        profile = system.combat_profile(pc_block.sheet_type if pc_block else "pc", doc, status)
         seed.append({
             "type": "add_combatant", "id": new_id(), "name": member.name or "PC",
             "side": "ally", "max_hp": profile["max_hp"], "hp": profile["hp"],
@@ -166,6 +217,24 @@ def combatant_blocks(session: Session, run_id: str) -> dict[str, str]:
         block_id = payload.get("stat_block_id")
         if block_id:
             out[payload["id"]] = block_id
+    return out
+
+
+def combatant_environments(session: Session, run_id: str) -> dict[str, list[dict[str, Any]]]:
+    """Map each environmental combatant id → its list of ``{name, description}`` actions.
+
+    Same trick as ``combatant_blocks``: read straight from the ``add_combatant`` log, so it's
+    cursor-independent and stable across undo/redo. Only the hit-point-less lairs seeded from an
+    encounter's environment carry these, so most runs return an empty map.
+    """
+    out: dict[str, list[dict[str, Any]]] = {}
+    for action in _actions(session, run_id):
+        if action.action_type != "add_combatant":
+            continue
+        payload = json.loads(action.payload_json)
+        actions = payload.get("environment_actions")
+        if actions:
+            out[payload["id"]] = actions
     return out
 
 
@@ -543,12 +612,17 @@ def roll_death_save(
     combatant_id: str,
     *,
     rng: random.Random | None = None,
+    manual_result: int | None = None,
 ) -> CombatRun:
     """Roll one death save and record the outcome.
 
     The *rules* are the plugin's — which die, against what, and that a natural 20 is worth
     more than a success. This decides the outcome from those and hands the reducer a literal
     word, so folding the log stays deterministic (ADR-005).
+
+    ``manual_result`` stands in for the app's own d20 when the DM rolled a physical die at
+    the table instead — the DC check and the natural-20/1 rules still apply, just against a
+    face the DM read off the die rather than one the RNG picked.
     """
     run = _require(session, campaign.id, run_id)
     if run.status in CLOSED_STATUSES:
@@ -562,7 +636,17 @@ def roll_death_save(
         raise BadCombatant("this rule system has no death saves")
 
     dc = int(rules["dc"])
-    result = dice.roll(str(rules["dice"]), rng=rng)
+    dice_expr = str(rules["dice"])
+    if manual_result is not None:
+        # Death saves are always a flat 1d20 (PHB p.197) — no modifier to fold in.
+        result = dice.RollResult(
+            expression=dice_expr, mode="normal",
+            dice=[dice.DieRoll(sides=20, value=manual_result, kept=True, sign=1)],
+            modifier=0, total=manual_result,
+            critical=manual_result == 20, fumble=manual_result == 1,
+        )
+    else:
+        result = dice.roll(dice_expr, rng=rng)
     if result.critical:
         outcome = "crit_success"
     elif result.fumble:
@@ -699,6 +783,7 @@ def append_action(
     _append_one(session, run, action_type, payload)
     session.commit()
     _sync_clock(session, run)
+    _sync_party_hp(session, campaign_id, run)
     return run
 
 
@@ -707,6 +792,7 @@ def undo(session: Session, campaign_id: str, run_id: str) -> CombatRun:
     run.fold_cursor = max(0, run.fold_cursor - 1)
     session.commit()
     _sync_clock(session, run)
+    _sync_party_hp(session, campaign_id, run)
     return run
 
 
@@ -715,7 +801,19 @@ def redo(session: Session, campaign_id: str, run_id: str) -> CombatRun:
     run.fold_cursor = min(_total_actions(session, run_id), run.fold_cursor + 1)
     session.commit()
     _sync_clock(session, run)
+    _sync_party_hp(session, campaign_id, run)
     return run
+
+
+def _has_hp_actions(session: Session, run: CombatRun) -> bool:
+    """Has this run ever landed an hp action — anywhere in its log, cursor aside?
+
+    The whole log, not the folded prefix, because this asks whether the run has a claim on
+    the party's hp at all, not what it currently says. Undoing the only damage in a fight
+    must still write (the fold now reads full health, and that is the point of undo); a run
+    that never landed anything has no claim and stays out of the way.
+    """
+    return any(a.action_type in HP_ACTIONS for a in _actions(session, run.id))
 
 
 def _write_back_party_hp(
@@ -723,13 +821,20 @@ def _write_back_party_hp(
 ) -> None:
     """Persist what the party actually took: folded ally HP → ``PartyMember.status_json``.
 
-    Without this the fold is the only record of a PC's wounds, and nothing reads it once the
-    run is over — so a character walked out of a bruising fight at full health.
+    The fold is the only live record of a PC's wounds, and the party sheet reads
+    ``status_json`` — so without this a character shows full health on their sheet while
+    bleeding out on the combat board.
 
     HP goes back through the plugin (``with_hit_points``), never by writing a key into the
     status dict: 5e keys it ``current_hit_points`` and Nimble ``hp``, and the playbook is not
     allowed to know which (docs/04 §6.8).
+
+    A run that has not landed a single hp action writes nothing. Nothing to say is not the
+    same as everyone at full: more than one run can sit open at once, and a stale one still
+    holding its seeded numbers would otherwise heal the party on its way out.
     """
+    if not _has_hp_actions(session, run):
+        return
     system = registry.get_system(campaign.rule_system_id)
     blocks = combatant_blocks(session, run.id)
     members = {
@@ -751,14 +856,30 @@ def _write_back_party_hp(
         member.status_json = json.dumps(status)
 
 
+def _sync_party_hp(session: Session, campaign_id: str, run: CombatRun) -> None:
+    """Push the run's current folded HP onto the party sheets, and commit.
+
+    Called after anything that moves the fold — a new action, an undo, a redo — so the
+    sheet never lags the board.
+    """
+    campaign = session.get(Campaign, campaign_id)
+    if campaign is None:  # pragma: no cover - _require already proved the run's campaign
+        return
+    _write_back_party_hp(session, campaign, run, state_of(session, run))
+    session.commit()
+
+
 def cancel_combat(session: Session, campaign: Campaign, run_id: str) -> None:
     """Call the fight off: the run closes, and the campaign goes back to exploration.
 
-    The opposite of ``end_combat`` in every way that matters. A cancelled fight didn't
-    happen, so nothing is written back — no party HP, no chronicle entry, no clock
-    advance. The clock rewinds to where the combat started and real time resumes, which
-    is what takes the campaign out of combat mode (``realtime_paused`` is the flag the
-    dashboard reads to force the combat preset).
+    The opposite of ``end_combat`` in most ways: no chronicle entry, no clock advance. The
+    clock rewinds to where the combat started and real time resumes, which is what takes
+    the campaign out of combat mode (``realtime_paused`` is the flag the dashboard reads
+    to force the combat preset).
+
+    Party HP *is* kept, though. Cancelling calls off the fight, not the damage already
+    taken — a GM who abandons a run mid-fight should not have their PCs quietly healed to
+    full, and the sheets have been tracking the fold all along anyway.
 
     The action log stays put. It is the record of a run that was abandoned, and deleting
     it would strand the rolls that reference it.
@@ -769,6 +890,7 @@ def cancel_combat(session: Session, campaign: Campaign, run_id: str) -> None:
     run = _require(session, campaign.id, run_id)
     if run.status in CLOSED_STATUSES:
         return
+    _write_back_party_hp(session, campaign, run, state_of(session, run))
     campaign.clock_time_game = run.started_at_game
     run.status = "abandoned"
     campaign.realtime_paused = False
@@ -777,15 +899,38 @@ def cancel_combat(session: Session, campaign: Campaign, run_id: str) -> None:
     session.commit()
 
 
+def _foes_defeated(actions: list[dict[str, Any]], final: CombatState) -> list[str]:
+    """Every foe that went down, including ones cleared off the board before the end.
+
+    ``remove_combatant`` deletes the entry outright, so the final state alone under-counts:
+    a DM who tidies each corpse away as it drops would end the fight with nothing to report.
+    Replaying the log catches those at the moment they left — a foe removed while at 0 hp is
+    a casualty, one removed still standing merely fled.
+    """
+    names: list[str] = []
+    state = combat_reducer.initial_state()
+    for action in actions:
+        if action.get("type") == "remove_combatant":
+            leaving = state["combatants"].get(action.get("id"))
+            if leaving and leaving["side"] == "foe" and leaving["defeated"]:
+                names.append(leaving["name"])
+        combat_reducer.apply_action(state, action)
+    names.extend(c.name for c in final.combatants.values() if c.defeated and c.side == "foe")
+    return names
+
+
 def end_combat(session: Session, campaign: Campaign, run_id: str) -> CombatSummary:
     run = _require(session, campaign.id, run_id)
-    state = state_of(session, run)
+    # Folded here rather than via ``state_of`` because the summary needs the actions too —
+    # who died is not answerable from the surviving combatants alone (see ``_foes_defeated``).
+    actions = [json.loads(a.payload_json) for a in _actions(session, run_id, run.fold_cursor)]
+    state = CombatState.model_validate(combat_reducer.fold(actions))
     rounds = state.round
     duration = (rounds - 1) * _round_length(campaign)
 
     # The clock already reflects the rounds fought; make it exact and resume real time.
     campaign.clock_time_game = run.started_at_game + duration
-    defeated = [c.name for c in state.combatants.values() if c.defeated and c.side == "foe"]
+    defeated = _foes_defeated(actions, state)
     with command_tx(session, campaign.id, actor="combat") as ctx:
         ctx.emit(
             "combat_ended",

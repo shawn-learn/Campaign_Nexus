@@ -43,6 +43,7 @@ export function Layout() {
         <Link to="/" activeOptions={{ exact: true }}>
           Dashboard
         </Link>
+        <Link to="/search">Search</Link>
         <Link to="/entities">Entities</Link>
         <Link to="/party">Party</Link>
         <Link to="/npcs">NPCs</Link>

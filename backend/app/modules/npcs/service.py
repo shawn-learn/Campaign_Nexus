@@ -32,6 +32,7 @@ from app.modules.npcs.schemas import (
     ScheduleStop,
     WhereOut,
 )
+from app.modules.rules.models import StatBlock
 from app.modules.time import scheduled
 from app.modules.time import service as time_service
 from app.modules.time.calendar import CalendarMath
@@ -118,6 +119,7 @@ def _knows_about(session: Session, npc_id: str) -> list[str]:
 
 def _out(session: Session, npc: Npc) -> NpcOut:
     entity = _entity(session, npc.entity_id)
+    block = session.get(StatBlock, npc.stat_block_id) if npc.stat_block_id else None
     return NpcOut(
         entity_id=npc.entity_id, name=entity.name, summary=entity.summary,
         status=npc.status, current_location_id=npc.current_location_id,
@@ -126,6 +128,8 @@ def _out(session: Session, npc: Npc) -> NpcOut:
         last_party_interaction_game=npc.last_party_interaction_game,
         goals=npc.goals, secrets=npc.secrets, voice_notes=npc.voice_notes,
         knows_about=_knows_about(session, npc.entity_id),
+        stat_block_id=npc.stat_block_id,
+        stat_block_label=block.label if block else None,
         deleted=entity.deleted_at_real is not None,
     )
 
@@ -270,7 +274,16 @@ def create_npc(
 
 def update_npc(session: Session, campaign_id: str, npc_id: str, data: NpcUpdate) -> NpcOut:
     npc = _require(session, campaign_id, npc_id)
-    for key, value in data.model_dump(exclude_unset=True).items():
+    changes = data.model_dump(exclude_unset=True)
+    if changes.get("stat_block_id"):
+        block = session.get(StatBlock, changes["stat_block_id"])
+        if block is None or block.campaign_id != campaign_id:
+            raise NpcError("stat block not found in this campaign")
+        # An NPC's sheet is an NPC sheet: a monster block carries a CR and no class levels,
+        # and the sheet editor that authors these only ever writes sheet_type="npc".
+        if block.sheet_type != "npc":
+            raise NpcError(f"a {block.sheet_type} sheet cannot be an NPC's stat block")
+    for key, value in changes.items():
         setattr(npc, key, value)
     session.commit()
     return get_npc(session, campaign_id, npc_id)
