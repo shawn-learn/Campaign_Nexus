@@ -34,6 +34,22 @@ NPC_LOCATIONS = {
     "Pidlwick II": "019f53b8-d0f3-7d23-9249-df3bc748c679",          # K59. HIGH TOWER PEAK
     "Ireena Kolyana": "019f51db-3597-7209-a3e9-cb1ac4824128",       # Village of Barovia
     "Patrina Velikovna": "019f53bb-6b03-7ac8-a309-f34096b237a3",    # K84. CATACOMBS
+    "Lief Lipsiege": "019f53b6-e5a0-7d4f-99b9-f330cb53d9fb",         # K30. KING'S ACCOUNTANT
+    "Cyrus Belview": "019f53b9-1068-7a42-ab3f-3cf68a90a8b5",         # K62. SERVANTS' HALL
+    "Helga Ruvak": "019f53b7-2527-7683-ba65-c96781a0ee91",           # K32. MAID IN HELL
+    "Sasha Ivliskova": "019f53bb-6b03-7ac8-a309-f34096b237a3",       # K84. CATACOMBS (Crypt 20)
+    "Sir Klutz Tripalots": "019f53bb-6b03-7ac8-a309-f34096b237a3",   # K84. CATACOMBS (Crypt 33)
+    "Prince Ariel du Plumette": "019f53bb-6b03-7ac8-a309-f34096b237a3", # K84. CATACOMBS (Crypt 4)
+    "Khazan": "019f53bb-6b03-7ac8-a309-f34096b237a3",                 # K84. CATACOMBS (Crypt 15)
+    "Sergei von Zarovich": "019f53bb-7ae5-7fea-a27f-59f19bfaa7e8",    # K85. SERGEI'S TOMB
+    "King Barov von Zarovich": "019f53bb-aa66-7499-85ea-f74815266919", # K88. TOMB OF KING BAROV AND QUEEN RAVENOVIA
+    "Queen Ravenovia van Roeyen": "019f53bb-aa66-7499-85ea-f74815266919", # K88. TOMB OF KING BAROV AND QUEEN RAVENOVIA
+    "Artimus": "019f53bb-6b03-7ac8-a309-f34096b237a3",                # K84. CATACOMBS (Crypt 14)
+    "Ludmilla Vilisevic": "019f53bb-8ab2-7407-a987-359b1501fcb9",     # K86. STRAHD'S TOMB
+    "Anastasya Karelova": "019f53bb-8ab2-7407-a987-359b1501fcb9",     # K86. STRAHD'S TOMB
+    "Volenta Popofsky": "019f53bb-8ab2-7407-a987-359b1501fcb9",       # K86. STRAHD'S TOMB
+    "Gertruda": "019f53b7-c3a5-74b9-9eee-621da92e5561",               # K42. KING'S BEDCHAMBER
+    "Escher": "019f53b8-3287-7b63-9226-831f82d8f79c",                 # K49. LOUNGE
 }
 
 def main():

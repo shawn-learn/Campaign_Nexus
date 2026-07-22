@@ -3959,6 +3959,68 @@
         }
       }
     },
+    "/api/v1/campaigns/{campaign_id}/party/members/{stat_block_id}/cast": {
+      "post": {
+        "tags": [
+          "party"
+        ],
+        "summary": "Cast Out Of Combat",
+        "description": "Spend one casting from a party member's pool away from the table's combat tracker.",
+        "operationId": "cast_out_of_combat_api_v1_campaigns__campaign_id__party_members__stat_block_id__cast_post",
+        "parameters": [
+          {
+            "name": "stat_block_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Stat Block Id"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CastIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartyMemberOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/campaigns/{campaign_id}/party/members/{stat_block_id}": {
       "delete": {
         "tags": [
@@ -4821,6 +4883,71 @@
                     "$ref": "#/components/schemas/AttackOut"
                   },
                   "title": "Response List Attacks Api V1 Campaigns  Campaign Id  Combats  Run Id  Combatants  Combatant Id  Attacks Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/combats/{run_id}/combatants/{combatant_id}/spells": {
+      "get": {
+        "tags": [
+          "combat"
+        ],
+        "summary": "List Spells",
+        "description": "What this combatant can cast, and which pool each casting spends.\n\nRead-only on purpose: spending a slot is an ordinary ``cast_spell`` through the actions\nendpoint, so it rides the fold and Undo puts it back.",
+        "operationId": "list_spells_api_v1_campaigns__campaign_id__combats__run_id__combatants__combatant_id__spells_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "combatant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Combatant Id"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SpellActionOut"
+                  },
+                  "title": "Response List Spells Api V1 Campaigns  Campaign Id  Combats  Run Id  Combatants  Combatant Id  Spells Get"
                 }
               }
             }
@@ -11739,6 +11866,28 @@
         ],
         "title": "CampaignOut"
       },
+      "CastIn": {
+        "properties": {
+          "pool_key": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Pool Key"
+          },
+          "delta": {
+            "type": "integer",
+            "maximum": 20.0,
+            "minimum": -20.0,
+            "title": "Delta",
+            "default": -1
+          }
+        },
+        "type": "object",
+        "required": [
+          "pool_key"
+        ],
+        "title": "CastIn",
+        "description": "Spend (or hand back) one casting from a party member's pool, out of combat.\n\n``delta`` is signed so a mis-click is undone through the same call: -1 casts, +1 gives\nit back. In combat this goes through the fold instead, where Undo already does the job."
+      },
       "CheckRecord": {
         "properties": {
           "skill": {
@@ -11907,6 +12056,7 @@
               "set_concentration",
               "death_save",
               "legendary_use",
+              "cast_spell",
               "next_turn"
             ],
             "title": "Action Type"
@@ -12265,6 +12415,14 @@
               "max": 0,
               "remaining": 0
             }
+          },
+          "spell_pools": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/SpellPool"
+            },
+            "type": "object",
+            "title": "Spell Pools",
+            "default": {}
           }
         },
         "type": "object",
@@ -16301,6 +16459,14 @@
             "title": "Max Hp",
             "default": 0
           },
+          "spell_pools": {
+            "items": {
+              "$ref": "#/components/schemas/SpellPoolOut"
+            },
+            "type": "array",
+            "title": "Spell Pools",
+            "default": []
+          },
           "active": {
             "type": "boolean",
             "title": "Active"
@@ -18906,6 +19072,83 @@
         "type": "object",
         "title": "SkillChallengeUpdate"
       },
+      "SpellActionOut": {
+        "properties": {
+          "index": {
+            "type": "integer",
+            "title": "Index"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "level": {
+            "type": "integer",
+            "title": "Level",
+            "default": 0
+          },
+          "block": {
+            "type": "string",
+            "title": "Block",
+            "default": ""
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "default": "at_will"
+          },
+          "pool_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pool Key"
+          },
+          "save_dc": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Save Dc"
+          },
+          "attack_bonus": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attack Bonus"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          },
+          "recharge": {
+            "type": "string",
+            "title": "Recharge",
+            "default": "long"
+          }
+        },
+        "type": "object",
+        "required": [
+          "index",
+          "name"
+        ],
+        "title": "SpellActionOut",
+        "description": "One thing a combatant can cast, pointed at the pool a casting spends.\n\n``name`` is a plain string, not a reference into the spell catalog \u2014 stat blocks store\nspell names, and the catalog is joined by name in the browser (see the 5e plugin)."
+      },
       "SpellCreate": {
         "properties": {
           "name": {
@@ -19265,6 +19508,84 @@
           "saving_throw"
         ],
         "title": "SpellOut"
+      },
+      "SpellPool": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "default": ""
+          },
+          "level": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level"
+          },
+          "max": {
+            "type": "integer",
+            "title": "Max",
+            "default": 0
+          },
+          "remaining": {
+            "type": "integer",
+            "title": "Remaining",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "SpellPool",
+        "description": "One spendable pool of castings \u2014 a slot level, or a monster's innate \"3/day\"."
+      },
+      "SpellPoolOut": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "default": ""
+          },
+          "level": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level"
+          },
+          "max": {
+            "type": "integer",
+            "title": "Max",
+            "default": 0
+          },
+          "remaining": {
+            "type": "integer",
+            "title": "Remaining",
+            "default": 0
+          },
+          "recharge": {
+            "type": "string",
+            "title": "Recharge",
+            "default": "long"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key"
+        ],
+        "title": "SpellPoolOut",
+        "description": "A spendable pool of castings, as the *party sheet* sees it \u2014 carrying its own key.\n\nThe combat tracker's ``SpellPool`` is the same thing keyed by a dict; here the pools\nare a list in printed order, so the key rides along inside each one."
       },
       "StartCombat": {
         "properties": {

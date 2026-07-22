@@ -56,7 +56,8 @@
           "legendary": {
             "max": 0,
             "remaining": 0
-          }
+          },
+          "spell_pools": {}
         },
         "b": {
           "id": "b",
@@ -78,7 +79,8 @@
           "legendary": {
             "max": 0,
             "remaining": 0
-          }
+          },
+          "spell_pools": {}
         },
         "c": {
           "id": "c",
@@ -100,7 +102,8 @@
           "legendary": {
             "max": 0,
             "remaining": 0
-          }
+          },
+          "spell_pools": {}
         }
       }
     }
@@ -159,7 +162,8 @@
           "legendary": {
             "max": 0,
             "remaining": 0
-          }
+          },
+          "spell_pools": {}
         }
       }
     }
@@ -213,7 +217,8 @@
           "legendary": {
             "max": 0,
             "remaining": 0
-          }
+          },
+          "spell_pools": {}
         }
       }
     }
@@ -284,7 +289,8 @@
           "legendary": {
             "max": 0,
             "remaining": 0
-          }
+          },
+          "spell_pools": {}
         }
       }
     }
@@ -343,7 +349,8 @@
           "legendary": {
             "max": 0,
             "remaining": 0
-          }
+          },
+          "spell_pools": {}
         },
         "b": {
           "id": "b",
@@ -365,7 +372,8 @@
           "legendary": {
             "max": 0,
             "remaining": 0
-          }
+          },
+          "spell_pools": {}
         }
       }
     }
@@ -424,7 +432,8 @@
           "legendary": {
             "max": 0,
             "remaining": 0
-          }
+          },
+          "spell_pools": {}
         }
       }
     }
@@ -489,7 +498,8 @@
           "legendary": {
             "max": 0,
             "remaining": 0
-          }
+          },
+          "spell_pools": {}
         },
         "b": {
           "id": "b",
@@ -511,7 +521,8 @@
           "legendary": {
             "max": 0,
             "remaining": 0
-          }
+          },
+          "spell_pools": {}
         },
         "c": {
           "id": "c",
@@ -533,7 +544,8 @@
           "legendary": {
             "max": 0,
             "remaining": 0
-          }
+          },
+          "spell_pools": {}
         }
       }
     }
@@ -597,7 +609,8 @@
           "legendary": {
             "max": 0,
             "remaining": 0
-          }
+          },
+          "spell_pools": {}
         },
         "g": {
           "id": "g",
@@ -619,7 +632,8 @@
           "legendary": {
             "max": 0,
             "remaining": 0
-          }
+          },
+          "spell_pools": {}
         }
       }
     }
@@ -683,7 +697,8 @@
           "legendary": {
             "max": 0,
             "remaining": 0
-          }
+          },
+          "spell_pools": {}
         }
       }
     }
@@ -737,7 +752,8 @@
           "legendary": {
             "max": 0,
             "remaining": 0
-          }
+          },
+          "spell_pools": {}
         }
       }
     }
@@ -801,7 +817,8 @@
           "legendary": {
             "max": 0,
             "remaining": 0
-          }
+          },
+          "spell_pools": {}
         }
       }
     }
@@ -870,7 +887,8 @@
           "legendary": {
             "max": 0,
             "remaining": 0
-          }
+          },
+          "spell_pools": {}
         },
         "L": {
           "id": "L",
@@ -892,7 +910,8 @@
           "legendary": {
             "max": 0,
             "remaining": 0
-          }
+          },
+          "spell_pools": {}
         }
       }
     }
@@ -956,7 +975,8 @@
           "legendary": {
             "max": 0,
             "remaining": 0
-          }
+          },
+          "spell_pools": {}
         }
       }
     }
@@ -1024,7 +1044,8 @@
           "legendary": {
             "max": 0,
             "remaining": 0
-          }
+          },
+          "spell_pools": {}
         },
         "b": {
           "id": "b",
@@ -1046,7 +1067,8 @@
           "legendary": {
             "max": 3,
             "remaining": 0
-          }
+          },
+          "spell_pools": {}
         }
       }
     }
@@ -1108,7 +1130,8 @@
           "legendary": {
             "max": 0,
             "remaining": 0
-          }
+          },
+          "spell_pools": {}
         },
         "b": {
           "id": "b",
@@ -1130,7 +1153,8 @@
           "legendary": {
             "max": 3,
             "remaining": 3
-          }
+          },
+          "spell_pools": {}
         }
       }
     }
@@ -1195,7 +1219,8 @@
           "legendary": {
             "max": 0,
             "remaining": 0
-          }
+          },
+          "spell_pools": {}
         },
         "b": {
           "id": "b",
@@ -1217,6 +1242,175 @@
           "legendary": {
             "max": 3,
             "remaining": 1
+          },
+          "spell_pools": {}
+        }
+      }
+    }
+  },
+  {
+    "name": "spell_slots_spend_down",
+    "actions": [
+      {
+        "type": "add_combatant",
+        "id": "a",
+        "name": "Mage",
+        "side": "foe",
+        "max_hp": 40,
+        "initiative": 12,
+        "spell_pools": {
+          "slot:1": {
+            "label": "1st level",
+            "level": 1,
+            "max": 4,
+            "remaining": 4
+          },
+          "slot:3": {
+            "label": "3rd level",
+            "level": 3,
+            "max": 3,
+            "remaining": 3
+          }
+        }
+      },
+      {
+        "type": "cast_spell",
+        "id": "a",
+        "pool_key": "slot:3"
+      },
+      {
+        "type": "cast_spell",
+        "id": "a",
+        "pool_key": "slot:1",
+        "cost": 2
+      },
+      {
+        "type": "cast_spell",
+        "id": "a",
+        "pool_key": "slot:1",
+        "cost": 5
+      },
+      {
+        "type": "cast_spell",
+        "id": "a",
+        "pool_key": "cantrip"
+      }
+    ],
+    "expected": {
+      "round": 1,
+      "turn_index": 0,
+      "order": [
+        "a"
+      ],
+      "combatants": {
+        "a": {
+          "id": "a",
+          "name": "Mage",
+          "side": "foe",
+          "kind": "creature",
+          "max_hp": 40,
+          "hp": 40,
+          "temp_hp": 0,
+          "initiative": 12,
+          "initiative_tiebreak": 0,
+          "conditions": [],
+          "concentrating": false,
+          "defeated": false,
+          "death_saves": {
+            "successes": 0,
+            "failures": 0
+          },
+          "legendary": {
+            "max": 0,
+            "remaining": 0
+          },
+          "spell_pools": {
+            "slot:1": {
+              "label": "1st level",
+              "level": 1,
+              "max": 4,
+              "remaining": 0
+            },
+            "slot:3": {
+              "label": "3rd level",
+              "level": 3,
+              "max": 3,
+              "remaining": 2
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "spell_slots_survive_a_turn_but_legendary_actions_do_not",
+    "actions": [
+      {
+        "type": "add_combatant",
+        "id": "a",
+        "name": "Mage",
+        "side": "foe",
+        "max_hp": 40,
+        "initiative": 12,
+        "legendary_max": 3,
+        "spell_pools": {
+          "slot:1": {
+            "label": "1st level",
+            "level": 1,
+            "max": 4,
+            "remaining": 4
+          }
+        }
+      },
+      {
+        "type": "cast_spell",
+        "id": "a",
+        "pool_key": "slot:1"
+      },
+      {
+        "type": "legendary_use",
+        "id": "a",
+        "cost": 2
+      },
+      {
+        "type": "next_turn"
+      }
+    ],
+    "expected": {
+      "round": 2,
+      "turn_index": 0,
+      "order": [
+        "a"
+      ],
+      "combatants": {
+        "a": {
+          "id": "a",
+          "name": "Mage",
+          "side": "foe",
+          "kind": "creature",
+          "max_hp": 40,
+          "hp": 40,
+          "temp_hp": 0,
+          "initiative": 12,
+          "initiative_tiebreak": 0,
+          "conditions": [],
+          "concentrating": false,
+          "defeated": false,
+          "death_saves": {
+            "successes": 0,
+            "failures": 0
+          },
+          "legendary": {
+            "max": 3,
+            "remaining": 3
+          },
+          "spell_pools": {
+            "slot:1": {
+              "label": "1st level",
+              "level": 1,
+              "max": 4,
+              "remaining": 3
+            }
           }
         }
       }

@@ -265,6 +265,33 @@ textarea { font: inherit; background: var(--panel-2); color: var(--text);
 }
 .article-body .ProseMirror blockquote p { margin: 0 0 4px; }
 .article-body .ProseMirror blockquote p:last-child { margin-bottom: 0; }
+.article-body .ProseMirror pre {
+  position: relative;
+  margin: 12px 0;
+  padding: 14px 40px 14px 16px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: inherit;
+  white-space: pre-wrap;
+}
+.article-body .ProseMirror pre::after {
+  content: '📝';
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0.7;
+}
+.article-body .ProseMirror pre code {
+  background: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  white-space: pre-wrap;
+}
 
 .mention {
   color: var(--accent);
@@ -626,6 +653,24 @@ button.pick-row:hover { border-color: var(--accent); }
   opacity: 0.35; }
 .orb.on { background: var(--accent); opacity: 1; }
 .legendary-cost { color: var(--accent); font-size: 11px; }
+
+/* Spell slots on the party sheet — clickable pips, spend and hand back. Sized like the
+   death-save pips they sit near, so the two read as the same kind of counter. */
+.slot-group { display: inline-flex; gap: 4px; align-items: center; }
+.slot-pip { width: 12px; height: 12px; padding: 0; border-radius: 50%;
+  border: 1px solid var(--accent); background: none; opacity: 0.35; cursor: pointer; }
+.slot-pip.on { background: var(--accent); opacity: 1; }
+.slot-pip:disabled { cursor: default; }
+
+/* Spell slots on the initiative rail — one chip per level, "level remaining", so a caster's
+   pool reads without selecting them. A spent level stays visible rather than disappearing:
+   "the wizard is out of 3rd" is the thing worth knowing. */
+.cc-slots { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+.slot-chip { font-size: 10px; line-height: 1.4; padding: 0 4px; border-radius: 4px;
+  border: 1px solid var(--border); color: var(--muted); }
+.slot-chip b { color: var(--accent); }
+.slot-chip.spent { opacity: 0.45; }
+.slot-chip.spent b { color: var(--muted); }
 
 /* A lair has no hit points to lose, so the bar would only ever read 0/0. */
 .combatant-card.kind-lair .hp-bar { display: none; }

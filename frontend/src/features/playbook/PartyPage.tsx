@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import {
   useAddPartyMember,
+  useCastPartySpell,
   useParty,
   usePatchParty,
   useRest,
   useStatBlocks,
   useItems,
+  type SpellPoolOut,
 } from '../../api/hooks'
 import { useActiveCampaign } from '../../shell/useActiveCampaign'
 import { useCalendar } from '../../lib/useCalendar'
@@ -89,7 +91,16 @@ export function PartyPage() {
             {party?.members.map((m) => (
               <li key={m.stat_block_id}>
                 <span>{m.name}</span>
-                <span className="badge">HP {m.hp} / {m.max_hp}</span>
+                <span className="row" style={{ gap: 10, flexWrap: 'wrap' }}>
+                  <span className="badge">HP {m.hp} / {m.max_hp}</span>
+                  {campaignId && (
+                    <SlotPips
+                      campaignId={campaignId}
+                      statBlockId={m.stat_block_id}
+                      pools={m.spell_pools ?? []}
+                    />
+                  )}
+                </span>
               </li>
             ))}
             {party?.members.length === 0 && <p className="muted">No party members yet.</p>}
@@ -191,6 +202,60 @@ export function PartyPage() {
         </TabPanel>
       </Tabs>
     </>
+  )
+}
+
+// Spell slots away from the combat tracker — the wizard who casts *identify* over
+// breakfast. Click a lit pip to spend it, a spent one to hand it back; the rest buttons
+// above restore them per the rule system's own recharge rules, so nothing here knows what
+// a short rest is. Renders nothing at all for a character who doesn't cast.
+function SlotPips({
+  campaignId,
+  statBlockId,
+  pools,
+}: {
+  campaignId: string
+  statBlockId: string
+  pools: SpellPoolOut[]
+}) {
+  const cast = useCastPartySpell(campaignId)
+  if (!pools.length) return null
+
+  return (
+    <span className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+      {pools.map((pool) => (
+        <span key={pool.key} className="slot-group" title={`${pool.label} — ${pool.recharge} rest`}>
+          <span className="muted" style={{ fontSize: 11 }}>{pool.label}</span>
+          <span className="ds-pips">
+            {Array.from({ length: pool.max ?? 0 }, (_, i) => {
+              const filled = i < (pool.remaining ?? 0)
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  className={'slot-pip' + (filled ? ' on' : '')}
+                  disabled={cast.isPending}
+                  aria-label={
+                    filled
+                      ? `Spend a ${pool.label} slot`
+                      : `Restore a ${pool.label} slot`
+                  }
+                  onClick={() =>
+                    cast.mutate({
+                      statBlockId,
+                      poolKey: pool.key,
+                      // Clicking a lit pip spends one; clicking a spent one takes the
+                      // mis-click back, which is the only undo this side of a fight has.
+                      delta: filled ? -1 : 1,
+                    })
+                  }
+                />
+              )
+            })}
+          </span>
+        </span>
+      ))}
+    </span>
   )
 }
 

@@ -993,6 +993,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/campaigns/{campaign_id}/party/members/{stat_block_id}/cast": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cast Out Of Combat
+         * @description Spend one casting from a party member's pool away from the table's combat tracker.
+         */
+        post: operations["cast_out_of_combat_api_v1_campaigns__campaign_id__party_members__stat_block_id__cast_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/campaigns/{campaign_id}/party/members/{stat_block_id}": {
         parameters: {
             query?: never;
@@ -1224,6 +1244,29 @@ export interface paths {
          * @description What this combatant can do, resolved by its rule system into plain numbers.
          */
         get: operations["list_attacks_api_v1_campaigns__campaign_id__combats__run_id__combatants__combatant_id__attacks_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/combats/{run_id}/combatants/{combatant_id}/spells": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Spells
+         * @description What this combatant can cast, and which pool each casting spends.
+         *
+         *     Read-only on purpose: spending a slot is an ordinary ``cast_spell`` through the actions
+         *     endpoint, so it rides the fold and Undo puts it back.
+         */
+        get: operations["list_spells_api_v1_campaigns__campaign_id__combats__run_id__combatants__combatant_id__spells_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2938,6 +2981,22 @@ export interface components {
             /** Clock Time Game */
             clock_time_game: number;
         };
+        /**
+         * CastIn
+         * @description Spend (or hand back) one casting from a party member's pool, out of combat.
+         *
+         *     ``delta`` is signed so a mis-click is undone through the same call: -1 casts, +1 gives
+         *     it back. In combat this goes through the fold instead, where Undo already does the job.
+         */
+        CastIn: {
+            /** Pool Key */
+            pool_key: string;
+            /**
+             * Delta
+             * @default -1
+             */
+            delta?: number;
+        };
         /** CheckRecord */
         CheckRecord: {
             /**
@@ -3000,7 +3059,7 @@ export interface components {
              * Action Type
              * @enum {string}
              */
-            action_type: "add_combatant" | "remove_combatant" | "set_initiative" | "damage" | "heal" | "set_temp_hp" | "add_condition" | "remove_condition" | "set_concentration" | "death_save" | "legendary_use" | "next_turn";
+            action_type: "add_combatant" | "remove_combatant" | "set_initiative" | "damage" | "heal" | "set_temp_hp" | "add_condition" | "remove_condition" | "set_concentration" | "death_save" | "legendary_use" | "cast_spell" | "next_turn";
             /**
              * Payload
              * @default {}
@@ -3161,6 +3220,13 @@ export interface components {
              *     }
              */
             legendary?: components["schemas"]["LegendaryActions"];
+            /**
+             * Spell Pools
+             * @default {}
+             */
+            spell_pools?: {
+                [key: string]: components["schemas"]["SpellPool"];
+            };
         };
         /**
          * CombatantSpec
@@ -4406,6 +4472,11 @@ export interface components {
              * @default 0
              */
             max_hp?: number;
+            /**
+             * Spell Pools
+             * @default []
+             */
+            spell_pools?: components["schemas"]["SpellPoolOut"][];
             /** Active */
             active: boolean;
         };
@@ -5252,6 +5323,50 @@ export interface components {
             /** Outcomes */
             outcomes?: components["schemas"]["GraduatedOutcome"][] | null;
         };
+        /**
+         * SpellActionOut
+         * @description One thing a combatant can cast, pointed at the pool a casting spends.
+         *
+         *     ``name`` is a plain string, not a reference into the spell catalog — stat blocks store
+         *     spell names, and the catalog is joined by name in the browser (see the 5e plugin).
+         */
+        SpellActionOut: {
+            /** Index */
+            index: number;
+            /** Name */
+            name: string;
+            /**
+             * Level
+             * @default 0
+             */
+            level?: number;
+            /**
+             * Block
+             * @default
+             */
+            block?: string;
+            /**
+             * Kind
+             * @default at_will
+             */
+            kind?: string;
+            /** Pool Key */
+            pool_key?: string | null;
+            /** Save Dc */
+            save_dc?: number | null;
+            /** Attack Bonus */
+            attack_bonus?: number | null;
+            /**
+             * Description
+             * @default
+             */
+            description?: string;
+            /**
+             * Recharge
+             * @default long
+             */
+            recharge?: string;
+        };
         /** SpellCreate */
         SpellCreate: {
             /** Name */
@@ -5359,6 +5474,62 @@ export interface components {
             damage_types: string | null;
             /** Saving Throw */
             saving_throw: string | null;
+        };
+        /**
+         * SpellPool
+         * @description One spendable pool of castings — a slot level, or a monster's innate "3/day".
+         */
+        SpellPool: {
+            /**
+             * Label
+             * @default
+             */
+            label?: string;
+            /** Level */
+            level?: number | null;
+            /**
+             * Max
+             * @default 0
+             */
+            max?: number;
+            /**
+             * Remaining
+             * @default 0
+             */
+            remaining?: number;
+        };
+        /**
+         * SpellPoolOut
+         * @description A spendable pool of castings, as the *party sheet* sees it — carrying its own key.
+         *
+         *     The combat tracker's ``SpellPool`` is the same thing keyed by a dict; here the pools
+         *     are a list in printed order, so the key rides along inside each one.
+         */
+        SpellPoolOut: {
+            /** Key */
+            key: string;
+            /**
+             * Label
+             * @default
+             */
+            label?: string;
+            /** Level */
+            level?: number | null;
+            /**
+             * Max
+             * @default 0
+             */
+            max?: number;
+            /**
+             * Remaining
+             * @default 0
+             */
+            remaining?: number;
+            /**
+             * Recharge
+             * @default long
+             */
+            recharge?: string;
         };
         /** StartCombat */
         StartCombat: {
@@ -8256,6 +8427,42 @@ export interface operations {
             };
         };
     };
+    cast_out_of_combat_api_v1_campaigns__campaign_id__party_members__stat_block_id__cast_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                stat_block_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CastIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PartyMemberOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     remove_member_api_v1_campaigns__campaign_id__party_members__stat_block_id__delete: {
         parameters: {
             query?: never;
@@ -8787,6 +8994,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AttackOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_spells_api_v1_campaigns__campaign_id__combats__run_id__combatants__combatant_id__spells_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+                combatant_id: string;
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpellActionOut"][];
                 };
             };
             /** @description Validation Error */

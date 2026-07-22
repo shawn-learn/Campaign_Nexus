@@ -8,6 +8,24 @@ from app.modules.playbook.combat_reducer import ActionType
 from app.modules.time.schemas import ClockOut, FiredEvent
 
 
+class SpellPoolOut(BaseModel):
+    """A spendable pool of castings, as the *party sheet* sees it — carrying its own key.
+
+    The combat tracker's ``SpellPool`` is the same thing keyed by a dict; here the pools
+    are a list in printed order, so the key rides along inside each one.
+    """
+
+    #: Minted by the rules plugin and opaque everywhere else — sent straight back to spend.
+    key: str
+    label: str = ""
+    #: The slot level, or None for a pool without one (a monster's innate "3/day").
+    level: int | None = None
+    max: int = 0
+    remaining: int = 0
+    #: Which rest refills it: short | long | none.
+    recharge: str = "long"
+
+
 class PartyMemberOut(BaseModel):
     stat_block_id: str
     name: str
@@ -16,6 +34,9 @@ class PartyMemberOut(BaseModel):
     #: The plugin's reading of ``status``, so the UI never has to know those keys.
     hp: int = 0
     max_hp: int = 0
+    #: Spell slots and innate uses this character has left, in printed order. Same
+    #: reading-through-the-plugin trick as ``hp``; empty for anyone who doesn't cast.
+    spell_pools: list[SpellPoolOut] = []
     active: bool
 
 
@@ -72,6 +93,17 @@ class AddMember(BaseModel):
     #: Starting HP; defaults to the sheet's maximum. Deliberately not `current_hit_points` —
     #: that is 5e's word for it, and the plugin decides where the number lands in `status`.
     hit_points: int | None = None
+
+
+class CastIn(BaseModel):
+    """Spend (or hand back) one casting from a party member's pool, out of combat.
+
+    ``delta`` is signed so a mis-click is undone through the same call: -1 casts, +1 gives
+    it back. In combat this goes through the fold instead, where Undo already does the job.
+    """
+
+    pool_key: str = Field(min_length=1)
+    delta: int = Field(default=-1, ge=-20, le=20)
 
 
 class RestRequest(BaseModel):
@@ -418,6 +450,16 @@ class LegendaryActions(BaseModel):
     remaining: int = 0
 
 
+class SpellPool(BaseModel):
+    """One spendable pool of castings — a slot level, or a monster's innate "3/day"."""
+
+    label: str = ""
+    #: The slot level, so the tracker can offer upcasting; None for a pool without one.
+    level: int | None = None
+    max: int = 0
+    remaining: int = 0
+
+
 class Combatant(BaseModel):
     """Mirrors the reducer's combatant exactly (``combat_reducer.py``).
 
@@ -442,6 +484,9 @@ class Combatant(BaseModel):
     defeated: bool
     death_saves: DeathSaves = DeathSaves()
     legendary: LegendaryActions = LegendaryActions()
+    #: Keyed by the rule system's own pool keys — opaque here, and sent straight back on a
+    #: ``cast_spell``. Empty for a combatant that can't cast.
+    spell_pools: dict[str, SpellPool] = {}
 
 
 class CombatState(BaseModel):
@@ -588,6 +633,30 @@ class AttackOut(BaseModel):
     description: str | None = None
     #: What this costs from the legendary pool, or None for an ordinary action.
     legendary_cost: int | None = None
+
+
+class SpellActionOut(BaseModel):
+    """One thing a combatant can cast, pointed at the pool a casting spends.
+
+    ``name`` is a plain string, not a reference into the spell catalog — stat blocks store
+    spell names, and the catalog is joined by name in the browser (see the 5e plugin).
+    """
+
+    index: int
+    name: str
+    #: The slot level it's printed at; 0 for a cantrip or an innate casting.
+    level: int = 0
+    #: Which spellcasting block it came from ("Innate Spellcasting", "Spellcasting").
+    block: str = ""
+    #: at_will | slot | per_day — only the last two spend anything.
+    kind: str = "at_will"
+    #: The pool a casting comes out of, or None for something unlimited.
+    pool_key: str | None = None
+    save_dc: int | None = None
+    attack_bonus: int | None = None
+    description: str = ""
+    #: Which rest refills this block's pools, for the tooltip on an empty one.
+    recharge: str = "long"
 
 
 class AttackIn(BaseModel):

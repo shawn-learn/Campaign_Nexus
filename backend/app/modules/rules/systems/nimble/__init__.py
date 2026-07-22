@@ -216,6 +216,9 @@ class NimbleSystem(BaseRuleSystem):
             "initiative_dice": None,
             "initiative_mod": 0,
             "legendary": 0,  # a solo's power is in its stat line here, not an action pool
+            # Nimble's casters spend mana, not slots, and nothing models that yet — an
+            # empty map is the honest answer, and the tracker shows no spell panel.
+            "spell_pools": {},
         }
 
     def with_hit_points(self, status: Document, doc: Document, hit_points: int) -> Document:

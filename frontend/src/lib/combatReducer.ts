@@ -6,6 +6,15 @@
 // results: set_initiative {value: 17}, never roll_initiative {}. Any change here must land in
 // the Python reference and backend/tests/fixtures/combat_golden.json in the same commit.
 
+/** One spendable pool of castings — a slot level, or a monster's innate "3/day". */
+export interface SpellPool {
+  label: string
+  /** The slot level, for upcasting; null for a pool that has no level (innate per-day). */
+  level: number | null
+  max: number
+  remaining: number
+}
+
 export interface Combatant {
   id: string
   name: string
@@ -23,6 +32,8 @@ export interface Combatant {
   defeated: boolean
   death_saves: { successes: number; failures: number }
   legendary: { max: number; remaining: number }
+  /** Keyed by the rule system's own pool keys, which nothing outside the plugin parses. */
+  spell_pools: Record<string, SpellPool>
 }
 
 export interface CombatState {
@@ -82,6 +93,9 @@ export function applyAction(state: CombatState, action: Action): CombatState {
       defeated: hp <= 0 && entryKind !== 'lair',
       death_saves: { successes: 0, failures: 0 },
       legendary: { max: legendaryMax, remaining: legendaryMax },
+      // Spell slots and innate per-day uses, seeded by the rule system. Empty for anything
+      // that can't cast; the keys are the plugin's and nothing here reads inside them.
+      spell_pools: { ...((action.spell_pools as Record<string, SpellPool>) ?? {}) },
     }
     reorder(state)
   } else if (kind === 'set_initiative') {
@@ -154,6 +168,17 @@ export function applyAction(state: CombatState, action: Action): CombatState {
     if (m) {
       const cost = action.cost === undefined ? 1 : toInt(action.cost)
       m.legendary.remaining = Math.max(0, m.legendary.remaining - cost)
+    }
+  } else if (kind === 'cast_spell') {
+    const m = c[id]
+    // Unlike legendary actions, a spent slot never comes back on a turn: a monster's pools
+    // refill because the next fight seeds fresh ones, and a character's because they
+    // rested. An unknown pool is ignored — a cantrip has none, and those aren't logged.
+    if (m) {
+      const pool = m.spell_pools[action.pool_key as string]
+      if (pool) {
+        pool.remaining = Math.max(0, pool.remaining - (action.cost === undefined ? 1 : toInt(action.cost)))
+      }
     }
   } else if (kind === 'next_turn') {
     if (state.order.length) {

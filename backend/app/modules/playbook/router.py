@@ -25,6 +25,7 @@ from app.modules.playbook.schemas import (
     AttackIn,
     AttackOut,
     AttackResultOut,
+    CastIn,
     CombatActionIn,
     CombatRollOut,
     CombatRunBrief,
@@ -40,6 +41,7 @@ from app.modules.playbook.schemas import (
     LocationConnectionCreate,
     LocationConnectionOut,
     ObjectiveToggle,
+    PartyMemberOut,
     PartyOut,
     PartyPatch,
     QuestCreate,
@@ -62,6 +64,7 @@ from app.modules.playbook.schemas import (
     SkillChallengeOut,
     SkillChallengeRunOut,
     SkillChallengeUpdate,
+    SpellActionOut,
     StartCombat,
     StartSkillRun,
     TravelPlan,
@@ -147,6 +150,22 @@ def add_member(
     except service.PlaybookError as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
     return service.to_out(session, party)
+
+
+@router.post("/members/{stat_block_id}/cast", response_model=PartyMemberOut)
+def cast_out_of_combat(
+    stat_block_id: str,
+    body: CastIn,
+    session: Session = Depends(get_session),
+    ctx: CampaignContext = Editor,
+) -> PartyMemberOut:
+    """Spend one casting from a party member's pool away from the table's combat tracker."""
+    try:
+        return service.spend_spell_pool(
+            session, ctx.campaign_id, stat_block_id, body.pool_key, body.delta
+        )
+    except service.PlaybookError as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
 
 
 @router.delete("/members/{stat_block_id}", response_model=PartyOut)
@@ -647,6 +666,29 @@ def list_attacks(
     return [
         AttackOut.model_validate(a)
         for a in combat.attacks_for(
+            session, _campaign(session, ctx.campaign_id), run_id, combatant_id
+        )
+    ]
+
+
+@combat_router.get(
+    "/{run_id}/combatants/{combatant_id}/spells", response_model=list[SpellActionOut]
+)
+def list_spells(
+    run_id: str,
+    combatant_id: str,
+    session: Session = Depends(get_session),
+    ctx: CampaignContext = Viewer,
+) -> list[SpellActionOut]:
+    """What this combatant can cast, and which pool each casting spends.
+
+    Read-only on purpose: spending a slot is an ordinary ``cast_spell`` through the actions
+    endpoint, so it rides the fold and Undo puts it back.
+    """
+    _load_run(session, ctx.campaign_id, run_id)
+    return [
+        SpellActionOut.model_validate(s)
+        for s in combat.spells_for(
             session, _campaign(session, ctx.campaign_id), run_id, combatant_id
         )
     ]

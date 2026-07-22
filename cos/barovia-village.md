@@ -38,29 +38,26 @@ another night after burying the burgomaster. He flees if reduced to half health.
 floor of the Burgomaster's house. Ismark will tell a PC to throw it at
 Escher (**2d6 radiant** on hit).
 
-NPC: Ismark Kolyanovich
------------------------
+NPCs of the Village
+-------------------
 
-Ireena's brother and son of the dead burgomaster. Dies if reduced to 0
-hitpoints.
+The NPCs residing in or passing through the Village of Barovia have detailed articles in the campaign wiki:
 
-![](./images/veteran.png)
+- **[Ismark Kolyanovich](../wiki/ismark-the-lesser-kolyanovich)** — Burgomaster's son and Ireena's brother/protector (Veteran stats).
+- **[Ireena Kolyana](../wiki/ireena-kolyana)** — Burgomaster's adopted daughter and reincarnation of Tatyana (Noble stats).
+- **[Bildrath Cantemir](../wiki/bildrath)** — Mercenary owner of Bildrath's Mercantile.
+- **[Parriwimple](../wiki/parriwimple)** — Bildrath's strong, simple-minded nephew & shop hand (Gladiator stats, INT 6, AC 14).
+- **[Father Donavich](../wiki/father-donavich)** — Village priest of the Morninglord at St. Andral's Church (Acolyte stats).
+- **[Doru](../wiki/doru)** — Donavich's vampire spawn son trapped in the church undercroft.
+- **[Arik Lorensk](../wiki/arik-lorensk)** — Soul-less barkeep at the Blood of the Vine Tavern.
+- **[Alenka, Mirabel & Sorvia](../wiki/alenka-mirabel-sorvia)** — Trio of Vistani spies operating the Blood of the Vine Tavern.
+- **[Mad Mary](../wiki/mad-mary)** — Distraught mother weeping in her townhouse for her missing daughter.
+- **[Gertruda](../wiki/gertruda)** — Mad Mary's missing daughter trapped in Castle Ravenloft.
+- **[Kolyan Indirovich](../wiki/kolyan-indirovich)** — Late Burgomaster of the Village of Barovia.
+- **[Lucian Jarov](../wiki/lucian-jarov)** — 7-year-old child kidnapped by Morgantha for dream pastries.
+- **[Rose & Thorn Durst](../wiki/rose-and-thorn-durst)** — Child ghosts outside Death House.
+- **[Escher](../wiki/escher)** — Strahd's vampire spawn consort who visits the village on Strahd's behalf.
 
-NPC: Parriwimple
-----------------
-
-Nephew of Bildrath the shopkeep.
-
-**Override:** He has 6 INT and doesn't have a shield (total AC 14).
-
-![](./images/gladiator.png)
-
-NPC: Donavich the Priest
-------------------------
-
-Town priest and father of Doru.
-
-![](images/acolyte.png)
 
 Quest: Bury the Burgomaster
 ---------------------------

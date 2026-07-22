@@ -677,6 +677,29 @@ export function useAddPartyMember(campaignId: string) {
   })
 }
 
+/**
+ * Spend one of a party member's spell slots out of combat, or hand one back (`delta: 1`).
+ *
+ * In a fight casting rides the combat fold, where Undo already puts the slot back; this is
+ * the other half — the wizard who casts *identify* over breakfast.
+ */
+export function useCastPartySpell(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (vars: { statBlockId: string; poolKey: string; delta?: number }) =>
+      unwrap(
+        await api.POST('/api/v1/campaigns/{campaign_id}/party/members/{stat_block_id}/cast', {
+          params: {
+            path: { campaign_id: campaignId, stat_block_id: vars.statBlockId },
+          },
+          body: { pool_key: vars.poolKey, delta: vars.delta ?? -1 },
+        }),
+        'cast spell',
+      ),
+    onSuccess: () => invalidateParty(qc, campaignId),
+  })
+}
+
 export function useRest(campaignId: string) {
   const qc = useQueryClient()
   return useMutation({
@@ -710,6 +733,9 @@ export type DeathSaveRules = components['schemas']['DeathSaveRulesOut']
 export type Attack = components['schemas']['AttackOut']
 export type AttackIn = components['schemas']['AttackIn']
 export type AttackResult = components['schemas']['AttackResultOut']
+export type SpellAction = components['schemas']['SpellActionOut']
+/** A party member's pool as the sheet sees it — carries its own key (combat keys by dict). */
+export type SpellPoolOut = components['schemas']['SpellPoolOut']
 
 // The reducer's action vocabulary, pinned to a Literal by the backend. A typo is a compile
 // error here rather than a 422 mid-combat.
@@ -909,6 +935,38 @@ export function useCombatantAttacks(
         'load attacks',
       ),
     // An attack only changes when someone edits the sheet behind it.
+    staleTime: 5 * 60_000,
+  })
+}
+
+/**
+ * What this combatant can cast, and which pool each casting spends.
+ *
+ * Read-only: spending is an ordinary `cast_spell` action through `useCombatAction`, which
+ * is what puts it in the fold and makes Undo give the slot back.
+ */
+export function useCombatantSpells(
+  campaignId: string | null,
+  runId: string | null,
+  combatantId: string | null,
+) {
+  return useQuery({
+    enabled: !!campaignId && !!runId && !!combatantId,
+    queryKey: ['combat-spells', campaignId, runId, combatantId],
+    queryFn: async () =>
+      unwrap(
+        await api.GET(
+          '/api/v1/campaigns/{campaign_id}/combats/{run_id}/combatants/{combatant_id}/spells',
+          {
+            params: {
+              path: { campaign_id: campaignId!, run_id: runId!, combatant_id: combatantId! },
+            },
+          },
+        ),
+        'load spells',
+      ),
+    // Like attacks: the list only changes when someone edits the sheet behind it. What's
+    // *left* of each pool lives in the fold, not here.
     staleTime: 5 * 60_000,
   })
 }

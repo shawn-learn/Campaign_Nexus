@@ -3,6 +3,8 @@
 // components (e.g. the 5e stat block in Sprint 10) can override this later.
 import { AttackListField } from './AttackListField'
 import type { Attack } from './AttackListField'
+import { SpellcastingField } from './SpellcastingField'
+import type { SpellcastingBlock } from './SpellcastingField'
 import { TraitListField } from './TraitListField'
 import type { NamedEntry } from './TraitListField'
 
@@ -143,6 +145,17 @@ function Field({ field, doc, set }: { field: LayoutField; doc: Doc; set: (k: str
       <AttackListField
         label={field.label}
         attacks={(value as Attack[]) ?? []}
+        // The plugin names its own abilities, same bargain as `ability-array` above.
+        abilityKeys={field.keys ?? []}
+        onChange={(next) => set(field.key, next.length ? next : undefined)}
+      />
+    )
+  }
+  if (field.role === 'spellcasting') {
+    return (
+      <SpellcastingField
+        label={field.label}
+        blocks={(value as SpellcastingBlock[]) ?? []}
         // The plugin names its own abilities, same bargain as `ability-array` above.
         abilityKeys={field.keys ?? []}
         onChange={(next) => set(field.key, next.length ? next : undefined)}

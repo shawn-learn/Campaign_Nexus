@@ -44,6 +44,10 @@ CLOSED_STATUSES = frozenset({"completed", "abandoned"})
 # Action types that move a combatant's hp, and so make a run's fold worth writing to the
 # party sheet. `set_temp_hp` is absent on purpose: temp hp is not written back.
 HP_ACTIONS = frozenset({"damage", "heal", "death_save"})
+# Everything that gives a run a claim on the party sheet. A fight where the wizard only
+# ever cast spells lands no hp action at all, and without `cast_spell` here it would end
+# with their slots quietly refilled.
+WRITE_BACK_ACTIONS = HP_ACTIONS | {"cast_spell"}
 
 
 class CombatNotFound(LookupError):
@@ -155,6 +159,9 @@ def _seed_actions(
                         "initiative_dice": profile["initiative_dice"],
                         "ac": profile["ac"],
                         "legendary_max": profile["legendary"],
+                        # No status was read for a foe, so its pools arrive full — which is
+                        # what "spell slots reset when combat starts" means for a monster.
+                        "spell_pools": profile["spell_pools"],
                     })
 
             # Environmental actions ride the order as hit-point-less lairs. The initiative
@@ -174,6 +181,7 @@ def _seed_actions(
                     "initiative": int(init) if init is not None else 0,
                     "initiative_tiebreak": 0, "stat_block_id": None,
                     "initiative_dice": None, "ac": None, "legendary_max": 0,
+                    "spell_pools": {},
                     # Carried for the tracker's rail (like stat_block_id): the reducer ignores
                     # it, so the folded state and its golden fixtures are unaffected.
                     "environment_actions": env.get("actions", []),
@@ -199,6 +207,10 @@ def _seed_actions(
             "initiative_dice": profile["initiative_dice"],
             "ac": profile["ac"],
             "legendary_max": profile["legendary"],
+            # Read *through* the member's status, so slots a character spent in the last
+            # fight (or between them) are still spent in this one. They come back on a
+            # rest, not on a fight.
+            "spell_pools": profile["spell_pools"],
         })
     return seed
 
@@ -442,6 +454,7 @@ def add_combatant(
             # it reports the roll and lets the GM call it.
             "ac": None,
             "legendary": 0,
+            "spell_pools": {},
         }
         base, block_id = name, None
 
@@ -465,6 +478,7 @@ def add_combatant(
             "initiative_dice": profile["initiative_dice"],
             "ac": profile["ac"],
             "legendary_max": profile["legendary"],
+            "spell_pools": profile["spell_pools"],
         })
     session.commit()
 
@@ -501,6 +515,31 @@ def attacks_for(
     return [
         {"index": i, **action}
         for i, action in enumerate(system.attack_actions(block.sheet_type, doc))
+    ]
+
+
+def spells_for(
+    session: Session, campaign: Campaign, run_id: str, combatant_id: str
+) -> list[dict[str, Any]]:
+    """The spells this combatant can cast, resolved by its rule system.
+
+    The read half of casting; spending is an ordinary ``cast_spell`` action, which is what
+    makes Undo put a slot back. Like ``attacks_for``, this reads the stat block only through
+    the plugin — which pool a casting comes out of is the rule system's business, and the
+    tracker just hands the key back.
+    """
+    blocks = combatant_blocks(session, run_id)
+    block_id = blocks.get(combatant_id)
+    if block_id is None:
+        return []  # an ad-hoc combatant has no sheet to read spells off
+    block = session.get(StatBlock, block_id)
+    if block is None:
+        return []
+    system = registry.get_system(campaign.rule_system_id)
+    doc = json.loads(block.doc_json)
+    return [
+        {"index": i, **spell}
+        for i, spell in enumerate(system.spell_actions(block.sheet_type, doc))
     ]
 
 
@@ -783,7 +822,7 @@ def append_action(
     _append_one(session, run, action_type, payload)
     session.commit()
     _sync_clock(session, run)
-    _sync_party_hp(session, campaign_id, run)
+    _sync_party_state(session, campaign_id, run)
     return run
 
 
@@ -792,7 +831,7 @@ def undo(session: Session, campaign_id: str, run_id: str) -> CombatRun:
     run.fold_cursor = max(0, run.fold_cursor - 1)
     session.commit()
     _sync_clock(session, run)
-    _sync_party_hp(session, campaign_id, run)
+    _sync_party_state(session, campaign_id, run)
     return run
 
 
@@ -801,39 +840,40 @@ def redo(session: Session, campaign_id: str, run_id: str) -> CombatRun:
     run.fold_cursor = min(_total_actions(session, run_id), run.fold_cursor + 1)
     session.commit()
     _sync_clock(session, run)
-    _sync_party_hp(session, campaign_id, run)
+    _sync_party_state(session, campaign_id, run)
     return run
 
 
-def _has_hp_actions(session: Session, run: CombatRun) -> bool:
-    """Has this run ever landed an hp action — anywhere in its log, cursor aside?
+def _has_write_back_actions(session: Session, run: CombatRun) -> bool:
+    """Has this run ever landed an action the party sheet cares about — cursor aside?
 
     The whole log, not the folded prefix, because this asks whether the run has a claim on
-    the party's hp at all, not what it currently says. Undoing the only damage in a fight
+    the party's state at all, not what it currently says. Undoing the only damage in a fight
     must still write (the fold now reads full health, and that is the point of undo); a run
     that never landed anything has no claim and stays out of the way.
     """
-    return any(a.action_type in HP_ACTIONS for a in _actions(session, run.id))
+    return any(a.action_type in WRITE_BACK_ACTIONS for a in _actions(session, run.id))
 
 
-def _write_back_party_hp(
+def _write_back_party_state(
     session: Session, campaign: Campaign, run: CombatRun, state: CombatState
 ) -> None:
-    """Persist what the party actually took: folded ally HP → ``PartyMember.status_json``.
+    """Persist what the party actually spent: folded ally HP and spell slots →
+    ``PartyMember.status_json``.
 
-    The fold is the only live record of a PC's wounds, and the party sheet reads
-    ``status_json`` — so without this a character shows full health on their sheet while
-    bleeding out on the combat board.
+    The fold is the only live record of a PC's wounds and castings, and the party sheet
+    reads ``status_json`` — so without this a character shows full health and a full
+    spellbook on their sheet while bleeding out and out of slots on the combat board.
 
-    HP goes back through the plugin (``with_hit_points``), never by writing a key into the
-    status dict: 5e keys it ``current_hit_points`` and Nimble ``hp``, and the playbook is not
-    allowed to know which (docs/04 §6.8).
+    Both go back through the plugin (``with_hit_points``, ``with_spell_pools``), never by
+    writing a key into the status dict: 5e keys hp ``current_hit_points`` and Nimble ``hp``,
+    and the playbook is not allowed to know which (docs/04 §6.8).
 
-    A run that has not landed a single hp action writes nothing. Nothing to say is not the
+    A run that has not landed a single such action writes nothing. Nothing to say is not the
     same as everyone at full: more than one run can sit open at once, and a stale one still
     holding its seeded numbers would otherwise heal the party on its way out.
     """
-    if not _has_hp_actions(session, run):
+    if not _has_write_back_actions(session, run):
         return
     system = registry.get_system(campaign.rule_system_id)
     blocks = combatant_blocks(session, run.id)
@@ -853,11 +893,14 @@ def _write_back_party_hp(
         block = session.get(StatBlock, member.stat_block_id)
         doc = json.loads(block.doc_json) if block else {}
         status = system.with_hit_points(json.loads(member.status_json), doc, combatant.hp)
+        status = system.with_spell_pools(
+            status, doc, {k: p.model_dump() for k, p in combatant.spell_pools.items()}
+        )
         member.status_json = json.dumps(status)
 
 
-def _sync_party_hp(session: Session, campaign_id: str, run: CombatRun) -> None:
-    """Push the run's current folded HP onto the party sheets, and commit.
+def _sync_party_state(session: Session, campaign_id: str, run: CombatRun) -> None:
+    """Push the run's current fold onto the party sheets, and commit.
 
     Called after anything that moves the fold — a new action, an undo, a redo — so the
     sheet never lags the board.
@@ -865,7 +908,7 @@ def _sync_party_hp(session: Session, campaign_id: str, run: CombatRun) -> None:
     campaign = session.get(Campaign, campaign_id)
     if campaign is None:  # pragma: no cover - _require already proved the run's campaign
         return
-    _write_back_party_hp(session, campaign, run, state_of(session, run))
+    _write_back_party_state(session, campaign, run, state_of(session, run))
     session.commit()
 
 
@@ -890,7 +933,7 @@ def cancel_combat(session: Session, campaign: Campaign, run_id: str) -> None:
     run = _require(session, campaign.id, run_id)
     if run.status in CLOSED_STATUSES:
         return
-    _write_back_party_hp(session, campaign, run, state_of(session, run))
+    _write_back_party_state(session, campaign, run, state_of(session, run))
     campaign.clock_time_game = run.started_at_game
     run.status = "abandoned"
     campaign.realtime_paused = False
@@ -944,7 +987,7 @@ def end_combat(session: Session, campaign: Campaign, run_id: str) -> CombatSumma
                 payload={"name": name},
                 narrative=f"{name} was defeated.",
             )
-        _write_back_party_hp(session, campaign, run, state)
+        _write_back_party_state(session, campaign, run, state)
         run.status = "completed"
         campaign.realtime_paused = False
         if campaign.realtime_enabled:

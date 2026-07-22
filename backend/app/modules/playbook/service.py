@@ -25,6 +25,7 @@ from app.modules.playbook.schemas import (
     PartyOut,
     PartyPatch,
     RestResult,
+    SpellPoolOut,
 )
 from app.modules.rules import registry
 from app.modules.rules.interface import RuleSystem
@@ -58,13 +59,18 @@ def _member_out(session: Session, system: RuleSystem, member: PartyMember) -> Pa
     block = session.get(StatBlock, member.stat_block_id)
     doc: dict[str, Any] = json.loads(block.doc_json) if block else {}
     status = json.loads(member.status_json)
-    profile = system.combat_profile(block.sheet_type if block else "pc", doc, status)
+    sheet_type = block.sheet_type if block else "pc"
+    profile = system.combat_profile(sheet_type, doc, status)
     return PartyMemberOut(
         stat_block_id=member.stat_block_id,
         name=member.name,
         status=status,
         hp=int(profile["hp"]),
         max_hp=int(profile["max_hp"]),
+        spell_pools=[
+            SpellPoolOut.model_validate(p)
+            for p in system.spell_pools(sheet_type, doc, status)
+        ],
         active=bool(member.active),
     )
 
@@ -219,6 +225,44 @@ def remove_member(session: Session, campaign_id: str, stat_block_id: str) -> Par
         session.delete(member)
         session.commit()
     return party
+
+
+def spend_spell_pool(
+    session: Session, campaign_id: str, stat_block_id: str, pool_key: str, delta: int = -1
+) -> PartyMemberOut:
+    """Cast (or un-cast) out of combat: move one party member's pool by ``delta``.
+
+    In a fight this rides the fold, where Undo already puts a slot back — but a wizard who
+    casts *identify* over breakfast has no fold to ride, and the party sheet is where their
+    slots live. Writes through ``with_spell_pools`` like the combat write-back does, so the
+    playbook still never learns which key a system stores its castings under.
+    """
+    campaign = session.get(Campaign, campaign_id)
+    if campaign is None:
+        raise PlaybookError("campaign not found")
+    system = registry.get_system(campaign.rule_system_id)
+    party = get_or_create_party(session, campaign_id)
+    member = session.get(PartyMember, {"party_id": party.id, "stat_block_id": stat_block_id})
+    if member is None:
+        raise PlaybookError("that character is not in the party")
+
+    block = session.get(StatBlock, stat_block_id)
+    doc: dict[str, Any] = json.loads(block.doc_json) if block else {}
+    status = json.loads(member.status_json)
+    pools = {
+        p["key"]: p
+        for p in system.spell_pools(block.sheet_type if block else "pc", doc, status)
+    }
+    pool = pools.get(pool_key)
+    if pool is None:
+        raise PlaybookError(f"no spell pool '{pool_key}' on this character")
+    # Clamped both ways: you can't cast from an empty pool, and handing back a casting
+    # never puts more in than the sheet says there are.
+    pool["remaining"] = max(0, min(int(pool["max"]), int(pool["remaining"]) + delta))
+
+    member.status_json = json.dumps(system.with_spell_pools(status, doc, pools))
+    session.commit()
+    return _member_out(session, system, member)
 
 
 def rest(session: Session, campaign_id: str, rest_type: str) -> RestResult:

@@ -52,6 +52,8 @@ export interface Spellcasting {
   attack_bonus?: number
   caster_level?: number
   description?: string
+  /** Which rest refills this block's pools: short (Pact Magic) | long | none. */
+  recharge?: 'short' | 'long' | 'none'
   at_will?: string[]
   per_day?: { uses: number; each?: boolean; spells?: string[] }[]
   slots?: SpellSlots[]

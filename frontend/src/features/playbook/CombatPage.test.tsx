@@ -43,7 +43,7 @@ function combatant(over: Partial<Combatant> & Pick<Combatant, 'id'>): Combatant 
     name: 'Someone', side: 'foe', kind: 'creature', max_hp: 10, hp: 10, temp_hp: 0,
     initiative: 0, initiative_tiebreak: 0, conditions: [], concentrating: false,
     defeated: false, death_saves: { successes: 0, failures: 0 },
-    legendary: { max: 0, remaining: 0 },
+    legendary: { max: 0, remaining: 0 }, spell_pools: {},
     ...over,
   }
 }

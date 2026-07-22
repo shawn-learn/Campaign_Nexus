@@ -21,6 +21,8 @@ from app.modules.rules.interface import (
     JsonSchema,
     LayoutSpec,
     SkillCheckDcs,
+    SpellAction,
+    SpellPool,
     TravelPaceTable,
 )
 from app.modules.rules.systems.dnd5e.content import CONTENT_PACK
@@ -193,6 +195,11 @@ _SPELLCASTING_SCHEMA: JsonSchema = {
         "attack_bonus": {"type": "integer"},
         "caster_level": {"type": "integer", "minimum": 1, "maximum": 20},
         "description": {"type": "string"},
+        #: Which rest refills this block's pools. Absent = "long", which covers everything
+        #: printed in the SRD; "short" is what a warlock's Pact Magic needs, and "none" is
+        #: for a pool nothing but the GM restores. Per-block rather than per-system, because
+        #: a warlock/wizard multiclass carries both kinds at once.
+        "recharge": {"enum": ["short", "long", "none"]},
         "at_will": _SPELL_LIST,
         "per_day": {
             "type": "array",
@@ -267,6 +274,10 @@ _CHARACTER_SCHEMA: JsonSchema = {
         "proficient_saves": {"type": "array", "items": {"enum": list(_ABILITIES)}},
         "spellcasting_ability": {"enum": [*_ABILITIES, None]},
         "actions": {"type": "array", "items": _ATTACK_SCHEMA},
+        #: The same shape monsters have carried since 5.2.0. Characters had only
+        #: ``spellcasting_ability`` before, which left their spells as prose in ``notes``
+        #: and nothing to spend — a list here is what makes slots trackable.
+        "spellcasting": {"type": "array", "items": _SPELLCASTING_SCHEMA},
         "notes": {"type": "string"},
     },
     "required": ["level", "abilities", "max_hit_points", "armor_class"],
@@ -412,6 +423,11 @@ _CHARACTER_LAYOUT: LayoutSpec = {
             "fields": [{"key": "actions", "label": "Attacks", "role": "attack-list",
                         "keys": list(_ABILITIES)}],
         },
+        {
+            "title": "Spellcasting",
+            "fields": [{"key": "spellcasting", "label": "Spellcasting",
+                        "role": "spellcasting", "keys": list(_ABILITIES)}],
+        },
         {"title": "Notes", "fields": [{"key": "notes", "label": "Notes", "role": "paragraph"}]},
     ]
 }
@@ -460,6 +476,11 @@ _MONSTER_LAYOUT: LayoutSpec = {
             ],
         },
         {
+            "title": "Spellcasting",
+            "fields": [{"key": "spellcasting", "label": "Spellcasting",
+                        "role": "spellcasting", "keys": list(_ABILITIES)}],
+        },
+        {
             "title": "Legendary Actions",
             "fields": [
                 {"key": "legendary_actions.count", "label": "Actions per round",
@@ -506,13 +527,99 @@ def _proficiency_for_cr(cr: float) -> int:
     return 9
 
 
+# --- spellcasting resources ------------------------------------------------- #
+#: Where a live status keeps what has been spent: ``{pool key: castings used}``. Used
+#: counts rather than remaining, so raising a caster's slot count on their sheet gives
+#: them the new slots immediately instead of silently capping them at the old maximum.
+_SPENT_KEY = "spell_pools_used"
+
+#: The rest a spellcasting block refills on when it doesn't name one — every printed SRD
+#: block, since Pact Magic is the only thing in 5e that comes back on a short rest.
+_DEFAULT_RECHARGE = "long"
+
+#: Which pools a rest refills. A long rest is also a short one (PHB p.186), so it gives
+#: back everything a short rest would plus its own; ``none`` is in neither.
+_RECHARGED_BY: dict[str, frozenset[str]] = {
+    "short": frozenset({"short"}),
+    "long": frozenset({"short", "long"}),
+}
+
+_ORDINALS = ("Cantrip", "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th")
+
+
+def _slug(name: str) -> str:
+    """"Cone of Cold" → "cone-of-cold" — a stable id for a spell inside a pool key."""
+    flattened = "".join(c if c.isalnum() else "-" for c in name.lower())
+    return "-".join(part for part in flattened.split("-") if part)
+
+
+def _slot_key(level: int, recharge: str) -> str:
+    """The pool key for a slot level. Blocks that recharge alike share their slots.
+
+    A warlock/wizard carries two pools of 1st-level slots that come back at different
+    times, so the recharge has to be part of the identity — but folding it into every key
+    would make the common single-caster case read ``slot:1:long`` for no gain.
+    """
+    return f"slot:{level}" if recharge == _DEFAULT_RECHARGE else f"slot:{level}:{recharge}"
+
+
+def _spell_pools_full(doc: Document) -> list[SpellPool]:
+    """Every pool this creature could spend, at full, in printed order.
+
+    Cantrips and at-will spells mint nothing: they are unlimited, and a pool with no
+    bottom is just noise on the tracker.
+    """
+    pools: list[SpellPool] = []
+    index: dict[str, int] = {}
+
+    def add(key: str, label: str, level: int | None, size: int, recharge: str) -> None:
+        # Slot levels merge across blocks that recharge alike (a creature has one pool of
+        # 3rd-level slots, however many blocks mention them); the largest count wins.
+        if key in index:
+            existing = pools[index[key]]
+            existing["max"] = max(int(existing["max"]), size)
+            existing["remaining"] = existing["max"]
+            return
+        index[key] = len(pools)
+        pools.append({
+            "key": key, "label": label, "level": level,
+            "max": size, "remaining": size, "recharge": recharge,
+        })
+
+    for bi, block in enumerate(doc.get("spellcasting") or []):
+        recharge = str(block.get("recharge") or _DEFAULT_RECHARGE)
+        for gi, group in enumerate(block.get("per_day") or []):
+            uses = int(group.get("uses", 0))
+            if uses <= 0:
+                continue
+            spells = [str(s) for s in (group.get("spells") or [])]
+            if group.get("each"):
+                # 5etools' "3e" — each spell in the group carries its own three castings.
+                for name in spells:
+                    add(f"innate:{bi}:{gi}:{_slug(name)}", f"{name} ({uses}/day)",
+                        None, uses, recharge)
+            else:
+                add(f"innate:{bi}:{gi}", f"{uses}/day", None, uses, recharge)
+        for entry in block.get("slots") or []:
+            level = int(entry.get("level", 0))
+            size = int(entry.get("slots", 0))
+            if level <= 0 or size <= 0:
+                continue  # a cantrip line, which has no slots to spend
+            suffix = "" if recharge == _DEFAULT_RECHARGE else f" ({recharge} rest)"
+            add(_slot_key(level, recharge), f"{_ORDINALS[level]} level{suffix}",
+                level, size, recharge)
+    return pools
+
+
 class Dnd5eSystem(BaseRuleSystem):
     id = "dnd5e"
     name = "D&D 5e"
     #: 5.2.0 added the full stat-block fields (saves, skills, senses, languages, damage
-    #: groups, reactions, bonus actions, spellcasting, lair/regional). All optional, so
-    #: documents written against 5.1.0 remain valid. Stored in ``StatBlock.schema_version``.
-    version = "5.2.0"
+    #: groups, reactions, bonus actions, spellcasting, lair/regional). 5.3.0 gave
+    #: characters the same ``spellcasting`` list monsters had, and every block a
+    #: ``recharge``. All optional, so documents written against 5.1.0 remain valid.
+    #: Stored in ``StatBlock.schema_version``.
+    version = "5.3.0"
     _schemas: ClassVar[dict[str, JsonSchema]] = {
         "pc": _CHARACTER_SCHEMA,
         "npc": _CHARACTER_SCHEMA,
@@ -566,9 +673,20 @@ class Dnd5eSystem(BaseRuleSystem):
             "passive_perception": 10 + mods["wis"],
             "initiative": mods["dex"],
         }
-        spell_ability = doc.get("spellcasting_ability")
+        # A character's casting ability can be stated twice: the standalone enum that
+        # predates 5.3.0, and the ``ability`` on a spellcasting block. The block wins when
+        # there is one, since it can also carry a printed DC the arithmetic wouldn't reach
+        # (a headband, a feat) — the enum stays as the fallback for older sheets.
+        blocks = doc.get("spellcasting") or []
+        first = blocks[0] if blocks else {}
+        spell_ability = first.get("ability") or doc.get("spellcasting_ability")
         if spell_ability in _ABILITIES:
-            result["spell_save_dc"] = 8 + prof + mods[spell_ability]
+            result["spell_save_dc"] = int(
+                first.get("save_dc", 8 + prof + mods[spell_ability])
+            )
+            result["spell_attack_bonus"] = int(
+                first.get("attack_bonus", prof + mods[spell_ability])
+            )
         return result
 
     def render_layout(self, sheet_type: str) -> LayoutSpec:
@@ -626,6 +744,9 @@ class Dnd5eSystem(BaseRuleSystem):
             "current_hit_points": max_hp if hit_points is None else hit_points,
             "conditions": [],
             "exhaustion": 0,
+            # Nothing spent yet. Present rather than absent so a status document has the
+            # same shape whether or not its owner has ever cast anything.
+            _SPENT_KEY: {},
         }
 
     def combat_profile(
@@ -650,12 +771,109 @@ class Dnd5eSystem(BaseRuleSystem):
             "lair_initiative": int(
                 (doc.get("lair_actions") or {}).get("initiative", _DEFAULT_LAIR_INITIATIVE)
             ) if doc.get("lair_actions") else None,
+            # Exactly like hp above: no status means full (a monster arriving at a fight),
+            # a status means whatever is left (a party member between fights). ``recharge``
+            # is left out — the fold never rests, so it would be dead weight in every
+            # combatant payload.
+            "spell_pools": {
+                pool["key"]: {
+                    "label": pool["label"], "level": pool["level"],
+                    "max": pool["max"], "remaining": pool["remaining"],
+                }
+                for pool in self.spell_pools(sheet_type, doc, status)
+            },
         }
 
     def with_hit_points(self, status: Document, doc: Document, hit_points: int) -> Document:
         new_status = dict(status)
         new_status["current_hit_points"] = max(0, int(hit_points))
         return new_status
+
+    def spell_pools(
+        self, sheet_type: str, doc: Document, status: Document | None = None
+    ) -> list[SpellPool]:
+        spent = (status or {}).get(_SPENT_KEY) or {}
+        out: list[SpellPool] = []
+        for pool in _spell_pools_full(doc):
+            used = max(0, int(spent.get(pool["key"], 0)))
+            # Clamped against the *current* maximum, so a caster who levels up and gains a
+            # slot gets it right away rather than staying at their old ceiling.
+            out.append({**pool, "remaining": max(0, int(pool["max"]) - used)})
+        return out
+
+    def with_spell_pools(
+        self, status: Document, doc: Document, pools: dict[str, Any]
+    ) -> Document:
+        new_status = dict(status)
+        # Only what's been spent is written down. A caster at full leaves nothing behind,
+        # and a pool that vanishes from the sheet takes its entry with it.
+        new_status[_SPENT_KEY] = {
+            key: int(pool["max"]) - int(pool["remaining"])
+            for key, pool in pools.items()
+            if int(pool.get("max", 0)) - int(pool.get("remaining", 0)) > 0
+        }
+        return new_status
+
+    def spell_actions(self, sheet_type: str, doc: Document) -> list[SpellAction]:
+        """Resolve authored spellcasting into castables the tracker can just spend.
+
+        The counterpart of ``attack_actions``: every DC and attack bonus already worked
+        out, every casting already pointed at the pool it comes from. Spell *names* stay
+        plain strings — the catalog is a separate global table, and reaching into it from
+        here would couple the plugin to another module (see ``_SPELLCASTING_SCHEMA``).
+        """
+        derived = self.derive(sheet_type, doc)
+        mods: dict[str, int] = derived.get("ability_modifiers") or {}
+        proficiency = int(derived.get("proficiency_bonus", 0))
+        out: list[SpellAction] = []
+
+        for bi, block in enumerate(doc.get("spellcasting") or []):
+            title = str(block.get("name") or "Spellcasting")
+            recharge = str(block.get("recharge") or _DEFAULT_RECHARGE)
+            ability = block.get("ability")
+            ability_mod = int(mods.get(ability, 0)) if ability in _ABILITIES else 0
+            # A printed number always wins; otherwise it's the usual 8 + prof + mod, which
+            # is what keeps a *character's* DC correct after they level.
+            save_dc = (
+                int(block["save_dc"]) if "save_dc" in block
+                else 8 + proficiency + ability_mod if ability in _ABILITIES else None
+            )
+            attack_bonus = (
+                int(block["attack_bonus"]) if "attack_bonus" in block
+                else proficiency + ability_mod if ability in _ABILITIES else None
+            )
+            # Everything a casting inherits from the block it was printed in; each entry
+            # below adds only its own name, level, kind and pool.
+            common: dict[str, Any] = {
+                "block": title, "save_dc": save_dc, "attack_bonus": attack_bonus,
+                "description": str(block.get("description") or ""), "recharge": recharge,
+            }
+
+            for name in block.get("at_will") or []:
+                out.append({**common, "name": str(name), "level": 0,
+                            "kind": "at_will", "pool_key": None})
+            for gi, group in enumerate(block.get("per_day") or []):
+                uses = int(group.get("uses", 0))
+                for name in group.get("spells") or []:
+                    key = (
+                        f"innate:{bi}:{gi}:{_slug(str(name))}" if group.get("each")
+                        else f"innate:{bi}:{gi}"
+                    )
+                    out.append({**common, "name": str(name), "level": 0,
+                                "kind": "per_day", "pool_key": key if uses > 0 else None})
+            for entry in block.get("slots") or []:
+                level = int(entry.get("level", 0))
+                size = int(entry.get("slots", 0))
+                # A level-0 or slotless line is the cantrip row: castable, but nothing to
+                # spend, so it carries no pool and never writes an action to the log.
+                slotted = level > 0 and size > 0
+                for name in entry.get("spells") or []:
+                    out.append({
+                        **common, "name": str(name), "level": level,
+                        "kind": "slot" if slotted else "at_will",
+                        "pool_key": _slot_key(level, recharge) if slotted else None,
+                    })
+        return out
 
     def attack_actions(self, sheet_type: str, doc: Document) -> list[AttackAction]:
         """Resolve authored attacks into finished numbers the tracker can just roll.
@@ -752,6 +970,20 @@ class Dnd5eSystem(BaseRuleSystem):
             # A long rest restores all lost hit points (SRD).
             new_status["current_hit_points"] = int(doc.get("max_hit_points", 0))
             new_status["exhaustion"] = max(0, int(status.get("exhaustion", 0)) - 1)
+        # Spellcasting comes back per block, not per rest: a warlock's Pact Magic is the
+        # one thing in 5e a short rest refills, and a multiclass carries both kinds at
+        # once — so the block's own ``recharge`` decides, not the rest type alone.
+        refilled = _RECHARGED_BY.get(rest_type, frozenset())
+        if refilled:
+            restored = {
+                pool["key"] for pool in _spell_pools_full(doc)
+                if pool["recharge"] in refilled
+            }
+            new_status[_SPENT_KEY] = {
+                key: used
+                for key, used in (status.get(_SPENT_KEY) or {}).items()
+                if key not in restored
+            }
         return new_status
 
     def travel_pace_table(self) -> TravelPaceTable:

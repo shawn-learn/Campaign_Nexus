@@ -23,6 +23,7 @@ import { AddCombatantDialog } from './AddCombatantDialog'
 import { AttackPanel } from './AttackPanel'
 import { CombatSetup } from './CombatSetup'
 import { RollLog } from './RollLog'
+import { SpellPanel } from './SpellPanel'
 
 function errorText(err: unknown): string {
   return err instanceof Error ? err.message : 'Something went wrong'
@@ -362,6 +363,7 @@ export function CombatPage() {
                   <div className="hp-fill" style={{ width: `${pct}%` }} />
                   <span className="hp-text">{c.hp}/{c.max_hp}{c.temp_hp ? ` (+${c.temp_hp})` : ''}</span>
                 </div>
+                <SlotChips combatant={c} />
                 {c.conditions.length > 0 && (
                   <div className="cc-conditions">
                     {c.conditions.map((cond) => <span key={cond} className="tag">{cond}</span>)}
@@ -459,6 +461,16 @@ export function CombatPage() {
             />
           )}
 
+          {sel && campaignId && runId && (
+            <SpellPanel
+              campaignId={campaignId}
+              runId={runId}
+              casterId={sel.id}
+              state={state}
+              onApply={push}
+            />
+          )}
+
           {campaignId && runId && <RollLog campaignId={campaignId} runId={runId} state={state} />}
 
           {sel && selBlockId && campaignId && (
@@ -492,6 +504,29 @@ export function CombatPage() {
         />
       )}
     </>
+  )
+}
+
+// Slots left, on the rail — so "can the wizard still fireball?" is answerable without
+// selecting them. Only the levelled slots get a chip: they are the ones a GM scans for, and
+// a dragon with six innate pools would otherwise push the initiative card to twice the
+// height. Every pool, innate ones included, is in the hover text and in the spell panel.
+function SlotChips({ combatant }: { combatant: Combatant }) {
+  const pools = Object.values(combatant.spell_pools)
+  if (!pools.length) return null
+  const levelled = pools
+    .filter((p) => p.level != null)
+    .sort((a, b) => (a.level ?? 0) - (b.level ?? 0))
+  if (!levelled.length) return null
+  const all = pools.map((p) => `${p.label}: ${p.remaining}/${p.max}`).join('\n')
+  return (
+    <div className="cc-slots" title={all}>
+      {levelled.map((p) => (
+        <span key={p.label} className={'slot-chip' + (p.remaining ? '' : ' spent')}>
+          {p.level} <b>{p.remaining}</b>
+        </span>
+      ))}
+    </div>
   )
 }
 

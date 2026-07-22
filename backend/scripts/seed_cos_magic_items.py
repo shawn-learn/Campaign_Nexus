@@ -66,21 +66,27 @@ PLACEMENTS: list[tuple[str, int, str, str | None, str | None, str | None, str]] 
      "K36 (Dining Hall of the Count)."),
     ("Groom Figurine", 1, "location", None, "K36. DINING HALL OF THE COUNT", None,
      "K36 (Dining Hall of the Count). Removing it from the room summons an invisible stalker."),
-    ("Potion of Greater Healing", 4, "location", None, "K68. GUARDS' RUN", None,
-     "K68 (guard quarters)."),
+    ("Shield of the Order", 1, "location", None, "K41. TREASURY", None, "K41 (Treasury)."),
+    ("Vindicta", 1, "location", None, "Castle Ravenloft", None, "Found at K74H (Castle Ravenloft)."),
+    ("Amulet of Proof against Detection and Location", 1, "location", None, "Castle Ravenloft", None, "Found in Castle Ravenloft (K40)."),
+    ("Cloak of Protection", 1, "location", None, "Castle Ravenloft", None, "Found in Castle Ravenloft (K40)."),
     ("Ezmerelda's Prosthetic Leg", 1, "location", None, "K76. TORTURE CHAMBER", None,
      "Torn off and discarded here, underwater, if Strahd captures and tortures Ezmerelda."),
 
     # -- Death House (Chapter 2) --
-    ("Deed to the Mill", 1, "location", None, "Death House", None,
+    ("Deed to the Mill", 1, "location", None, "E7. Death House", None,
      "Lets the party legally claim Old Bonegrinder from the night hags on a successful "
      "DC 20 Persuasion/Intimidation check."),
+    ("Broom of Animated Attack", 1, "location", None, "E7. Death House", None,
+     "Found in Death House attic."),
 
     # -- Town of Vallaki (Chapter 5) --
     ("Hat of Disguise", 1, "npc", "Rudolph van Richten", "N2. BLUE WATER INN", None,
      "Carried by Rictavio (van Richten in disguise) at the Blue Water Inn."),
     ("Ring of Mind Shielding", 1, "npc", "Rudolph van Richten", "N2. BLUE WATER INN", None,
      "Carried by Rictavio (van Richten in disguise) at the Blue Water Inn."),
+    ("Spell Scroll (Raise Dead)", 1, "npc", "Rudolph van Richten", "N2. BLUE WATER INN", None,
+     "Carried by Rictavio (van Richten in disguise); potential quest reward for party renown."),
     ("Bag of Tricks", 1, "location", None, "N2H. RAVENS' LOFT", "Gray",
      "N2h (guest room / Ravens' Loft), Blue Water Inn."),
     ("Elixir of Health", 2, "location", None, "N2H. RAVENS' LOFT", None,
@@ -113,11 +119,17 @@ PLACEMENTS: list[tuple[str, int, str, str | None, str | None, str | None, str]] 
     ("Potion of Invulnerability", 4, "location", None, "Q28. KNIGHTS' UARTERS", None,
      "Q28 (wine cellar)."),
 
+    # -- Tsolenka Pass (Chapter 9) --
+    ("Bloodhorn's Pelt", 1, "location", None, "Tsolenka Pass", None,
+     "Found at Tsolenka Pass."),
+
     # -- Krezk & the Abbey of St. Markovia (Chapter 8) --
     ("Ring of Regeneration", 1, "location", None, "Village of Krezk", None,
      "Buried in the abbey graveyard (S7)."),
     ("Potion of Superior Healing", 1, "location", None, "Village of Krezk", None,
      "Abbey main hall (S15)."),
+    ("Statuette of Saint Markovia", 1, "location", None, "Village of Krezk", None,
+     "Found at S15f (Abbey of Saint Markovia)."),
     ("Scroll of Heroes' Feast", 1, "location", None, "Village of Krezk", None,
      "Abbot's nursery (S16)."),
     ("Stone Carving of a Walrus", 1, "location", None, "Village of Krezk", None,
@@ -130,6 +142,8 @@ PLACEMENTS: list[tuple[str, int, str, str | None, str | None, str | None, str]] 
      "At the Gulthias Tree site."),
     ("Gulthias Staff", 1, "location", None, "Yester Hill", None,
      "Carried by the druid leader."),
+    ("Rebenaxt", 1, "location", None, "Yester Hill", None,
+     "Found at Y4, the Gulthias Tree site."),
     ("Magic Gem (Yester Hill)", 1, "location", None, "Yester Hill", None,
      "Embedded in the Druids' Strahd statue (Y3)."),
 

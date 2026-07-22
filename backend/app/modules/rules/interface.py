@@ -33,7 +33,26 @@ TravelPaceTable = dict[str, Any]
 #                     *is* the order and the tracker must not offer to roll.
 #   initiative_mod  — what's added to that die, and the tiebreak between equal initiatives.
 #   legendary       — legendary actions per round, or 0 for a creature that has none.
+#   spell_pools     — {key: {label, level, max, remaining}}, the castings this creature has
+#                     left. Empty for anything that doesn't cast. Seeded into the fold, so a
+#                     fight tracks slots the same way it tracks legendary actions.
 CombatProfile = dict[str, Any]
+
+# One spendable pool of castings. ``key`` is minted by the plugin and opaque to everything
+# outside it — the playbook stores it, the tracker sends it back, neither parses it:
+#   {"key": "slot:3", "label": "3rd level", "level": 3, "max": 3, "remaining": 2,
+#    "recharge": "long"}
+# ``level`` is the slot level, so the tracker can offer upcasting (any pool whose level is
+# at least the spell's) without reading the key; it is None for a pool that has no level,
+# like a monster's innate "3/day". ``recharge`` names the rest that refills it.
+SpellPool = dict[str, Any]
+
+# One castable, *resolved* — the spell half of ``AttackAction``. The name is a plain string
+# (stat blocks don't reference the spell catalog; see the 5e plugin's note on why), and
+# ``pool_key`` is the pool a casting spends, or None for something unlimited:
+#   {"name", "level": int, "block": str, "kind": "at_will"|"slot"|"per_day",
+#    "pool_key": str|None, "save_dc": int|None, "attack_bonus": int|None, "description"}
+SpellAction = dict[str, Any]
 # Ordered {tier: dc} — how a system prices skill-challenge difficulty tiers as concrete
 # target numbers. The skill-challenge feature is system-agnostic; this is its one hook into
 # the rules plugin so a "hard" check means DC 20 in 5e but whatever Nimble calls hard.
@@ -46,7 +65,7 @@ DIFFICULTY_TIERS = ("trivial", "easy", "normal", "hard", "very_hard", "nearly_im
 # Display roles the generic renderer understands.
 FIELD_ROLES = (
     "text", "paragraph", "number", "boolean", "ability-array", "dice", "trait-list",
-    "attack-list", "named-entry-list",
+    "attack-list", "named-entry-list", "spellcasting",
 )
 
 # What a creature can do on its turn, *resolved*: every number already summed, every damage
@@ -101,6 +120,15 @@ class RuleSystem(Protocol):
     ) -> Document: ...
     def attack_actions(self, sheet_type: str, doc: Document) -> list[AttackAction]: ...
     def death_save_rules(self) -> DeathSaveRules: ...
+
+    # -- spellcasting resources --------------------------------------------
+    def spell_pools(
+        self, sheet_type: str, doc: Document, status: Document | None = None
+    ) -> list[SpellPool]: ...
+    def with_spell_pools(
+        self, status: Document, doc: Document, pools: dict[str, Any]
+    ) -> Document: ...
+    def spell_actions(self, sheet_type: str, doc: Document) -> list[SpellAction]: ...
 
     # -- rests (docs/08, §10.2) --------------------------------------------
     def rest_types(self) -> list[str]: ...
@@ -199,6 +227,9 @@ class BaseRuleSystem:
             # A system with no lair concept still answers the question, so the tracker can
             # read these keys unconditionally.
             "has_lair": False, "lair_initiative": None,
+            # Likewise for spellcasting: no pools is a well-formed answer, and the tracker
+            # simply shows no spell panel.
+            "spell_pools": {},
         }
 
     def with_hit_points(self, status: Document, doc: Document, hit_points: int) -> Document:
@@ -215,6 +246,27 @@ class BaseRuleSystem:
     def death_save_rules(self) -> DeathSaveRules:
         # No death saves here — the tracker shows no row rather than guessing at one.
         return {"supported": False}
+
+    def spell_pools(
+        self, sheet_type: str, doc: Document, status: Document | None = None
+    ) -> list[SpellPool]:
+        # The read half of the spell-resource pair, mirroring how ``combat_profile`` reads
+        # live hit points: without a ``status`` every pool is full (a monster starting a
+        # fight), with one it reflects what has already been spent (a party member between
+        # fights). A system with no spellcasting has nothing to spend and says so.
+        return []
+
+    def with_spell_pools(
+        self, status: Document, doc: Document, pools: dict[str, Any]
+    ) -> Document:
+        # The write half: put what's left back into a status without disturbing anything
+        # else in there. Sibling of ``with_hit_points``, and empty for the same reason.
+        return dict(status)
+
+    def spell_actions(self, sheet_type: str, doc: Document) -> list[SpellAction]:
+        # Nothing to cast, so the tracker shows no spell panel — same shape as
+        # ``attack_actions``: empty, not an error.
+        return []
 
     def rest_types(self) -> list[str]:
         return []

@@ -131,6 +131,10 @@ _STANDARD: list[tuple[str, str | None, bool, str, str]] = [
     ("Spell Scroll (Protection from Undead)", "rare", False, "Rictavio's wagon (Van Richten's Tower)", "DMG 200"),
     ("Spell Scroll (Major Image)", "uncommon", False, "Ezmerelda's wagon (Van Richten's Tower)", "DMG 200"),
     ("Spell Scroll (Remove Curse)", "uncommon", False, "Ezmerelda's wagon (Van Richten's Tower)", "DMG 200"),
+    ("Spell Scroll (Raise Dead)", "rare", False, "Carried by Rictavio (Rudolph van Richten)", "DMG 200"),
+    ("Broom of Animated Attack", "uncommon", False, "Death House / Castle Ravenloft", "CoS 226"),
+    ("Amulet of Proof against Detection and Location", "uncommon", True, "K40 (Castle Ravenloft)", "DMG 150"),
+    ("Cloak of Protection", "uncommon", True, "K40 (Castle Ravenloft)", "DMG 159"),
     ("Manual of Flesh Golems", "very_rare", True, "S17 (Abbot's quarters, Abbey of Saint Markovia)", "DMG 199 (Manual of Golems)"),
 ]
 

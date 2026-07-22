@@ -37,6 +37,7 @@ ActionType = Literal[
     "set_concentration",
     "death_save",
     "legendary_use",
+    "cast_spell",
     "next_turn",
 ]
 ACTION_TYPES: tuple[str, ...] = get_args(ActionType)
@@ -90,6 +91,10 @@ def apply_action(state: State, action: Action) -> State:
             "defeated": hp <= 0 and entry_kind != "lair",
             "death_saves": {"successes": 0, "failures": 0},
             "legendary": {"max": legendary_max, "remaining": legendary_max},
+            # {pool key: {"label", "level", "max", "remaining"}} — spell slots and innate
+            # per-day uses, seeded by the rule system. Empty for anything that can't cast.
+            # The keys are the plugin's; nothing in here reads inside them.
+            "spell_pools": dict(action.get("spell_pools") or {}),
         }
         _reorder(state)
     elif kind == "set_initiative":
@@ -163,6 +168,16 @@ def apply_action(state: State, action: Action) -> State:
         if m:
             cost = int(action.get("cost", 1))
             m["legendary"]["remaining"] = max(0, m["legendary"]["remaining"] - cost)
+    elif kind == "cast_spell":
+        m = combatants.get(action["id"])
+        # Unlike legendary actions, a spent slot never comes back on a turn: a monster's
+        # pools refill because the next fight seeds fresh ones, and a character's because
+        # they rested. An unknown pool is ignored — a cantrip has none, and the tracker
+        # doesn't log those at all.
+        if m:
+            pool = m["spell_pools"].get(action.get("pool_key"))
+            if pool:
+                pool["remaining"] = max(0, pool["remaining"] - int(action.get("cost", 1)))
     elif kind == "next_turn":
         if state["order"]:
             state["turn_index"] += 1

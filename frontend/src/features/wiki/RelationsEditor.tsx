@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import {
-  searchEntities,
+  searchEntitiesFts,
   useCreateLink,
   useDeleteLink,
   useLinkTypes,
@@ -35,8 +35,8 @@ export function RelationsEditor({ campaignId, entityId, outbound, onNavigate }: 
       return
     }
     let live = true
-    void searchEntities(campaignId, query.trim()).then((hits) => {
-      if (live) setResults(hits.filter((h) => h.id !== entityId).slice(0, 6))
+    void searchEntitiesFts(campaignId, query.trim(), 8).then((hits) => {
+      if (live) setResults(hits.filter((h) => h.id !== entityId))
     })
     return () => {
       live = false

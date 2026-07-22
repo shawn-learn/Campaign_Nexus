@@ -197,3 +197,16 @@ other puzzle.
 
 This can be done either with the last *Wish* charge of the Luck Blade, or via
 the *Resurrection* Dark Gift.
+
+---
+
+## Room Article Breakdown & Knowledge Graph Structure
+
+All 109 individual areas and sub-areas of Castle Ravenloft (K1 through K88, including K18a, K20a, K31a, K31b, K60a, K74b–h, K75a–h, and K83a) have been modeled as individual `location` entities.
+
+### Key Hierarchy & Links
+- **Parent Castle**: Every individual room entity contains a `within` directed edge linking it directly to `Castle Ravenloft`.
+- **NPC Occupants**: Castle NPCs (`Lief Lipsiege` in K30, `Cyrus Belview` in K62/K65, `Helga Ruvak` in K32, `Gertruda` in K42, `Escher` in K49, `Emil Toranescu` in K75a, `Pidlwick II` in K59, `Rahadin` in K72, `Sasha Ivliskova` in Crypt 20, `Sir Klutz` in Crypt 33, `Prince Ariel` in Crypt 4, `Khazan` in Crypt 15, `Sergei von Zarovich` in K85, `King Barov` & `Queen Ravenovia` in K88, `Artimus` in Crypt 14, `Ludmilla`, `Anastasya`, & `Volenta` in K86, and `Strahd von Zarovich` in K86/Castle) are linked to their respective room locations via `located_at` edges and `@Mention` references.
+- **Treasures & Equipment**: Key magic items and props are placed in physical `Item` instances located in their respective rooms (`Icon of Ravenloft` in K15, `Mace of Terror` in K15, `Alchemy Jug`, `Helm of Brilliance`, & `+1 Rod of the Pact Keeper` in K41, `Deck of Illusions` in Crypt 9, `Tasha's Holy Symbol` in Crypt 11, `Staff of Power` in Crypt 15, `Luck Blade` in Crypt 29, `+2 Plate Armor` in K85, `Doss Lute` & `Groom Figurine` in K36, `Potions of Greater Healing` in K68, and `Ezmerelda's Prosthetic Leg` in K76).
+- **Prose & Audio**: Each room article includes structured metadata, entrance/access notes, ambient audio track recommendation, room-specific encounter summaries, and full narrative descriptions.
+
